@@ -1,0 +1,12 @@
+{
+  "N": 1024,
+  "lat0": 18.85,
+  "lat1": 20.33,
+  "lon0": -156.25320802350558,
+  "lon1": -154.68679197649442,
+  "sizeKm": 164.27999999999966,
+  "min": -5595,
+  "max": 4189,
+  "source": "AWS Terrain Tiles (Mapzen terrarium), https://registry.opendata.aws/terrain-tiles/",
+  "zoom": 11
+}

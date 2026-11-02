@@ -1,0 +1,579 @@
+import * as THREE from 'three';
+
+// ---------- constants ----------
+// True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
+// projection at the map's center latitude, under 0.5% scale error across the island).
+const params = new URLSearchParams(location.search);
+const UNIT_M = 100;
+const VEXAG = Number(params.get('vex') || 1);   // 1 = true vertical scale
+const SHADE_EX = 3;                             // hillshade only (texture), not geometry
+const UFO_SCALE = 0.32;                         // saucer about 200 m across
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+
+// Real landmark coordinates (OpenStreetMap / Nominatim, USGS GNIS). Summits are snapped to the
+// highest DEM cell within snapKm so the label sits on the real peak of the baked terrain.
+const LANDMARKS = [
+  { name: 'Mauna Kea', lat: 19.8207, lon: -155.4681, snapKm: 2 },
+  { name: 'Mauna Loa', lat: 19.4756, lon: -155.6054, snapKm: 3 },
+  { name: 'Kilauea caldera', lat: 19.4067, lon: -155.2830 },
+  { name: 'Halemaumau', lat: 19.4065, lon: -155.2821 },
+  { name: 'Hualalai', lat: 19.6911, lon: -155.8666, snapKm: 1.5 },
+  { name: 'Kohala', lat: 20.0862, lon: -155.7172, snapKm: 3 },
+  { name: 'Waipio Valley', lat: 20.1190, lon: -155.6000 },
+  { name: 'Waimanu Valley', lat: 20.1425, lon: -155.6371 },
+  { name: 'Akaka Falls', lat: 19.8532, lon: -155.1561 },
+  { name: 'Rainbow Falls', lat: 19.7195, lon: -155.1096 },
+  { name: 'Hilo Bay', lat: 19.7260, lon: -155.0787 },
+  { name: 'Kealakekua Bay', lat: 19.4771, lon: -155.9271 },
+  { name: 'South Point (Ka Lae)', lat: 18.9110, lon: -155.6811 },
+];
+
+const TOWNS = [
+  { id: 'hilo',   town: 'Hilo',          lat: 19.7241, lon: -155.0868, biz: ['Mango Moon Bakery', 'Rainbow Falls Surf Repair'] },
+  { id: 'kona',   town: 'Kailua-Kona',   lat: 19.6400, lon: -155.9969, biz: ['Rocket Bean Coffee Co', 'Ali\u02BBi Glow Poke Bar'] },
+  { id: 'waimea', town: 'Waimea',        lat: 20.0234, lon: -155.6717, biz: ['Paniolo Pixel Feed & Gear', 'Upcountry Cloud Creamery'] },
+  { id: 'volcano',town: 'Volcano',       lat: 19.4296, lon: -155.2357, biz: ['Fern Fog Glass Studio', 'Steam Vent Noodle House'] },
+  { id: 'pahoa',  town: 'Pahoa',         lat: 19.4970, lon: -154.9453, biz: ['Lava Lamp Records', 'Puna Star Fruit Stand'] },
+  { id: 'hawi',   town: 'Hawi',          lat: 20.2414, lon: -155.8336, biz: ['Trade Wind Kite Works', 'Kohala Comet Chocolate'] },
+];
+const PACKAGES = ['a box of malasadas', 'surfboard fins', 'a crate of coffee beans', 'glass floats', 'vinyl records', 'kite parts', 'ice cream (keep it cold)', 'a lei order', 'chocolate bars', 'saddle leather'];
+
+// ---------- renderer / scene ----------
+const canvas = document.getElementById('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+const SKY = new THREE.Color(0x8cc8ee);
+scene.background = SKY;
+scene.fog = new THREE.Fog(SKY, 180, 1300);
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 5000);
+
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+sun.position.set(-600, 900, 300);
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x2a3b22, 0.9));
+
+// sky dome gradient
+{
+  const g = new THREE.SphereGeometry(3500, 32, 16);
+  const m = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { top: { value: new THREE.Color(0x2f7fd0) }, bottom: { value: SKY } },
+    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y*2.2, 0.0, 1.0); gl_FragColor = vec4(mix(bottom, top, h),1.0);}',
+  });
+  const sky = new THREE.Mesh(g, m); sky.renderOrder = -1; scene.add(sky);
+  window.__sky = sky;
+}
+
+// ---------- terrain ----------
+let H, meta, SIZE, N;
+function toWorld(lat, lon) {
+  const x = ((lon - meta.lon0) / (meta.lon1 - meta.lon0) - 0.5) * SIZE;
+  const z = ((meta.lat1 - lat) / (meta.lat1 - meta.lat0) - 0.5) * SIZE;
+  return new THREE.Vector2(x, z);
+}
+function elevM(x, z) { // bilinear elevation in meters at world x,z
+  const fx = (x / SIZE + 0.5) * N - 0.5, fz = (z / SIZE + 0.5) * N - 0.5;
+  const i = Math.max(0, Math.min(N - 2, Math.floor(fx))), j = Math.max(0, Math.min(N - 2, Math.floor(fz)));
+  const tx = Math.min(1, Math.max(0, fx - i)), tz = Math.min(1, Math.max(0, fz - j));
+  const a = H[j * N + i], b = H[j * N + i + 1], c = H[(j + 1) * N + i], d = H[(j + 1) * N + i + 1];
+  return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
+}
+const groundY = (x, z) => Math.max(0, elevM(x, z)) / UNIT_M * VEXAG;
+function fromWorld(x, z) {
+  return { lon: meta.lon0 + (x / SIZE + 0.5) * (meta.lon1 - meta.lon0), lat: meta.lat1 - (z / SIZE + 0.5) * (meta.lat1 - meta.lat0) };
+}
+function haversineKm(a, b) {
+  const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371.0088 * Math.asin(Math.sqrt(h));
+}
+function snapPeak(lm) {
+  if (!lm.snapKm) return;
+  const w = toWorld(lm.lat, lm.lon), rad = lm.snapKm * 1000 / UNIT_M; let best = -1e9, bx = w.x, bz = w.y;
+  for (let dz = -rad; dz <= rad; dz += 0.5) for (let dx = -rad; dx <= rad; dx += 0.5) {
+    if (dx * dx + dz * dz > rad * rad) continue; const e = elevM(w.x + dx, w.y + dz); if (e > best) { best = e; bx = w.x + dx; bz = w.y + dz; }
+  }
+  const ll = fromWorld(bx, bz); lm.lat = ll.lat; lm.lon = ll.lon; lm.eleM = Math.round(best);
+}
+
+// Ocean = cells at or below sea level connected to the map edge. Inland cells at or below 0 m
+// (DEM datum quirks around Hilo and stream mouths) are raised to 1 m so they render as land.
+let OCEAN, COAST;
+function fixInlandSea() {
+  OCEAN = new Uint8Array(N * N); const q = new Int32Array(N * N); let qh = 0, qt = 0;
+  const push = (k) => { if (!OCEAN[k] && H[k] <= 0) { OCEAN[k] = 1; q[qt++] = k; } };
+  for (let i = 0; i < N; i++) { push(i); push((N - 1) * N + i); push(i * N); push(i * N + N - 1); }
+  while (qh < qt) { const k = q[qh++], i = k % N, j = (k / N) | 0;
+    if (i > 0) push(k - 1); if (i < N - 1) push(k + 1); if (j > 0) push(k - N); if (j < N - 1) push(k + N); }
+  for (let k = 0; k < N * N; k++) if (!OCEAN[k] && H[k] <= 0) H[k] = 1;
+  COAST = new Uint8Array(N * N); // land within ~2 cells of open ocean
+  for (let j = 2; j < N - 2; j++) for (let i = 2; i < N - 2; i++) { const k = j * N + i; if (OCEAN[k]) continue;
+    for (let d = 1; d <= 2 && !COAST[k]; d++) if (OCEAN[k - d] || OCEAN[k + d] || OCEAN[k - d * N] || OCEAN[k + d * N]) COAST[k] = 1; }
+}
+function hash(i, j) { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, y) {
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  return (hash(i, j) * (1 - u) + hash(i + 1, j) * u) * (1 - v) + (hash(i, j + 1) * (1 - u) + hash(i + 1, j + 1) * u) * v;
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix3 = (c1, c2, t) => [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+function buildColorTexture(water) {
+  const T = 2048, src = H; // upsample the 1024 DEM bilinearly to the texture grid
+  const Ht = new Float32Array(T * T);
+  for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
+    const x = ((i + 0.5) / T - 0.5) * SIZE, z = ((j + 0.5) / T - 0.5) * SIZE; Ht[j * T + i] = elevM(x, z);
+  }
+  const H = Ht, N = T;
+  const c = document.createElement('canvas'); c.width = c.height = N;
+  const ctx = c.getContext('2d'); const img = ctx.createImageData(N, N); const px = img.data;
+  const cellM = meta.sizeKm * 1000 / N;
+  const L = [-0.55, 0.62, 0.56]; // light dir for hillshade (from NW, high)
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, e = H[k];
+    let col;
+    if (e <= 0) {
+      const d = -e;
+      col = mix3([70, 205, 210], [18, 110, 170], sstep(0, 60, d));
+      col = mix3(col, [8, 48, 105], sstep(60, 1200, d));
+    } else {
+      const i0 = Math.max(0, i - 1), i1 = Math.min(N - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(N - 1, j + 1);
+      const dx = (H[j * N + i1] - H[j * N + i0]) / (2 * cellM) * SHADE_EX, dz = (H[j1 * N + i] - H[j0 * N + i]) / (2 * cellM) * SHADE_EX;
+      const nl = Math.hypot(dx, 1, dz); const shade = Math.max(0.25, (-dx * L[0] + 1 * L[1] - dz * L[2]) / nl);
+      const slope = Math.hypot(dx, dz);
+      const u = i / N, v = j / N;
+      // wetness: windward east/northeast is lush, Kona/Kau leeward is drier, plus noise
+      const n = vnoise(i / 44, j / 44) * 0.6 + vnoise(i / 12, j / 12) * 0.4;
+      const wet = Math.min(1, Math.max(0, (u - 0.38) * 1.6 + (0.45 - v) * 0.6 + (n - 0.5) * 0.7 + (e < 900 && u > 0.5 ? 0.25 : 0)));
+      const green = mix3([118, 128, 70], [44, 112, 46], wet);
+      const lava = mix3([92, 72, 58], [60, 52, 50], n);
+      const darkLava = [42, 38, 40];
+      const fx = Math.max(0, (i + 0.5) * 1024 / N - 0.5), fy = Math.max(0, (j + 0.5) * 1024 / N - 0.5);
+      const ci = Math.min(1022, fx | 0), cj = Math.min(1022, fy | 0), tx = fx - ci, ty = fy - cj, kk = cj * 1024 + ci;
+      const coast = (COAST[kk] * (1 - tx) + COAST[kk + 1] * tx) * (1 - ty) + (COAST[kk + 1024] * (1 - tx) + COAST[kk + 1025] * tx) * ty;
+      col = mix3(green, [196, 184, 148], sstep(0.35, 0.9, coast) * (1 - sstep(4, 14, e)) * (slope < 0.3 ? 1 : 0.3));
+      col = mix3(col, mix3([140, 120, 82], green, 0.4), sstep(900, 1600, e));
+      col = mix3(col, lava, sstep(1500, 2400, e));
+      // recent lava fields: Kilauea east rift / Puna and Mauna Loa flanks
+      const rift = Math.exp(-(((u - 0.70) / 0.10) ** 2 + ((v - 0.73) / 0.06) ** 2)) + Math.exp(-(((u - 0.47) / 0.08) ** 2 + ((v - 0.62) / 0.10) ** 2)) * 0.8;
+      col = mix3(col, darkLava, Math.min(0.85, rift * (0.5 + n * 0.6)));
+      col = mix3(col, mix3([150, 120, 96], [176, 160, 150], n), sstep(2900, 3500, e));
+      col = mix3(col, [246, 250, 255], sstep(3650, 3950, e + (n - 0.5) * 220));
+      col = mix3(col, [95, 85, 70], Math.min(0.5, sstep(0.25, 0.9, slope) * 0.5));
+      const s = 0.55 + shade * 0.75;
+      col = [col[0] * s, col[1] * s, col[2] * s];
+    }
+    px[k * 4] = Math.min(255, col[0]); px[k * 4 + 1] = Math.min(255, col[1]); px[k * 4 + 2] = Math.min(255, col[2]); px[k * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  // OpenStreetMap rivers and streams, drawn at their true positions
+  if (water) {
+    const P = ([lon, lat]) => [(lon - meta.lon0) / (meta.lon1 - meta.lon0) * N, (meta.lat1 - lat) / (meta.lat1 - meta.lat0) * N];
+    ctx.lineCap = ctx.lineJoin = 'round';
+    for (const pass of ['s', 'r']) for (const w of water.ways) {
+      if (w.t !== pass) continue;
+      ctx.strokeStyle = w.t === 'r' ? 'rgba(52,150,225,0.95)' : w.i ? 'rgba(90,160,210,0.45)' : 'rgba(60,150,220,0.8)';
+      ctx.lineWidth = w.t === 'r' ? 1.6 : w.i ? 0.6 : (w.n ? 1.1 : 0.8);
+      ctx.beginPath(); w.p.forEach((q, k) => { const [x, y] = P(q); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(225,245,255,0.7)';
+    for (const f of water.falls) { if (!f.n) continue; const [x, y] = P(f.p); ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill(); }
+  }
+  return c;
+}
+
+function buildTerrain(water) {
+  const seg = isTouch ? 255 : 383;
+  const geo = new THREE.PlaneGeometry(SIZE, SIZE, seg, seg);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let k = 0; k < pos.count; k++) {
+    const x = pos.getX(k), z = pos.getZ(k);
+    const e = elevM(x, z);
+    pos.setY(k, e > 0 ? e / UNIT_M * VEXAG + 0.08 : -0.25 + Math.max(-0.5, e / 6000));
+  }
+  geo.computeVertexNormals();
+  const colorCanvas = buildColorTexture(water);
+  const tex = new THREE.CanvasTexture(colorCanvas);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  const mesh = new THREE.Mesh(geo, mat); scene.add(mesh);
+
+  // far ocean
+  const far = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshLambertMaterial({ color: 0x0a3a78 }));
+  far.rotation.x = -Math.PI / 2; far.position.y = -0.8; scene.add(far);
+  // water sheen
+  const waterMat = new THREE.MeshPhongMaterial({ color: 0x2a8fd0, transparent: true, opacity: 0.38, shininess: 90, specular: 0x99ddff, depthWrite: false });
+  const sheen = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), waterMat);
+  sheen.rotation.x = -Math.PI / 2; sheen.position.y = 0.02; scene.add(sheen);
+  return colorCanvas;
+}
+
+// ---------- UFO ----------
+function buildUFO() {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0xb8c4cc, metalness: 0.85, roughness: 0.28 });
+  const hull = new THREE.Mesh(new THREE.SphereGeometry(3.2, 40, 16), metal); hull.scale.set(1, 0.22, 1); g.add(hull);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(3.15, 0.18, 10, 48), new THREE.MeshStandardMaterial({ color: 0xc98149, metalness: 0.9, roughness: 0.3 }));
+  rim.rotation.x = Math.PI / 2; g.add(rim);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.35, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshPhysicalMaterial({ color: 0x8fe9ff, metalness: 0, roughness: 0.05, transmission: 0.0, transparent: true, opacity: 0.55, emissive: 0x0a6cff, emissiveIntensity: 0.35 }));
+  dome.position.y = 0.45; g.add(dome);
+  const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 10), new THREE.MeshStandardMaterial({ color: 0x7dff9a, emissive: 0x1a6a2a, roughness: 0.6 }));
+  pilot.position.y = 0.85; g.add(pilot);
+  const lights = [];
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1ec8ff }));
+    l.position.set(Math.cos(a) * 2.75, -0.12, Math.sin(a) * 2.75); g.add(l); lights.push(l);
+  }
+  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.2, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0x7fe8ff }));
+  belly.position.y = -0.62; g.add(belly);
+  // glow sprite
+  const gc = document.createElement('canvas'); gc.width = gc.height = 128;
+  const gx = gc.getContext('2d'); const grd = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(120,230,255,0.9)'); grd.addColorStop(0.35, 'rgba(30,200,255,0.35)'); grd.addColorStop(1, 'rgba(30,200,255,0)');
+  gx.fillStyle = grd; gx.fillRect(0, 0, 128, 128);
+  const glowTex = new THREE.CanvasTexture(gc);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  glow.scale.set(11, 7, 1); glow.position.y = -0.3; g.add(glow);
+  const pl = new THREE.PointLight(0x1ec8ff, 30, 40, 1.6); pl.position.y = -1.5; g.add(pl);
+  // tractor beam
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 3.5, 1, 24, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x5fe0ff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  g.add(beam);
+  g.scale.setScalar(UFO_SCALE);
+  return { group: g, lights, beam, glowTex };
+}
+
+// ---------- markers ----------
+function makeLabel(text, color) {
+  const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+  const font = '700 44px system-ui, sans-serif'; ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 48; c.width = w; c.height = 76;
+  ctx.font = font; ctx.fillStyle = 'rgba(6,18,31,0.75)';
+  ctx.beginPath(); ctx.roundRect(0, 0, w, 76, 24); ctx.fill();
+  ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.fillText(text, 24, 40);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true, fog: false }));
+  s.userData.aspect = w / 76; s.renderOrder = 10; return s;
+}
+function makeBeacon(color) {
+  const g = new THREE.Group(); g.scale.setScalar(0.35);
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 260, 24, 1, true),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  col.position.y = 130; g.add(col);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(9, 0.6, 8, 48), new THREE.MeshBasicMaterial({ color, fog: false }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 1.5; g.add(ring);
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(9, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false }));
+  pad.rotation.x = -Math.PI / 2; pad.position.y = 1.2; g.add(pad);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), new THREE.MeshStandardMaterial({ color: 0xc89a5a, roughness: 0.8 }));
+  box.position.y = 2.6; g.add(box);
+  g.userData = { col, ring, box };
+  return g;
+}
+
+// ---------- state ----------
+const state = {
+  running: false, paused: false,
+  tokens: Number(localStorage.getItem('fh_kdu') || 0),
+  delivered: Number(localStorage.getItem('fh_jobs') || 0),
+  pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), vy: 0, bank: 0,
+  job: null, phase: 'pickup', hover: 0, jobStart: 0,
+};
+const keys = new Set();
+const input = { fwd: 0, turn: 0, up: 0, boost: false };
+
+let ufo, beaconPick, beaconDrop, labelPick, labelDrop, colorCanvas, coins = [];
+
+function placeCoins() {
+  const coinGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 28);
+  coinGeo.rotateX(Math.PI / 2);
+  const coinMat = new THREE.MeshStandardMaterial({ color: 0x1ec8ff, emissive: 0x0a6cff, emissiveIntensity: 0.9, metalness: 0.7, roughness: 0.25 });
+  let tries = 0;
+  while (coins.length < 40 && tries++ < 4000) {
+    const x = (Math.random() - 0.5) * SIZE * 0.8, z = (Math.random() - 0.5) * SIZE * 0.8;
+    if (elevM(x, z) < 20) continue;
+    const m = new THREE.Mesh(coinGeo, coinMat);
+    m.position.set(x, groundY(x, z) + 2 + Math.random() * 5, z);
+    scene.add(m); coins.push(m);
+  }
+}
+
+function newJob() {
+  const a = TOWNS[Math.floor(Math.random() * TOWNS.length)];
+  let b; do { b = TOWNS[Math.floor(Math.random() * TOWNS.length)]; } while (b === a);
+  const from = { ...a, name: a.biz[Math.floor(Math.random() * 2)] };
+  const to = { ...b, name: b.biz[Math.floor(Math.random() * 2)] };
+  const pkg = PACKAGES[Math.floor(Math.random() * PACKAGES.length)];
+  const km = haversineKm(from, to);
+  state.job = { from, to, pkg, km, reward: Math.round(20 + km * 1.6) };
+  state.phase = 'pickup'; state.hover = 0;
+  placeBeacon(beaconPick, labelPick, from, `Pick up: ${from.name}`, '#ffc46b');
+  placeBeacon(beaconDrop, labelDrop, to, `Deliver: ${to.name}`, '#7dffb0');
+  beaconDrop.visible = labelDrop.visible = false;
+  beaconPick.visible = labelPick.visible = true;
+  updateMissionText();
+}
+function placeBeacon(b, label, t, text, color) {
+  b.position.set(t.w.x, groundY(t.w.x, t.w.y), t.w.y);
+  const old = label.material.map; const nl = makeLabel(text, color);
+  label.material.map = nl.material.map; label.userData.aspect = nl.userData.aspect; old && old.dispose();
+  label.scale.set(label.userData.aspect * 2.2, 2.2, 1);
+  label.position.set(t.w.x, b.position.y + 9, t.w.y);
+}
+function target() { return state.phase === 'pickup' ? state.job.from : state.job.to; }
+const $ = (id) => document.getElementById(id);
+function updateMissionText() {
+  const j = state.job, m = $('mission');
+  m.className = state.phase;
+  if (state.phase === 'pickup') {
+    $('missionStep').textContent = `Job ${state.delivered + 1}: pick up ${j.pkg}`;
+    $('missionTarget').textContent = `${j.from.name}, ${j.from.town}`;
+    $('cargo').textContent = `${j.reward} KDU`;
+  } else {
+    $('missionStep').textContent = `Deliver ${j.pkg} to`;
+    $('missionTarget').textContent = `${j.to.name}, ${j.to.town}`;
+    $('cargo').textContent = `${j.reward} KDU + speed bonus`;
+  }
+}
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 1800); }
+function addTokens(n) {
+  state.tokens += n; localStorage.setItem('fh_kdu', state.tokens);
+  $('tokenCount').textContent = state.tokens.toLocaleString();
+  const el = $('tokens'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+}
+
+// ---------- input ----------
+addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); });
+addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+const stick = { id: null, x: 0, y: 0 };
+const stickEl = $('stick'), knob = $('knob');
+stickEl.addEventListener('pointerdown', (e) => { stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
+stickEl.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) moveStick(e); });
+const endStick = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
+stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
+function moveStick(e) {
+  const r = stickEl.getBoundingClientRect(); const R = r.width / 2;
+  let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); const l = Math.hypot(dx, dy);
+  if (l > R) { dx *= R / l; dy *= R / l; }
+  stick.x = dx / R; stick.y = dy / R; knob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+const held = { up: false, down: false, boost: false };
+for (const [id, k] of [['btnUp', 'up'], ['btnDown', 'down'], ['btnBoost', 'boost']]) {
+  const el = $(id);
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); held[k] = true; el.classList.add('active'); el.setPointerCapture(e.pointerId); });
+  const up = () => { held[k] = false; el.classList.remove('active'); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+}
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+function readInput() {
+  const k = (c) => keys.has(c);
+  let fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
+  let turn = (k('KeyA') || k('ArrowLeft') ? 1 : 0) - (k('KeyD') || k('ArrowRight') ? 1 : 0);
+  let up = (k('Space') || k('KeyE') || k('KeyR') ? 1 : 0) - (k('KeyC') || k('KeyQ') || k('KeyF') || k('ControlLeft') ? 1 : 0);
+  if (stick.id !== null) { fwd = -stick.y; turn = -stick.x; if (Math.abs(fwd) < 0.12) fwd = 0; if (Math.abs(turn) < 0.12) turn = 0; }
+  up += (held.up ? 1 : 0) - (held.down ? 1 : 0);
+  input.fwd = Math.max(-1, Math.min(1, fwd)); input.turn = Math.max(-1, Math.min(1, turn)); input.up = Math.max(-1, Math.min(1, up));
+  input.boost = k('ShiftLeft') || k('ShiftRight') || held.boost;
+}
+
+function togglePause(force) {
+  if (!state.running) return;
+  state.paused = force !== undefined ? force : !state.paused;
+  $('pause').classList.toggle('hidden', !state.paused);
+}
+$('pauseBtn').addEventListener('click', () => togglePause(true));
+$('resumeBtn').addEventListener('click', () => togglePause(false));
+$('newJobBtn').addEventListener('click', () => { newJob(); togglePause(false); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) togglePause(true); });
+
+// ---------- minimap ----------
+const mm = $('minimap'), mctx = mm.getContext('2d');
+let mmBase;
+function drawMinimap() {
+  const W = mm.width;
+  mctx.drawImage(mmBase, 0, 0, W, W);
+  const toMM = (x, z) => [(x / SIZE + 0.5) * W, (z / SIZE + 0.5) * W];
+  for (const t of TOWNS) { const [a, b] = toMM(t.w.x, t.w.y); mctx.fillStyle = 'rgba(255,255,255,.7)'; mctx.fillRect(a - 1.5, b - 1.5, 3, 3); }
+  const tg = target(); const [tx, tz] = toMM(tg.w.x, tg.w.y);
+  mctx.fillStyle = state.phase === 'pickup' ? '#ffc46b' : '#7dffb0';
+  mctx.beginPath(); mctx.arc(tx, tz, 5, 0, Math.PI * 2); mctx.fill();
+  const [ux, uz] = toMM(state.pos.x, state.pos.z);
+  mctx.save(); mctx.translate(ux, uz); mctx.rotate(-state.yaw);
+  mctx.fillStyle = '#1ec8ff'; mctx.beginPath(); mctx.moveTo(0, -7); mctx.lineTo(5, 5); mctx.lineTo(-5, 5); mctx.closePath(); mctx.fill();
+  mctx.restore();
+}
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+const tmp = new THREE.Vector3(), camTarget = new THREE.Vector3(), lookAt = new THREE.Vector3();
+let camInit = false;
+
+function step(dt, t) {
+  readInput();
+  const maxSpeed = input.boost ? 45 : 16;
+  state.yaw += input.turn * 1.6 * dt;
+  const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
+  const accel = input.fwd * (input.boost ? 40 : 16);
+  state.vel.addScaledVector(fwdDir, accel * dt);
+  state.vel.multiplyScalar(Math.pow(input.fwd === 0 ? 0.35 : 0.8, dt));
+  const hs = state.vel.length(); if (hs > maxSpeed) state.vel.multiplyScalar(maxSpeed / hs);
+  // re-align velocity a bit toward heading so turning feels responsive
+  const sp = state.vel.length();
+  if (sp > 0.1) { const along = Math.sign(state.vel.dot(fwdDir)) || 1; state.vel.lerp(fwdDir.clone().multiplyScalar(sp * along), Math.min(1, dt * 2.5)); }
+  state.vy = lerp(state.vy, input.up * (input.boost ? 14 : 7), Math.min(1, dt * 4));
+  state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
+  const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
+  const gy = groundY(state.pos.x, state.pos.z);
+  const minY = gy + 0.45;
+  if (state.pos.y < minY) { state.pos.y = minY; if (state.vy < 0) state.vy = 0; }
+  state.pos.y = Math.min(state.pos.y, 70);
+
+  // ufo visuals
+  state.bank = lerp(state.bank, input.turn * 0.35, Math.min(1, dt * 4));
+  const pitch = lerp(0, -input.fwd * 0.12, 1);
+  ufo.group.position.copy(state.pos);
+  ufo.group.position.y += Math.sin(t * 2.2) * 0.06;
+  ufo.group.rotation.set(0, 0, 0); ufo.group.rotateY(state.yaw); ufo.group.rotateZ(state.bank); ufo.group.rotateX(pitch);
+  ufo.lights.forEach((l, i) => { l.material.color.setHSL(0.54, 1, 0.45 + 0.25 * Math.sin(t * 6 + i)); });
+
+  // mission
+  const tg = target();
+  const dx = tg.w.x - state.pos.x, dz = tg.w.y - state.pos.z;
+  const horiz = Math.hypot(dx, dz);
+  const agl = state.pos.y - groundY(tg.w.x, tg.w.y);
+  const inZone = horiz < 3.2 && agl < 8;
+  const beamOn = inZone && state.vel.length() < 9;
+  if (beamOn) state.hover += dt; else state.hover = Math.max(0, state.hover - dt * 2);
+  const need = 1.4;
+  $('beam').classList.toggle('on', state.hover > 0); $('beamFill').style.width = `${Math.min(100, state.hover / need * 100)}%`;
+  const bh = Math.max(1, (state.pos.y - groundY(state.pos.x, state.pos.z)) / UFO_SCALE);
+  ufo.beam.material.opacity = lerp(ufo.beam.material.opacity, beamOn ? 0.35 : 0, Math.min(1, dt * 6));
+  ufo.beam.scale.set(1, bh, 1); ufo.beam.position.y = -bh / 2 - 0.6;
+  if (state.hover >= need) {
+    state.hover = 0;
+    if (state.phase === 'pickup') {
+      state.phase = 'dropoff'; state.jobStart = performance.now();
+      beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
+      toast(`Package on board\nFly to ${state.job.to.town}`);
+      updateMissionText();
+    } else {
+      const secs = (performance.now() - state.jobStart) / 1000;
+      const par = state.job.km * 1000 / UNIT_M / 14; // seconds at a relaxed pace
+      const bonus = Math.max(0, Math.round((par - secs) / par * state.job.reward * 0.6));
+      addTokens(state.job.reward + bonus);
+      state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
+      toast(`Delivered\n+${state.job.reward + bonus} KDU${bonus ? ` (speed bonus ${bonus})` : ''}`);
+      newJob();
+    }
+  }
+  // coins
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i]; c.rotation.y += dt * 2.5;
+    if (c.position.distanceToSquared(state.pos) < 2.5) { scene.remove(c); coins.splice(i, 1); addTokens(1); toast('+1 KDU'); }
+  }
+  // beacon animation
+  for (const b of [beaconPick, beaconDrop]) {
+    const d = Math.hypot(b.position.x - state.pos.x, b.position.z - state.pos.z);
+    b.userData.col.material.opacity = 0.05 + 0.25 * sstep(4, 40, d);
+    b.userData.ring.scale.setScalar(1 + 0.08 * Math.sin(t * 4)); b.userData.box.rotation.y += dt;
+    b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
+  }
+  // HUD
+  const bearing = Math.atan2(dx, dz); // world bearing
+  const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
+  $('arrow').style.transform = `rotate(${-rel}rad)`;
+  $('dist').textContent = `${haversineKm(fromWorld(state.pos.x, state.pos.z), tg).toFixed(1)} km`;
+  $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
+  $('spdVal').textContent = Math.round(state.vel.length() * UNIT_M * 3.6).toLocaleString();
+  if ((step.f = (step.f || 0) + 1) % 3 === 0) drawMinimap();
+}
+
+let camYaw = 0, camH = 0;
+function updateCamera(dt) {
+  // third-person chase cam locked directly behind the saucer's heading
+  if (!camInit) { camYaw = state.yaw; camInit = true; }
+  let dy = state.yaw - camYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  camYaw += dy * Math.min(1, dt * 10);
+  const back = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+  const spd = state.vel.length();
+  const portrait = camera.aspect < 1;
+  const dist = (portrait ? 7.5 : 5.5) + spd * 0.04, h = (portrait ? 2.2 : 1.6) + spd * 0.015;
+  camTarget.copy(state.pos).addScaledVector(back, dist); camTarget.y += h;
+  const cg = groundY(camTarget.x, camTarget.z) + 0.4;
+  camH = Math.max(camTarget.y, cg);
+  camera.position.set(camTarget.x, lerp(camera.position.y || camH, camH, Math.min(1, dt * 8)), camTarget.z);
+  if (camera.position.y < cg) camera.position.y = cg;
+  lookAt.copy(state.pos).addScaledVector(back, -4); lookAt.y += 0.3;
+  camera.lookAt(lookAt);
+  window.__sky.position.copy(camera.position);
+}
+
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+  if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
+  else if (!state.running && ufo) { // attract mode orbit
+    const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
+  }
+  renderer.render(scene, camera);
+}
+
+function fitFov() { camera.fov = innerWidth < innerHeight ? 72 : 62; }
+fitFov();
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fitFov(); camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------- boot ----------
+async function boot() {
+  const startBtn = $('startBtn'); startBtn.disabled = true;
+  const [m, buf, water] = await Promise.all([fetch('/terrain/meta.json').then((r) => r.json()), fetch('/terrain/height.bin').then((r) => r.arrayBuffer()),
+    fetch('/terrain/waterways.json').then((r) => r.json()).catch(() => null)]);
+  meta = m; N = m.N; H = new Int16Array(buf); SIZE = m.sizeKm * 1000 / UNIT_M;
+  fixInlandSea();
+  for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
+  colorCanvas = buildTerrain(water);
+  mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
+  ufo = buildUFO(); scene.add(ufo.group);
+  beaconPick = makeBeacon(0xffa94d); beaconDrop = makeBeacon(0x4dff9a); scene.add(beaconPick, beaconDrop);
+  labelPick = makeLabel(' ', '#fff'); labelDrop = makeLabel(' ', '#fff'); scene.add(labelPick, labelDrop);
+  // town name labels
+  for (const t of TOWNS) { const l = makeLabel(t.town, '#ffffff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.6, 1.6, 1); l.position.set(t.w.x, groundY(t.w.x, t.w.y) + 4, t.w.y); scene.add(l); }
+  const pinMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), pinGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 6);
+  for (const lm of LANDMARKS) {
+    snapPeak(lm); const w = toWorld(lm.lat, lm.lon); const gy = groundY(w.x, w.y);
+    const text = lm.eleM ? `${lm.name} ${lm.eleM.toLocaleString()} m` : lm.name;
+    const l = makeLabel(text, '#cfefff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.4, 1.4, 1); l.position.set(w.x, gy + 4.2, w.y); scene.add(l);
+    const pin = new THREE.Mesh(pinGeo, pinMat); pin.scale.y = 3.4; pin.position.set(w.x, gy + 1.7, w.y); scene.add(pin);
+  }
+  window.__landmarks = LANDMARKS;
+  placeCoins();
+  // start near Hilo airport, facing west toward Mauna Kea
+  const start = toWorld(19.72, -155.05);
+  state.pos.set(start.x, groundY(start.x, start.y) + 3, start.y);
+  state.yaw = Math.PI / 2; // face west toward Mauna Kea
+  $('tokenCount').textContent = state.tokens.toLocaleString();
+  newJob();
+  startBtn.disabled = false; $('loading').textContent = '';
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, tex: () => colorCanvas.toDataURL('image/png') };
+  if (params.has('autostart')) startGame();
+}
+function startGame() {
+  $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
+  if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
+  state.running = true; clock.getDelta();
+}
+$('startBtn').addEventListener('click', startGame);
+boot().catch((e) => { console.error(e); $('loading').textContent = 'Could not load terrain, please reload'; });
+frame();

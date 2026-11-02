@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#06121f" />
+  <title>Fly Hawaii</title>
+  <meta name="description" content="Fly a UFO around the Big Island of Hawaii, deliver packages for local businesses and earn Kudoken (KDU)" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="tokens"><span class="kdu-coin"></span><span id="tokenCount">0</span><span class="unit">KDU</span></div>
+    <div id="mission">
+      <div id="missionStep">Loading mission</div>
+      <div id="missionTarget"></div>
+      <div id="missionMeta"><span id="arrow">&#9650;</span><span id="dist"></span><span id="cargo"></span></div>
+    </div>
+    <canvas id="minimap" width="160" height="160"></canvas>
+    <div id="alt">Alt <span id="altVal">0</span> m &middot; <span id="spdVal">0</span> km/h</div>
+    <div id="beam"><div id="beamFill"></div></div>
+    <div id="toast"></div>
+    <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
+  </div>
+
+  <div id="touch" class="hidden">
+    <div id="stick"><div id="knob"></div></div>
+    <div id="touchBtns">
+      <button class="tbtn" id="btnUp">Up</button>
+      <button class="tbtn" id="btnBoost">Boost</button>
+      <button class="tbtn" id="btnDown">Down</button>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1>Fly Hawaii</h1>
+      <p class="lead">Pilot a delivery saucer over the real Big Island. Pick up packages from local shops, drop them across the island and stack up electric blue Kudoken</p>
+      <button id="startBtn" class="metal-btn copper">Start flying</button>
+      <div id="loading">Loading Big Island terrain</div>
+      <div class="controls">
+        <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, C to descend, Shift to boost</div>
+        <div><b>Touch</b> left stick to fly and turn, right buttons for Up, Down and Boost</div>
+        <div><b>Deliver</b> hover low inside a beacon to beam packages up or down</div>
+      </div>
+      <p class="fine">Businesses in this prototype are fictional. Map at true scale. Elevation: AWS Terrain Tiles (USGS 3DEP, SRTM, NOAA bathymetry). Rivers and streams: &copy; OpenStreetMap contributors</p>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <h2>Paused</h2>
+      <button id="resumeBtn" class="metal-btn copper">Resume</button>
+      <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
