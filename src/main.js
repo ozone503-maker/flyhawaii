@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { decodeHeightPng } from './height-png.js';
+import { ChunkStreamer } from './chunks.js';
 
 // ---------- constants ----------
 // True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
@@ -13,19 +15,19 @@ const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in win
 // Real landmark coordinates (OpenStreetMap / Nominatim, USGS GNIS). Summits are snapped to the
 // highest DEM cell within snapKm so the label sits on the real peak of the baked terrain.
 const LANDMARKS = [
-  { name: 'Mauna Kea', lat: 19.8207, lon: -155.4681, snapKm: 2 },
-  { name: 'Mauna Loa', lat: 19.4756, lon: -155.6054, snapKm: 3 },
+  { name: 'Mauna Kea', lat: 19.8207, lon: -155.4681, snapKm: 2, ele: 4207 },
+  { name: 'Mauna Loa', lat: 19.4756, lon: -155.6054, snapKm: 3, ele: 4169 },
   { name: 'Kilauea caldera', lat: 19.4067, lon: -155.2830 },
   { name: 'Halemaumau', lat: 19.4065, lon: -155.2821 },
-  { name: 'Hualalai', lat: 19.6911, lon: -155.8666, snapKm: 1.5 },
-  { name: 'Kohala', lat: 20.0862, lon: -155.7172, snapKm: 3 },
+  { name: 'Hualalai', lat: 19.6911, lon: -155.8666, snapKm: 1.5, ele: 2521 },
+  { name: 'Kohala', lat: 20.0862, lon: -155.7172, snapKm: 3, ele: 1670 },
   { name: 'Waipio Valley', lat: 20.1190, lon: -155.6000 },
   { name: 'Waimanu Valley', lat: 20.1425, lon: -155.6371 },
   { name: 'Akaka Falls', lat: 19.8532, lon: -155.1561 },
   { name: 'Rainbow Falls', lat: 19.7195, lon: -155.1096 },
   { name: 'Hilo Bay', lat: 19.7260, lon: -155.0787 },
   { name: 'Kealakekua Bay', lat: 19.4771, lon: -155.9271 },
-  { name: 'South Point (Ka Lae)', lat: 18.9110, lon: -155.6811 },
+  { name: 'South Point (Ka Lae)', lat: 18.9111, lon: -155.6811 }, // Wikipedia/GNIS 18.9111, -155.681111; GLO-30 southernmost land pixel 18.91108, -155.68196
 ];
 
 const TOWNS = [
@@ -45,7 +47,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.3;
 
 const scene = new THREE.Scene();
 const SKY = new THREE.Color(0x8cc8ee);
@@ -56,7 +58,7 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 50
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
 sun.position.set(-600, 900, 300);
 scene.add(sun);
-scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x2a3b22, 0.9));
+scene.add(new THREE.HemisphereLight(0xdcefff, 0x4a5a40, 1.5));
 
 // sky dome gradient
 {
@@ -85,7 +87,14 @@ function elevM(x, z) { // bilinear elevation in meters at world x,z
   const a = H[j * N + i], b = H[j * N + i + 1], c = H[(j + 1) * N + i], d = H[(j + 1) * N + i + 1];
   return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
 }
-const groundY = (x, z) => Math.max(0, elevM(x, z)) / UNIT_M * VEXAG;
+const COVER = new THREE.Vector4(1, 1, -1, -1);
+let streamer = null;
+function elevBest(x, z) { const c = streamer ? streamer.heightM(x, z) : null; return c ?? elevM(x, z); }
+const groundY = (x, z) => Math.max(0, elevBest(x, z)) / UNIT_M * VEXAG;
+// objects that sit on the ground get re-seated when sharper chunk heights arrive
+const grounded = new Set();
+function seat(o, x, z, off) { o.userData.ground = { x, z, off }; o.position.set(x, groundY(x, z) + off, z); grounded.add(o); }
+function reseat() { for (const o of grounded) { const g = o.userData.ground; o.position.y = groundY(g.x, g.z) + g.off; } }
 function fromWorld(x, z) {
   return { lon: meta.lon0 + (x / SIZE + 0.5) * (meta.lon1 - meta.lon0), lat: meta.lat1 - (z / SIZE + 0.5) * (meta.lat1 - meta.lat0) };
 }
@@ -127,71 +136,25 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const mix3 = (c1, c2, t) => [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-function buildColorTexture(water) {
-  const T = 2048, src = H; // upsample the 1024 DEM bilinearly to the texture grid
-  const Ht = new Float32Array(T * T);
-  for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
-    const x = ((i + 0.5) / T - 0.5) * SIZE, z = ((j + 0.5) / T - 0.5) * SIZE; Ht[j * T + i] = elevM(x, z);
-  }
-  const H = Ht, N = T;
-  const c = document.createElement('canvas'); c.width = c.height = N;
-  const ctx = c.getContext('2d'); const img = ctx.createImageData(N, N); const px = img.data;
-  const cellM = meta.sizeKm * 1000 / N;
-  const L = [-0.55, 0.62, 0.56]; // light dir for hillshade (from NW, high)
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const k = j * N + i, e = H[k];
-    let col;
-    if (e <= 0) {
-      const d = -e;
-      col = mix3([70, 205, 210], [18, 110, 170], sstep(0, 60, d));
-      col = mix3(col, [8, 48, 105], sstep(60, 1200, d));
-    } else {
-      const i0 = Math.max(0, i - 1), i1 = Math.min(N - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(N - 1, j + 1);
-      const dx = (H[j * N + i1] - H[j * N + i0]) / (2 * cellM) * SHADE_EX, dz = (H[j1 * N + i] - H[j0 * N + i]) / (2 * cellM) * SHADE_EX;
-      const nl = Math.hypot(dx, 1, dz); const shade = Math.max(0.25, (-dx * L[0] + 1 * L[1] - dz * L[2]) / nl);
-      const slope = Math.hypot(dx, dz);
-      const u = i / N, v = j / N;
-      // wetness: windward east/northeast is lush, Kona/Kau leeward is drier, plus noise
-      const n = vnoise(i / 44, j / 44) * 0.6 + vnoise(i / 12, j / 12) * 0.4;
-      const wet = Math.min(1, Math.max(0, (u - 0.38) * 1.6 + (0.45 - v) * 0.6 + (n - 0.5) * 0.7 + (e < 900 && u > 0.5 ? 0.25 : 0)));
-      const green = mix3([118, 128, 70], [44, 112, 46], wet);
-      const lava = mix3([92, 72, 58], [60, 52, 50], n);
-      const darkLava = [42, 38, 40];
-      const fx = Math.max(0, (i + 0.5) * 1024 / N - 0.5), fy = Math.max(0, (j + 0.5) * 1024 / N - 0.5);
-      const ci = Math.min(1022, fx | 0), cj = Math.min(1022, fy | 0), tx = fx - ci, ty = fy - cj, kk = cj * 1024 + ci;
-      const coast = (COAST[kk] * (1 - tx) + COAST[kk + 1] * tx) * (1 - ty) + (COAST[kk + 1024] * (1 - tx) + COAST[kk + 1025] * tx) * ty;
-      col = mix3(green, [196, 184, 148], sstep(0.35, 0.9, coast) * (1 - sstep(4, 14, e)) * (slope < 0.3 ? 1 : 0.3));
-      col = mix3(col, mix3([140, 120, 82], green, 0.4), sstep(900, 1600, e));
-      col = mix3(col, lava, sstep(1500, 2400, e));
-      // recent lava fields: Kilauea east rift / Puna and Mauna Loa flanks
-      const rift = Math.exp(-(((u - 0.70) / 0.10) ** 2 + ((v - 0.73) / 0.06) ** 2)) + Math.exp(-(((u - 0.47) / 0.08) ** 2 + ((v - 0.62) / 0.10) ** 2)) * 0.8;
-      col = mix3(col, darkLava, Math.min(0.85, rift * (0.5 + n * 0.6)));
-      col = mix3(col, mix3([150, 120, 96], [176, 160, 150], n), sstep(2900, 3500, e));
-      col = mix3(col, [246, 250, 255], sstep(3650, 3950, e + (n - 0.5) * 220));
-      col = mix3(col, [95, 85, 70], Math.min(0.5, sstep(0.25, 0.9, slope) * 0.5));
-      const s = 0.55 + shade * 0.75;
-      col = [col[0] * s, col[1] * s, col[2] * s];
-    }
-    px[k * 4] = Math.min(255, col[0]); px[k * 4 + 1] = Math.min(255, col[1]); px[k * 4 + 2] = Math.min(255, col[2]); px[k * 4 + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  // OpenStreetMap rivers and streams, drawn at their true positions
+function buildColorTexture(water, satImg) {
+  // Sentinel-2 mosaic (baked into the base world frame) with OSM rivers on top
+  const N = 2048, c = document.createElement('canvas'); c.width = c.height = N;
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#061e52'; ctx.fillRect(0, 0, N, N);
+  if (satImg) ctx.drawImage(satImg, 0, 0, N, N);
   if (water) {
     const P = ([lon, lat]) => [(lon - meta.lon0) / (meta.lon1 - meta.lon0) * N, (meta.lat1 - lat) / (meta.lat1 - meta.lat0) * N];
     ctx.lineCap = ctx.lineJoin = 'round';
     for (const pass of ['s', 'r']) for (const w of water.ways) {
       if (w.t !== pass) continue;
-      ctx.strokeStyle = w.t === 'r' ? 'rgba(52,150,225,0.95)' : w.i ? 'rgba(90,160,210,0.45)' : 'rgba(60,150,220,0.8)';
-      ctx.lineWidth = w.t === 'r' ? 1.6 : w.i ? 0.6 : (w.n ? 1.1 : 0.8);
+      ctx.strokeStyle = w.t === 'r' ? 'rgba(70,165,230,0.9)' : w.i ? 'rgba(110,175,220,0.35)' : 'rgba(80,160,225,0.7)';
+      ctx.lineWidth = w.t === 'r' ? 1.4 : w.i ? 0.5 : (w.n ? 1 : 0.7);
       ctx.beginPath(); w.p.forEach((q, k) => { const [x, y] = P(q); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(225,245,255,0.7)';
-    for (const f of water.falls) { if (!f.n) continue; const [x, y] = P(f.p); ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill(); }
   }
   return c;
 }
 
-function buildTerrain(water) {
+function buildTerrain(water, satImg) {
   const seg = isTouch ? 255 : 383;
   const geo = new THREE.PlaneGeometry(SIZE, SIZE, seg, seg);
   geo.rotateX(-Math.PI / 2);
@@ -202,10 +165,17 @@ function buildTerrain(water) {
     pos.setY(k, e > 0 ? e / UNIT_M * VEXAG + 0.08 : -0.25 + Math.max(-0.5, e / 6000));
   }
   geo.computeVertexNormals();
-  const colorCanvas = buildColorTexture(water);
+  const colorCanvas = buildColorTexture(water, satImg);
   const tex = new THREE.CanvasTexture(colorCanvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  const mat = new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 });
+  // The low-res whole-island base sinks out of the way wherever high-res chunks fully cover the ground
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uCover = { value: COVER };
+    sh.vertexShader = 'uniform vec4 uCover;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      float dIn = min(min(position.x - uCover.x, uCover.z - position.x), min(position.z - uCover.y, uCover.w - position.z));
+      transformed.y -= 6.0 * smoothstep(0.0, 4.0, dIn);`);
+  };
   const mesh = new THREE.Mesh(geo, mat); scene.add(mesh);
 
   // far ocean
@@ -304,7 +274,7 @@ function placeCoins() {
     const x = (Math.random() - 0.5) * SIZE * 0.8, z = (Math.random() - 0.5) * SIZE * 0.8;
     if (elevM(x, z) < 20) continue;
     const m = new THREE.Mesh(coinGeo, coinMat);
-    m.position.set(x, groundY(x, z) + 2 + Math.random() * 5, z);
+    seat(m, x, z, 2 + Math.random() * 5);
     scene.add(m); coins.push(m);
   }
 }
@@ -325,11 +295,11 @@ function newJob() {
   updateMissionText();
 }
 function placeBeacon(b, label, t, text, color) {
-  b.position.set(t.w.x, groundY(t.w.x, t.w.y), t.w.y);
+  seat(b, t.w.x, t.w.y, 0);
   const old = label.material.map; const nl = makeLabel(text, color);
   label.material.map = nl.material.map; label.userData.aspect = nl.userData.aspect; old && old.dispose();
   label.scale.set(label.userData.aspect * 2.2, 2.2, 1);
-  label.position.set(t.w.x, b.position.y + 9, t.w.y);
+  seat(label, t.w.x, t.w.y, 9);
 }
 function target() { return state.phase === 'pickup' ? state.job.from : state.job.to; }
 const $ = (id) => document.getElementById(id);
@@ -482,7 +452,7 @@ function step(dt, t) {
   // coins
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i]; c.rotation.y += dt * 2.5;
-    if (c.position.distanceToSquared(state.pos) < 2.5) { scene.remove(c); coins.splice(i, 1); addTokens(1); toast('+1 KDU'); }
+    if (c.position.distanceToSquared(state.pos) < 2.5) { scene.remove(c); grounded.delete(c); coins.splice(i, 1); addTokens(1); toast('+1 KDU'); }
   }
   // beacon animation
   for (const b of [beaconPick, beaconDrop]) {
@@ -521,9 +491,11 @@ function updateCamera(dt) {
   window.__sky.position.copy(camera.position);
 }
 
+let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+  if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
   if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
   else if (!state.running && ufo) { // attract mode orbit
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
@@ -538,27 +510,38 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fit
 // ---------- boot ----------
 async function boot() {
   const startBtn = $('startBtn'); startBtn.disabled = true;
-  const [m, buf, water] = await Promise.all([fetch('/terrain/meta.json').then((r) => r.json()), fetch('/terrain/height.bin').then((r) => r.arrayBuffer()),
-    fetch('/terrain/waterways.json').then((r) => r.json()).catch(() => null)]);
-  meta = m; N = m.N; H = new Int16Array(buf); SIZE = m.sizeKm * 1000 / UNIT_M;
+  const ok = (r) => { if (!r.ok) throw new Error(`${r.url} ${r.status}`); return r; };
+  const [m, hb, water, manifest, satImg] = await Promise.all([
+    fetch('/terrain/meta.json').then(ok).then((r) => r.json()),
+    fetch('/terrain/base-h.png').then(ok).then((r) => r.arrayBuffer()).then(decodeHeightPng),
+    fetch('/terrain/waterways.json').then(ok).then((r) => r.json()).catch(() => null),
+    fetch('/chunks/chunks.json').then(ok).then((r) => r.json()).catch(() => null),
+    fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null)]);
+  meta = m; N = m.N; SIZE = m.sizeKm * 1000 / UNIT_M;
+  H = new Int16Array(N * N); for (let k = 0; k < H.length; k++) H[k] = hb.data[k] - 6000; // stored as meters + 6000
   fixInlandSea();
   for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
-  colorCanvas = buildTerrain(water);
+  colorCanvas = buildTerrain(water, satImg);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
   ufo = buildUFO(); scene.add(ufo.group);
   beaconPick = makeBeacon(0xffa94d); beaconDrop = makeBeacon(0x4dff9a); scene.add(beaconPick, beaconDrop);
   labelPick = makeLabel(' ', '#fff'); labelDrop = makeLabel(' ', '#fff'); scene.add(labelPick, labelDrop);
   // town name labels
-  for (const t of TOWNS) { const l = makeLabel(t.town, '#ffffff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.6, 1.6, 1); l.position.set(t.w.x, groundY(t.w.x, t.w.y) + 4, t.w.y); scene.add(l); }
+  for (const t of TOWNS) { const l = makeLabel(t.town, '#ffffff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.6, 1.6, 1); seat(l, t.w.x, t.w.y, 4); scene.add(l); }
   const pinMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), pinGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 6);
   for (const lm of LANDMARKS) {
     snapPeak(lm); const w = toWorld(lm.lat, lm.lon); const gy = groundY(w.x, w.y);
-    const text = lm.eleM ? `${lm.name} ${lm.eleM.toLocaleString()} m` : lm.name;
-    const l = makeLabel(text, '#cfefff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.4, 1.4, 1); l.position.set(w.x, gy + 4.2, w.y); scene.add(l);
-    const pin = new THREE.Mesh(pinGeo, pinMat); pin.scale.y = 3.4; pin.position.set(w.x, gy + 1.7, w.y); scene.add(pin);
+    const text = lm.ele ? `${lm.name} ${lm.ele.toLocaleString()} m` : lm.name;
+    const l = makeLabel(text, '#cfefff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.4, 1.4, 1); seat(l, w.x, w.y, 4.2); scene.add(l);
+    const pin = new THREE.Mesh(pinGeo, pinMat); pin.scale.y = 3.4; seat(pin, w.x, w.y, 1.7); scene.add(pin);
   }
   window.__landmarks = LANDMARKS;
   placeCoins();
+  if (manifest && !params.has('nochunks')) {
+    const ring = Number(params.get('ring') || (isTouch ? 1 : 2));
+    streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
+      maxAniso: Math.min(8, renderer.capabilities.getMaxAnisotropy()), onLoad: () => reseat() });
+  }
   // start near Hilo airport, facing west toward Mauna Kea
   const start = toWorld(19.72, -155.05);
   state.pos.set(start.x, groundY(start.x, start.y) + 3, start.y);
@@ -566,7 +549,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, tex: () => colorCanvas.toDataURL('image/png') };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY };
   if (params.has('autostart')) startGame();
 }
 function startGame() {

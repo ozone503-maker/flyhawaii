@@ -1,5 +1,5 @@
 // Bakes a Big Island heightmap from free AWS Terrain Tiles (Mapzen terrarium, no key).
-// Output: public/terrain/height.bin (Int16 meters, row 0 = north) + meta.json
+// Output: data/height-terrarium.bin (Int16 meters, row 0 = north) + public/terrain/meta.json
 import fs from 'node:fs';
 import path from 'node:path';
 import { PNG } from 'pngjs';
@@ -14,7 +14,7 @@ const lonSpan = spanKm / (111.32 * Math.cos(LATC * Math.PI / 180));
 const LONC = -155.47;
 const LON0 = LONC - lonSpan / 2, LON1 = LONC + lonSpan / 2;
 
-if (fs.existsSync(path.join(OUT, 'height.bin')) && !process.argv.includes('--force')) {
+if (fs.existsSync('data/height-terrarium.bin') && !process.argv.includes('--force')) {
   console.log('terrain already baked, use --force to rebake'); process.exit(0);
 }
 fs.mkdirSync(OUT, { recursive: true });
@@ -64,7 +64,8 @@ for (let j = 0; j < N; j++) {
     out[j * N + i] = e; if (e > max) max = e; if (e < min) min = e;
   }
 }
-fs.writeFileSync(path.join(OUT, 'height.bin'), Buffer.from(out.buffer));
+fs.mkdirSync('data', { recursive: true });
+fs.writeFileSync('data/height-terrarium.bin', Buffer.from(out.buffer)); // source for bake-copernicus (bathymetry)
 const meta = { N, lat0: LAT0, lat1: LAT1, lon0: LON0, lon1: LON1, sizeKm: spanKm, min, max,
   source: 'AWS Terrain Tiles (Mapzen terrarium), https://registry.opendata.aws/terrain-tiles/', zoom: Z };
 fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify(meta, null, 2));
