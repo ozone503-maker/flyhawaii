@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
+import { Attractions } from './attractions.js';
 
 // ---------- constants ----------
 // True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
@@ -88,7 +89,7 @@ function elevM(x, z) { // bilinear elevation in meters at world x,z
   return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
 }
 const COVER = new THREE.Vector4(1, 1, -1, -1);
-let streamer = null;
+let streamer = null, attractions = null, lastAttr = 0;
 function elevBest(x, z) { const c = streamer ? streamer.heightM(x, z) : null; return c ?? elevM(x, z); }
 const groundY = (x, z) => Math.max(0, elevBest(x, z)) / UNIT_M * VEXAG;
 // objects that sit on the ground get re-seated when sharper chunk heights arrive
@@ -324,7 +325,7 @@ function addTokens(n) {
 }
 
 // ---------- input ----------
-addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); });
+addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'Enter') attractions?.dismiss(); else if (e.code === 'KeyP' || e.code === 'Escape') { if (attractions?.active) attractions.dismiss(); else togglePause(); } });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 // Floating stick: the base anchors wherever the left thumb first lands, anywhere in the left zone
@@ -525,6 +526,7 @@ let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+  if (attractions && state.running && !state.paused && t - lastAttr > 0.2) { lastAttr = t; attractions.update(state.pos.x, state.pos.z); }
   if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
   if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
   else if (!state.running && ufo) { // attract mode orbit
@@ -541,11 +543,12 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fit
 async function boot() {
   const startBtn = $('startBtn'); startBtn.disabled = true;
   const ok = (r) => { if (!r.ok) throw new Error(`${r.url} ${r.status}`); return r; };
-  const [m, hb, water, manifest, satImg] = await Promise.all([
+  const [m, hb, water, manifest, attrList, satImg] = await Promise.all([
     fetch('/terrain/meta.json').then(ok).then((r) => r.json()),
     fetch('/terrain/base-h.png').then(ok).then((r) => r.arrayBuffer()).then(decodeHeightPng),
     fetch('/terrain/waterways.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/chunks/chunks.json').then(ok).then((r) => r.json()).catch(() => null),
+    fetch('/photos/attractions.json').then(ok).then((r) => r.json()).catch(() => []),
     fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null)]);
   meta = m; N = m.N; SIZE = m.sizeKm * 1000 / UNIT_M;
   H = new Int16Array(N * N); for (let k = 0; k < H.length; k++) H[k] = hb.data[k] - 6000; // stored as meters + 6000
@@ -567,6 +570,8 @@ async function boot() {
   }
   window.__landmarks = LANDMARKS;
   placeCoins();
+  attractions = new Attractions({ list: attrList, fromWorld, haversineKm,
+    onDiscover: (a, bonus) => { addTokens(bonus); } });
   if (manifest && !params.has('nochunks')) {
     const ring = Number(params.get('ring') || (isTouch ? 1 : 2));
     streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
@@ -579,7 +584,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld };
   if (params.has('autostart')) startGame();
 }
 function startGame() {
