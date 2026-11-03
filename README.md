@@ -28,3 +28,14 @@ Attraction photo signs
 
 Shelved co-pilot
 - The scripted co-pilot was removed from the game. Its script and bake tools are kept out of the build in voice-src/ and scripts/ (bake-voice.sh, voice-prep.py) in case it comes back
+## Pilots and ships
+
+After Start a pilot select screen appears. The choice is saved on the device (`localStorage.fh_pilot`, or `?pilot=drone|ipo|mj`) and can be changed from the pause menu.
+
+| Pilot | Ship | Feel |
+| --- | --- | --- |
+| Mystery Drone | Cyan Ring Drone | Sharpest turns (turn x1.18, boost x0.94) |
+| Ipo | Fruity Puppy Cruiser | All round, best climb (turn x1.05, boost x1.02, climb x1.1) |
+| Monkey Jockey | MJ Racer | Fastest boost, wider turns (boost x1.14, turn x0.9) |
+
+Ships are built in `src/ships.js`. Pilot portraits (`public/pilots/`) are original AI art made for Fly Hawaii from the owner's character references, with no helmets or hats. Sources are in `art/pilots/`.

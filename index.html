@@ -26,6 +26,7 @@
     <div id="toast"></div>
     <div id="discover" aria-live="polite"></div>
     <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
+    <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
   </div>
 
   <div id="touch" class="hidden">
@@ -48,11 +49,24 @@
         <div><b>Touch</b> put your left thumb down anywhere on the left side and slide to fly and turn, right buttons for Up, Down and Boost</div>
         <div><b>Deliver</b> hover low inside a beacon to beam packages up or down</div>
       </div>
-      <p class="fine">Businesses in this prototype are fictional. Map at true scale (1 unit = 100 m).<br />
+      <p class="fine">Businesses in this prototype are fictional. Pilot portraits are original art made for Fly Hawaii. Map at true scale (1 unit = 100 m).<br />
         Copernicus DEM &copy; DLR/Airbus, provided under COPERNICUS by the EU and ESA.<br />
         Contains modified Copernicus Sentinel data 2025-2026.<br />
         Rivers, streams and place data &copy; OpenStreetMap contributors (ODbL). Bathymetry: AWS Terrain Tiles (NOAA, SRTM, USGS).<br />
         Attraction photos from Wikimedia Commons, credited on each sign and in <a href="/photos/CREDITS.md" target="_blank" rel="noopener">photo credits</a></p>
+    </div>
+  </div>
+
+  <div id="select" class="overlay hidden">
+    <div class="panel sel-panel">
+      <h2>Choose your pilot</h2>
+      <div id="pilotGrid" role="group" aria-label="Pilots"></div>
+      <canvas id="shipPreview" aria-label="Ship preview"></canvas>
+      <div id="selName"></div>
+      <div id="selBlurb"></div>
+      <ul id="selFeel"></ul>
+      <button id="selGo" class="metal-btn copper">Fly</button>
+      <button id="selBack" class="metal-btn pewter slim">Back</button>
     </div>
   </div>
 
@@ -61,6 +75,7 @@
       <h2>Paused</h2>
       <button id="resumeBtn" class="metal-btn copper">Resume</button>
       <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
+      <button id="changePilotBtn" class="metal-btn pewter">Change pilot</button>
     </div>
   </div>
 

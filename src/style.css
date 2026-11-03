@@ -96,3 +96,32 @@ h2 { font-size: 34px; margin: 0 0 16px; }
   #found { top: calc(62px + env(safe-area-inset-top)); }
   #discover { top: auto; bottom: calc(232px + env(safe-area-inset-bottom)); font-size: 13px; }
 }
+
+/* pilots */
+#pilotBadge { position: absolute; right: 10px; top: calc(208px + env(safe-area-inset-top)); width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+.overlay#select { overflow-y: auto; align-items: start; }
+.sel-panel { max-width: 640px; padding-top: 4px; }
+.sel-panel h2 { margin: 8px 0 14px; }
+#pilotGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 480px; margin: 0 auto; }
+.pilot { appearance: none; border: 2px solid rgba(255,255,255,.14); border-radius: 18px; padding: 8px 8px 10px; background: rgba(6,18,31,.55);
+  color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: border-color .2s, transform .2s, background .2s; font: inherit; }
+.pilot img { width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px; display: block; background: #fff; }
+.pilot .pname { font-weight: 800; font-size: 16px; margin-top: 4px; }
+.pilot .pship { font-size: 13px; opacity: .75; }
+.pilot.on { border-color: #e2a56b; background: rgba(201,129,73,.18); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201,129,73,.25); }
+#shipPreview { display: block; width: 100%; height: 180px; margin: 4px 0 0; }
+.sel-panel .metal-btn { margin: 8px auto; }
+#selName { font-size: 19px; font-weight: 800; }
+#selBlurb { font-size: 15px; opacity: .85; margin: 4px 0 8px; }
+#selFeel { list-style: none; padding: 0; margin: 0 0 6px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+#selFeel li { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+.metal-btn.slim { padding: 11px 20px; font-size: 16px; }
+@media (max-width: 640px) {
+  #pilotBadge { top: calc(164px + env(safe-area-inset-top)); width: 40px; height: 40px; right: 12px; }
+  #pilotGrid { gap: 8px; }
+  .pilot { padding: 6px 6px 8px; border-radius: 14px; }
+  .pilot .pname { font-size: 14px; }
+  .pilot .pship { font-size: 11.5px; }
+  #shipPreview { height: 170px; }
+  .sel-panel h2 { font-size: 28px; }
+}

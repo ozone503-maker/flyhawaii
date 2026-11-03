@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
 import { Attractions } from './attractions.js';
+import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
 
 // ---------- constants ----------
 // True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
@@ -190,42 +192,6 @@ function buildTerrain(water, satImg) {
 }
 
 // ---------- UFO ----------
-function buildUFO() {
-  const g = new THREE.Group();
-  const metal = new THREE.MeshStandardMaterial({ color: 0xb8c4cc, metalness: 0.85, roughness: 0.28 });
-  const hull = new THREE.Mesh(new THREE.SphereGeometry(3.2, 40, 16), metal); hull.scale.set(1, 0.22, 1); g.add(hull);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(3.15, 0.18, 10, 48), new THREE.MeshStandardMaterial({ color: 0xc98149, metalness: 0.9, roughness: 0.3 }));
-  rim.rotation.x = Math.PI / 2; g.add(rim);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.35, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshPhysicalMaterial({ color: 0x8fe9ff, metalness: 0, roughness: 0.05, transmission: 0.0, transparent: true, opacity: 0.55, emissive: 0x0a6cff, emissiveIntensity: 0.35 }));
-  dome.position.y = 0.45; g.add(dome);
-  const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 10), new THREE.MeshStandardMaterial({ color: 0x7dff9a, emissive: 0x1a6a2a, roughness: 0.6 }));
-  pilot.position.y = 0.85; g.add(pilot);
-  const lights = [];
-  for (let i = 0; i < 12; i++) {
-    const a = i / 12 * Math.PI * 2;
-    const l = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1ec8ff }));
-    l.position.set(Math.cos(a) * 2.75, -0.12, Math.sin(a) * 2.75); g.add(l); lights.push(l);
-  }
-  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.2, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0x7fe8ff }));
-  belly.position.y = -0.62; g.add(belly);
-  // glow sprite
-  const gc = document.createElement('canvas'); gc.width = gc.height = 128;
-  const gx = gc.getContext('2d'); const grd = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(120,230,255,0.9)'); grd.addColorStop(0.35, 'rgba(30,200,255,0.35)'); grd.addColorStop(1, 'rgba(30,200,255,0)');
-  gx.fillStyle = grd; gx.fillRect(0, 0, 128, 128);
-  const glowTex = new THREE.CanvasTexture(gc);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-  glow.scale.set(11, 7, 1); glow.position.y = -0.3; g.add(glow);
-  const pl = new THREE.PointLight(0x1ec8ff, 30, 40, 1.6); pl.position.y = -1.5; g.add(pl);
-  // tractor beam
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 3.5, 1, 24, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0x5fe0ff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  g.add(beam);
-  g.scale.setScalar(UFO_SCALE);
-  return { group: g, lights, beam, glowTex };
-}
-
 // ---------- markers ----------
 function makeLabel(text, color) {
   const c = document.createElement('canvas'); const ctx = c.getContext('2d');
@@ -385,7 +351,7 @@ function readInput() {
 }
 
 function togglePause(force) {
-  if (!state.running) return;
+  if (!state.running || !$('select').classList.contains('hidden')) return;
   state.paused = force !== undefined ? force : !state.paused;
   $('pause').classList.toggle('hidden', !state.paused);
 }
@@ -420,6 +386,9 @@ let camInit = false;
 // Speed readout in game mph: cruise reads 150 mph, full boost about 480 mph
 const GAME_MPH = 15;
 const CRUISE = 10, BOOST = 32, REVERSE = 3;      // world units/s (1 unit = 100 m)
+// pilot choice: each ship nudges turning, boost and climb a little, all stay close to balanced
+let shipEnv = null;
+let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
 const ease = (cur, tgt, rate, dt) => cur + (tgt - cur) * (1 - Math.exp(-rate * dt));
 function step(dt, t) {
   readInput();
@@ -428,19 +397,19 @@ function step(dt, t) {
   state.inT = ease(state.inT || 0, input.turn, 7, dt);
   // boost blends in and out over about a second
   state.boostMix = ease(state.boostMix || 0, input.boost && input.fwd > 0.2 ? 1 : 0, 2.2, dt);
-  const top = lerp(CRUISE, BOOST, state.boostMix);
+  const S = pilot.stats; const top = lerp(CRUISE * S.cruise, BOOST * S.boost, state.boostMix);
   const tgtSpeed = state.inF >= 0 ? state.inF * top : state.inF * REVERSE;
   // gentle acceleration, a little softer when slowing so stops glide
   const speedUp = Math.abs(tgtSpeed) > Math.abs(state.speed || 0);
   state.speed = ease(state.speed || 0, tgtSpeed, speedUp ? 1.1 : 1.6, dt);
   // turn rate is capped by speed: nimble when hovering, wide and steady at boost
   const sp = Math.abs(state.speed);
-  const maxTurn = lerp(1.5, 0.55, Math.min(1, sp / BOOST));
+  const maxTurn = lerp(1.5, 0.55, Math.min(1, sp / BOOST)) * S.turn;
   state.yawRate = ease(state.yawRate || 0, state.inT * maxTurn, 6, dt);
   state.yaw += state.yawRate * dt;
   const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
   state.vel.copy(fwdDir).multiplyScalar(state.speed);
-  state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix), 4, dt);
+  state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix) * S.climb, 4, dt);
   state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
   const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
   const gy = groundY(state.pos.x, state.pos.z);
@@ -454,7 +423,7 @@ function step(dt, t) {
   ufo.group.position.copy(state.pos);
   ufo.group.position.y += Math.sin(t * 2.2) * 0.06;
   ufo.group.rotation.set(0, 0, 0); ufo.group.rotateY(state.yaw); ufo.group.rotateZ(state.bank); ufo.group.rotateX(pitch);
-  ufo.lights.forEach((l, i) => { l.material.color.setHSL(0.54, 1, 0.45 + 0.25 * Math.sin(t * 6 + i)); });
+  ufo.lights.forEach((l, i) => { l.material.color.setHSL(ufo.hue, 1, 0.5 + 0.2 * Math.sin(t * 6 + i)); });
 
   // mission
   const tg = target();
@@ -563,7 +532,8 @@ async function boot() {
   for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
   colorCanvas = buildTerrain(water, satImg);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
-  ufo = buildUFO(); scene.add(ufo.group);
+  shipEnv = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group);
   beaconPick = makeBeacon(0xffa94d); beaconDrop = makeBeacon(0x4dff9a); scene.add(beaconPick, beaconDrop);
   labelPick = makeLabel(' ', '#fff'); labelDrop = makeLabel(' ', '#fff'); scene.add(labelPick, labelDrop);
   // town name labels
@@ -591,14 +561,77 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; } };
   if (params.has('autostart')) startGame();
 }
+function setPilot(id) {
+  pilot = pilotById(id); localStorage.setItem('fh_pilot', pilot.id);
+  if (ufo && ufo.pilot.id !== pilot.id) { const old = ufo; ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group); ufo.group.position.copy(old.group.position); disposeShip(old); }
+  $('pilotBadge').src = pilot.badge; $('pilotBadge').alt = pilot.name;
+}
+// ---------- pilot select ----------
+let sel = null;
+function openSelect(fromPause) {
+  const ov = $('select'); ov.classList.remove('hidden'); ov.dataset.from = fromPause ? 'pause' : 'menu';
+  $('menu').classList.add('hidden'); $('pause').classList.add('hidden');
+  $('selBack').textContent = fromPause ? 'Back to the game' : 'Back';
+  if (!sel) {
+    const cv = $('shipPreview');
+    const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    r.setPixelRatio(Math.min(2, devicePixelRatio)); r.outputColorSpace = THREE.SRGBColorSpace;
+    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.0;
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xdff3ff, 0x30405a, 1.6));
+    const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(4, 8, 6); sc.add(dl);
+    sc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+    const cam = new THREE.PerspectiveCamera(32, 2, 0.1, 100); cam.position.set(0, 4.2, 10.5); cam.lookAt(0, 0.4, 0);
+    sel = { r, sc, cam, ship: null, id: null, on: true };
+    const loop = () => { if (!sel.on) return; requestAnimationFrame(loop);
+      const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * r.getPixelRatio()) || cv.height !== Math.round(h * r.getPixelRatio())) { r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+      if (sel.ship) { const tt = performance.now() / 1000; sel.ship.group.rotation.y = tt * 0.6; sel.ship.group.position.y = Math.sin(tt * 2) * 0.12;
+        sel.ship.lights.forEach((l, i) => l.material.color.setHSL(sel.ship.hue, 1, 0.5 + 0.2 * Math.sin(tt * 6 + i))); }
+      r.render(sc, cam); };
+    sel.loop = loop;
+    const grid = $('pilotGrid');
+    for (const p of PILOTS) {
+      const b = document.createElement('button'); b.className = 'pilot'; b.dataset.id = p.id; b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = `<img src="${p.portrait}" alt="" width="256" height="256" /><span class="pname"></span><span class="pship"></span>`;
+      b.querySelector('.pname').textContent = p.name; b.querySelector('.pship').textContent = p.ship;
+      b.addEventListener('click', () => pickPilot(p.id)); grid.append(b);
+    }
+  } else if (!sel.on) { sel.on = true; sel.loop(); }
+  if (sel.on && !sel.started) { sel.started = true; sel.loop(); }
+  pickPilot(pilot.id);
+}
+function pickPilot(id) {
+  const p = pilotById(id); sel.id = p.id;
+  document.querySelectorAll('#pilotGrid .pilot').forEach((b) => { const on = b.dataset.id === p.id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  if (sel.ship) disposeShip(sel.ship);
+  sel.ship = buildShip(p.id, 1); sel.sc.add(sel.ship.group);
+  sel.ship.beam.visible = false; sel.ship.group.children.forEach((o) => { if (o.isPointLight) o.intensity = 3; if (o.userData.glow) o.visible = false; });
+  sel.ship.group.traverse((o) => { if (o.material?.isMeshStandardMaterial) o.material.envMapIntensity = 0.5; });
+  $('selName').textContent = `${p.name} flies the ${p.ship}`;
+  $('selBlurb').textContent = p.blurb;
+  $('selFeel').innerHTML = ''; for (const f of p.feel) { const li = document.createElement('li'); li.textContent = f; $('selFeel').append(li); }
+  $('selGo').textContent = `Fly with ${p.name}`;
+}
+function closeSelect() { $('select').classList.add('hidden'); if (sel) sel.on = false; }
+$('selGo').addEventListener('click', () => {
+  const fromPause = $('select').dataset.from === 'pause';
+  setPilot(sel.id); closeSelect();
+  if (fromPause) togglePause(false); else startGame();
+});
+$('selBack').addEventListener('click', () => {
+  const fromPause = $('select').dataset.from === 'pause'; closeSelect();
+  if (fromPause) $('pause').classList.remove('hidden'); else $('menu').classList.remove('hidden');
+});
+$('changePilotBtn').addEventListener('click', () => openSelect(true));
 function startGame() {
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
   state.running = true; clock.getDelta();
 }
-$('startBtn').addEventListener('click', startGame);
+$('startBtn').addEventListener('click', () => openSelect(false));
+setPilot(pilot.id);
 boot().catch((e) => { console.error(e); $('loading').textContent = 'Could not load terrain, please reload'; });
 frame();
