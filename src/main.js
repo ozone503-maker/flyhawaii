@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
 import { Attractions } from './attractions.js';
-import { Copilot } from './copilot.js';
 
 // ---------- constants ----------
 // True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
@@ -90,7 +89,7 @@ function elevM(x, z) { // bilinear elevation in meters at world x,z
   return (a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + d * tx) * tz;
 }
 const COVER = new THREE.Vector4(1, 1, -1, -1);
-let streamer = null, attractions = null, lastAttr = 0, copilot = null, lastLow = -1e9;
+let streamer = null, attractions = null, lastAttr = 0;
 function elevBest(x, z) { const c = streamer ? streamer.heightM(x, z) : null; return c ?? elevM(x, z); }
 const groundY = (x, z) => Math.max(0, elevBest(x, z)) / UNIT_M * VEXAG;
 // objects that sit on the ground get re-seated when sharper chunk heights arrive
@@ -383,22 +382,6 @@ function togglePause(force) {
   if (!state.running) return;
   state.paused = force !== undefined ? force : !state.paused;
   $('pause').classList.toggle('hidden', !state.paused);
-  copilot?.pause(state.paused);
-}
-function initCopilotUi() {
-  const btn = $('cpBtn'), tog = $('cpToggle'), vol = $('cpVol');
-  const render = () => {
-    btn.classList.toggle('muted', copilot.muted); btn.setAttribute('aria-pressed', String(!copilot.muted));
-    btn.setAttribute('aria-label', copilot.muted ? 'Co-pilot voice off, tap to turn on' : 'Co-pilot voice on, tap to mute');
-    tog.textContent = copilot.muted ? 'Co-pilot voice: off' : 'Co-pilot voice: on';
-    vol.value = Math.round(copilot.volume * 100); $('cpVolVal').textContent = `${vol.value}%`;
-  };
-  if (matchMedia('(pointer: coarse)').matches) $('cpNote').textContent = 'Subtitles always show, even with the voice off';
-  copilot.onChange = render; render();
-  btn.addEventListener('click', () => copilot.setMuted(!copilot.muted));
-  tog.addEventListener('click', () => copilot.setMuted(!copilot.muted));
-  vol.addEventListener('input', () => { copilot.setVolume(vol.value / 100); if (copilot.muted && vol.value > 0) copilot.setMuted(false); });
-  addEventListener('keydown', (e) => { if (e.code === 'KeyV' && state.running) copilot.setMuted(!copilot.muted); });
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('resumeBtn').addEventListener('click', () => togglePause(false));
@@ -457,10 +440,6 @@ function step(dt, t) {
   const gy = groundY(state.pos.x, state.pos.z);
   const minY = gy + 0.45;
   if (state.pos.y < minY) { state.pos.y = minY; if (state.vy < 0) state.vy = 0; }
-  if (copilot && state.pos.y - gy < 0.65 && Math.abs(state.speed) > 6 && t - lastLow > 60) {
-    const tg0 = target(); // hovering low over a beacon is the job, so stay quiet there
-    if (Math.hypot(tg0.w.x - state.pos.x, tg0.w.y - state.pos.z) > 5) { lastLow = t; copilot.say('cue-lowAlt'); }
-  }
   state.pos.y = Math.min(state.pos.y, 70);
 
   // ufo visuals
@@ -490,7 +469,6 @@ function step(dt, t) {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
       toast(`Package on board\nFly to ${state.job.to.town}`);
-      if (!localStorage.getItem('fh_cp_pick')) { localStorage.setItem('fh_cp_pick', '1'); copilot?.say('cue-firstPickup'); }
       updateMissionText();
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
@@ -499,7 +477,6 @@ function step(dt, t) {
       addTokens(state.job.reward + bonus);
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
       toast(`Delivered\n+${state.job.reward + bonus} KDU${bonus ? ` (speed bonus ${bonus})` : ''}`);
-      copilot?.say('cue-delivered');
       newJob();
     }
   }
@@ -549,7 +526,7 @@ let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
-  if (attractions && state.running && !state.paused && t - lastAttr > 0.2) { lastAttr = t; attractions.update(state.pos.x, state.pos.z); copilot?.update(state.pos.x, state.pos.z, attractions); }
+  if (attractions && state.running && !state.paused && t - lastAttr > 0.2) { lastAttr = t; attractions.update(state.pos.x, state.pos.z); }
   if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
   if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
   else if (!state.running && ufo) { // attract mode orbit
@@ -566,13 +543,12 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fit
 async function boot() {
   const startBtn = $('startBtn'); startBtn.disabled = true;
   const ok = (r) => { if (!r.ok) throw new Error(`${r.url} ${r.status}`); return r; };
-  const [m, hb, water, manifest, attrList, voice, satImg] = await Promise.all([
+  const [m, hb, water, manifest, attrList, satImg] = await Promise.all([
     fetch('/terrain/meta.json').then(ok).then((r) => r.json()),
     fetch('/terrain/base-h.png').then(ok).then((r) => r.arrayBuffer()).then(decodeHeightPng),
     fetch('/terrain/waterways.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/chunks/chunks.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/photos/attractions.json').then(ok).then((r) => r.json()).catch(() => []),
-    fetch('/voice/lines.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null)]);
   meta = m; N = m.N; SIZE = m.sizeKm * 1000 / UNIT_M;
   H = new Int16Array(N * N); for (let k = 0; k < H.length; k++) H[k] = hb.data[k] - 6000; // stored as meters + 6000
@@ -594,18 +570,8 @@ async function boot() {
   }
   window.__landmarks = LANDMARKS;
   placeCoins();
-  copilot = new Copilot({ manifest: voice, fromWorld, haversineKm, towns: TOWNS });
-  initCopilotUi();
-  const lmSaid = new Map();
   attractions = new Attractions({ list: attrList, fromWorld, haversineKm,
-    onDiscover: (a, bonus) => { addTokens(bonus); },
-    onShow: (a, first) => {
-      const now = performance.now();
-      if (!first && now - (lmSaid.get(a.id) || -1e9) < 180000) return;
-      lmSaid.set(a.id, now); copilot.say(`lm-${a.id}`);
-      if (first && attractions.found.size === 1 && !localStorage.getItem('fh_cp_first')) { localStorage.setItem('fh_cp_first', '1'); copilot.say('cue-firstDiscovery'); }
-      if (first && attractions.found.size === attractions.list.length) copilot.say('cue-allFound');
-    } });
+    onDiscover: (a, bonus) => { addTokens(bonus); } });
   if (manifest && !params.has('nochunks')) {
     const ring = Number(params.get('ring') || (isTouch ? 1 : 2));
     streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
@@ -618,14 +584,13 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, copilot };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld };
   if (params.has('autostart')) startGame();
 }
 function startGame() {
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
   state.running = true; clock.getDelta();
-  if (copilot) { copilot.unlock(); copilot.preloadCues(); setTimeout(() => copilot.say('cue-start'), 900); }
 }
 $('startBtn').addEventListener('click', startGame);
 boot().catch((e) => { console.error(e); $('loading').textContent = 'Could not load terrain, please reload'; });

@@ -4,8 +4,8 @@ const FIRST_BONUS = 25;
 const KEY = 'fh_found';
 
 export class Attractions {
-  constructor({ list, fromWorld, haversineKm, onDiscover, onShow }) {
-    this.list = list; this.fromWorld = fromWorld; this.hav = haversineKm; this.onDiscover = onDiscover; this.onShow = onShow;
+  constructor({ list, fromWorld, haversineKm, onDiscover }) {
+    this.list = list; this.fromWorld = fromWorld; this.hav = haversineKm; this.onDiscover = onDiscover;
     this.found = new Set(JSON.parse(localStorage.getItem(KEY) || '[]').filter((id) => list.some((a) => a.id === id)));
     this.active = null; this.dismissed = null; this.loaded = new Map();
     this.$ = (id) => document.getElementById(id);
@@ -39,7 +39,6 @@ export class Attractions {
       this.found.add(a.id); localStorage.setItem(KEY, JSON.stringify([...this.found])); this.renderCount();
       this.onDiscover?.(a, FIRST_BONUS);
     }
-    this.onShow?.(a, first);
     const $ = this.$;
     $('photoHint').textContent = matchMedia('(pointer: coarse)').matches ? 'Tap to close, or just fly on' : 'Click or press Enter to close, or just fly on';
     $('photoName').textContent = a.name;

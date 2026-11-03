@@ -24,9 +24,3 @@ Attraction photo cards
 - 15 zones in public/photos/attractions.json (true coordinates, radius in km). Entering a zone fades in a full-bleed photo card; tap/click/Enter dismisses, flying out hides it. First discovery gives +25 KDU and counts toward Discovered N/15 (localStorage fh_found)
 - Photos are lazy-loaded only within about 2x radius + 3 km of a zone, each 150-240 KB
 - Every photo is from Wikimedia Commons (CC BY, CC BY-SA or public domain); author, license and source per photo in public/photos/CREDITS.md and on each card
-
-Co-pilot voice
-- Scripted lines (no live AI): 15 landmarks, 6 towns and 6 cues. Script in voice-src/lines.json, readable table in COPILOT-SCRIPT.md
-- Audio baked once offline with Piper TTS 1.8 and the voice en_US-ljspeech-high (public domain, Bryce Beattie, trained on the public domain LJ Speech dataset). Hawaiian names use IPA overrides in voice-src/say.json. Rebuild: ./scripts/bake-voice.sh (needs piper-tts in a venv and ffmpeg)
-- 27 mono MP3s (40 kbps, 18-56 KB, about 1.1 MB total) in public/voice; landmark and town lines are fetched only within about 2x radius + 3 km, cues after Start
-- src/copilot.js plays through WebAudio (volume works on iOS), unlocks on the first tap or key, queues one line at a time and always shows a subtitle, even when muted. HUD speaker button or V mutes; volume slider in the pause menu (localStorage fh_cp_mute, fh_cp_vol)

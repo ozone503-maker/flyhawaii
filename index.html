@@ -25,10 +25,7 @@
     <div id="beam"><div id="beamFill"></div></div>
     <div id="toast"></div>
     <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
-    <button id="cpBtn" class="small-btn" aria-pressed="true" title="Co-pilot voice (V)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path class="cross" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
-
-  <div id="cpSub" aria-hidden="true" aria-live="polite"><span class="who">Co-pilot</span><span id="cpSubText"></span></div>
 
   <div id="photoCard" aria-hidden="true" role="dialog" aria-label="Attraction photo">
     <div id="photoImg"></div>
@@ -66,8 +63,7 @@
         Copernicus DEM &copy; DLR/Airbus, provided under COPERNICUS by the EU and ESA.<br />
         Contains modified Copernicus Sentinel data 2025-2026.<br />
         Rivers, streams and place data &copy; OpenStreetMap contributors (ODbL). Bathymetry: AWS Terrain Tiles (NOAA, SRTM, USGS).<br />
-        Attraction photos from Wikimedia Commons, credited on each card and in <a href="/photos/CREDITS.md" target="_blank" rel="noopener">photo credits</a>.<br />
-        Co-pilot voice made offline with Piper TTS, voice en_US-ljspeech-high (public domain, trained on the LJ Speech dataset)</p>
+        Attraction photos from Wikimedia Commons, credited on each card and in <a href="/photos/CREDITS.md" target="_blank" rel="noopener">photo credits</a></p>
     </div>
   </div>
 
@@ -76,11 +72,6 @@
       <h2>Paused</h2>
       <button id="resumeBtn" class="metal-btn copper">Resume</button>
       <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
-      <div class="cp-row">
-        <button id="cpToggle" class="metal-btn pewter slim">Co-pilot voice: on</button>
-        <label class="vol">Volume <input id="cpVol" type="range" min="0" max="100" step="5" value="90" /> <span id="cpVolVal">90%</span></label>
-        <div class="cp-note" id="cpNote">Subtitles always show. Press V to toggle the voice</div>
-      </div>
     </div>
   </div>
 
