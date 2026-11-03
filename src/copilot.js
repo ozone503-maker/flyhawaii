@@ -49,7 +49,8 @@ export class Copilot {
     if (!this.lines[id]) return;
     if (this.playing?.id === id || this.queue.some((q) => q.id === id)) return;
     this.load(id);
-    this.queue.push({ id, at: performance.now() });
+    const item = { id, at: performance.now() };
+    if (id === 'cue-lowAlt') this.queue.unshift(item); else this.queue.push(item); // safety first
     if (this.queue.length > 3) this.queue.splice(0, this.queue.length - 3);
     if (!this.playing) this.next();
   }
