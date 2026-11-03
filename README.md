@@ -20,7 +20,11 @@ Data sources and credits
 - Landmark and town coordinates: OpenStreetMap / Nominatim / Wikipedia; summits snapped to the DEM high point, labeled with official elevations. Ka Lae 18.9111, -155.6811 (Wikipedia/GNIS; GLO-30 southernmost land pixel 18.91108, -155.68196)
 - Projection: equirectangular at the map's center latitude, 1 unit = 100 m on all axes
 
-Attraction photo cards
-- 15 zones in public/photos/attractions.json (true coordinates, radius in km). Entering a zone fades in a full-bleed photo card; tap/click/Enter dismisses, flying out hides it. First discovery gives +25 KDU and counts toward Discovered N/15 (localStorage fh_found)
+Attraction photo signs
+- 15 zones in public/photos/attractions.json (true coordinates, radius in km). Each photo stands in the world as a small sign (about 220 m wide, bottom edge about 12 m above the highest ground under it) at the landmark, turning to face the camera and fading in from about 2x radius + 3 km. Name and photo credit are printed on the sign
+- Entering a zone the first time gives +25 KDU, a small non-blocking note and counts toward Discovered N/15 (localStorage fh_found)
 - Photos are lazy-loaded only within about 2x radius + 3 km of a zone, each 150-240 KB
-- Every photo is from Wikimedia Commons (CC BY, CC BY-SA or public domain); author, license and source per photo in public/photos/CREDITS.md and on each card
+- Every photo is from Wikimedia Commons (CC BY, CC BY-SA or public domain); author, license and source per photo in public/photos/CREDITS.md and on each sign
+
+Shelved co-pilot
+- The scripted co-pilot was removed from the game. Its script and bake tools are kept out of the build in voice-src/ and scripts/ (bake-voice.sh, voice-prep.py) in case it comes back

@@ -80,20 +80,11 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 #found .dot { width: 8px; height: 8px; border-radius: 50%; background: #ffd36b; box-shadow: 0 0 8px #ffd36b; }
 #found b { font-weight: 800; }
 
-#photoCard { position: fixed; inset: 0; z-index: 20; opacity: 0; pointer-events: none; transition: opacity .6s ease; background: #050b14; cursor: pointer; }
-#photoCard.on { opacity: 1; pointer-events: auto; }
-#photoImg { position: absolute; inset: 0; background: center / cover no-repeat; transform: scale(1.04); opacity: 0; transition: opacity .7s ease, transform 6s ease-out; }
-#photoImg.ready { opacity: 1; transform: scale(1); }
-#photoShade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,11,20,0) 45%, rgba(5,11,20,.55) 70%, rgba(5,11,20,.9) 100%); }
-#photoText { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px calc(28px + env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left));
-  max-width: 760px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
-#photoNew { display: inline-block; font-size: 14px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); backdrop-filter: blur(6px); }
-#photoNew.first { color: #c9f4ff; border-color: rgba(30,200,255,.6); background: rgba(30,200,255,.16); }
-#photoName { font-size: clamp(28px, 5vw, 46px); line-height: 1.08; margin: 10px 0 8px; font-weight: 800; letter-spacing: -.01em; }
-#photoFact { font-size: clamp(16px, 2.2vw, 19px); line-height: 1.4; margin: 0 0 12px; opacity: .95; }
-#photoHint { font-size: 13px; opacity: .7; margin-bottom: 10px; }
-#photoCredit { font-size: 11px; opacity: .65; }
-#photoCredit a { color: inherit; }
+#discover { position: absolute; left: 50%; top: calc(112px + env(safe-area-inset-top)); transform: translate(-50%, -6px); white-space: nowrap;
+  font-size: 14px; padding: 6px 14px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(30,200,255,.5); color: #c9f4ff;
+  backdrop-filter: blur(6px); opacity: 0; transition: opacity .35s ease, transform .35s ease; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+#discover b { color: #fff; }
+#discover.on { opacity: 1; transform: translate(-50%, 0); }
 
 @media (max-width: 640px) {
   #mission { top: calc(64px + env(safe-area-inset-top)); max-width: 92vw; min-width: 0; padding: 8px 12px; }
@@ -103,4 +94,5 @@ h2 { font-size: 34px; margin: 0 0 16px; }
   .small-btn { top: calc(116px + env(safe-area-inset-top)); }
   #tokens { font-size: 19px; }
   #found { top: calc(62px + env(safe-area-inset-top)); }
+  #discover { top: auto; bottom: calc(232px + env(safe-area-inset-bottom)); font-size: 13px; }
 }

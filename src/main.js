@@ -318,6 +318,12 @@ function updateMissionText() {
   }
 }
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 1800); }
+function discoverNote(a, bonus) {
+  const el = $('discover'); el.innerHTML = '';
+  const b = document.createElement('b'); b.textContent = a.name;
+  el.append('New discovery ', b, ` +${bonus} KDU`); el.classList.add('on');
+  clearTimeout(discoverNote._t); discoverNote._t = setTimeout(() => el.classList.remove('on'), 3200);
+}
 function addTokens(n) {
   state.tokens += n; localStorage.setItem('fh_kdu', state.tokens);
   $('tokenCount').textContent = state.tokens.toLocaleString();
@@ -325,7 +331,7 @@ function addTokens(n) {
 }
 
 // ---------- input ----------
-addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'Enter') attractions?.dismiss(); else if (e.code === 'KeyP' || e.code === 'Escape') { if (attractions?.active) attractions.dismiss(); else togglePause(); } });
+addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 // Floating stick: the base anchors wherever the left thumb first lands, anywhere in the left zone
@@ -527,6 +533,7 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
   if (attractions && state.running && !state.paused && t - lastAttr > 0.2) { lastAttr = t; attractions.update(state.pos.x, state.pos.z); }
+  attractions?.tick(dt);
   if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
   if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
   else if (!state.running && ufo) { // attract mode orbit
@@ -570,8 +577,8 @@ async function boot() {
   }
   window.__landmarks = LANDMARKS;
   placeCoins();
-  attractions = new Attractions({ list: attrList, fromWorld, haversineKm,
-    onDiscover: (a, bonus) => { addTokens(bonus); } });
+  attractions = new Attractions({ list: attrList, fromWorld, toWorld, haversineKm, groundY, scene, camera,
+    onDiscover: (a, bonus) => { addTokens(bonus); discoverNote(a, bonus); } });
   if (manifest && !params.has('nochunks')) {
     const ring = Number(params.get('ring') || (isTouch ? 1 : 2));
     streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
