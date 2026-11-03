@@ -1,0 +1,35 @@
+{
+ "landmarks": {
+  "waipio": "Look down there, that's Waipiʻo Valley. Young Kamehameha the First spent his boyhood here, and taro still grows on the valley floor.",
+  "akaka": "ʻAkaka Falls, dropping about 135 meters into the gorge. That's Kolekole Stream feeding it, deep in the Hāmākua rainforest.",
+  "rainbow": "Rainbow Falls, Waiānuenue. In the morning the sun turns the mist into rainbows. Legend says the cave behind it was home to Hina, mother of Māui.",
+  "halemaumau": "Halemaʻumaʻu, inside Kīlauea caldera. This is the home of Pele, so we fly with respect. That steam is the island still growing.",
+  "maunakea": "Mauna Kea, the tallest mountain on Earth when you measure from the sea floor. The summit is sacred in Hawaiian tradition, and it also hosts some of the world's great telescopes.",
+  "maunaloa": "Mauna Loa, the largest active volcano on the planet by volume. It last erupted in late 2022, so those dark lava slopes are still fresh.",
+  "punaluu": "Punaluʻu, the black sand beach. Honu, green sea turtles, love to rest here, so we give them plenty of space.",
+  "kalae": "Ka Lae, South Point, the southernmost tip of the fifty states. Hold on tight, the winds and currents here are strong.",
+  "kealakekua": "Kealakekua Bay, one of the best snorkel spots on the island. The white monument across the water marks where Captain Cook died in 1779.",
+  "hapuna": "Hāpuna Beach, long white sand and clear water on the Kohala coast. On a calm day it's about as good as beaches get.",
+  "pololu": "Pololū Valley, at the end of the road in North Kohala. A steep trail drops to a black boulder beach, and the lookout view is worth the stop.",
+  "mokuola": "Moku Ola, Coconut Island, right in Hilo Bay. The name means island of life, and it was once a place of healing.",
+  "hulihee": "Huliheʻe Palace, on Aliʻi Drive in Kailua-Kona. Built of lava rock in 1838, it later became a summer home for Hawaiian royalty.",
+  "lavatree": "Lava Tree State Monument. In 1790 lava swept through an ʻōhiʻa forest and hardened around the trunks, leaving these hollow lava molds.",
+  "thurston": "Nāhuku, the Thurston Lava Tube. About 500 years ago a river of lava drained out of this tunnel, and now you can walk right through it."
+ },
+ "towns": {
+  "Hilo": "Welcome to Hilo, on the green, rainy side of the island. The bayfront and the farmers market are local favorites.",
+  "Kailua-Kona": "Kailua-Kona, the sunny side of the island. Kona coffee grows on the slopes above town, and the sunsets here are something else.",
+  "Waimea": "Waimea, up in cattle country. Paniolo, Hawaiian cowboys, have ranched these green hills since the 1800s.",
+  "Volcano": "Volcano village, cool and misty up near Kīlauea. Grab a jacket, it gets chilly up here.",
+  "Pahoa": "Pāhoa, a funky little Puna town with old wooden storefronts. Puna is some of the youngest land on the island.",
+  "Hawi": "Hāwī, way up in North Kohala. It's an old sugar town turned art town, and Kamehameha the Great was born on this coast."
+ },
+ "cues": {
+  "start": "Aloha, I'm your co-pilot. Follow the arrow to our first pickup, and I'll point out the sights along the way.",
+  "firstPickup": "Package on board. Nice and easy, now let's get it to the drop-off.",
+  "delivered": "Delivered, mahalo! That's more KDU in the bank. Ready for the next one?",
+  "firstDiscovery": "Ooh, our first discovery! Find all fifteen spots around the island to finish the collection.",
+  "allFound": "That's all fifteen! You've seen the whole island from the sky. Mahalo for flying with me.",
+  "lowAlt": "Whoa, pull up a little, we're getting close to the ground."
+ }
+}

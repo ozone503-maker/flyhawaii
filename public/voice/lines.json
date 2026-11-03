@@ -1,0 +1,167 @@
+{
+ "voice": "Piper TTS, en_US-ljspeech-high (public domain)",
+ "lines": {
+  "lm-waipio": {
+   "text": "Look down there, that's Waipiʻo Valley. Young Kamehameha the First spent his boyhood here, and taro still grows on the valley floor.",
+   "src": "/voice/lm-waipio.mp3",
+   "dur": 8.67,
+   "bytes": 43589
+  },
+  "lm-akaka": {
+   "text": "ʻAkaka Falls, dropping about 135 meters into the gorge. That's Kolekole Stream feeding it, deep in the Hāmākua rainforest.",
+   "src": "/voice/lm-akaka.mp3",
+   "dur": 9.77,
+   "bytes": 49075
+  },
+  "lm-rainbow": {
+   "text": "Rainbow Falls, Waiānuenue. In the morning the sun turns the mist into rainbows. Legend says the cave behind it was home to Hina, mother of Māui.",
+   "src": "/voice/lm-rainbow.mp3",
+   "dur": 10.14,
+   "bytes": 50903
+  },
+  "lm-halemaumau": {
+   "text": "Halemaʻumaʻu, inside Kīlauea caldera. This is the home of Pele, so we fly with respect. That steam is the island still growing.",
+   "src": "/voice/lm-halemaumau.mp3",
+   "dur": 9.8,
+   "bytes": 49205
+  },
+  "lm-maunakea": {
+   "text": "Mauna Kea, the tallest mountain on Earth when you measure from the sea floor. The summit is sacred in Hawaiian tradition, and it also hosts some of the world's great telescopes.",
+   "src": "/voice/lm-maunakea.mp3",
+   "dur": 11.52,
+   "bytes": 57826
+  },
+  "lm-maunaloa": {
+   "text": "Mauna Loa, the largest active volcano on the planet by volume. It last erupted in late 2022, so those dark lava slopes are still fresh.",
+   "src": "/voice/lm-maunaloa.mp3",
+   "dur": 10.58,
+   "bytes": 53124
+  },
+  "lm-punaluu": {
+   "text": "Punaluʻu, the black sand beach. Honu, green sea turtles, love to rest here, so we give them plenty of space.",
+   "src": "/voice/lm-punaluu.mp3",
+   "dur": 8.72,
+   "bytes": 43850
+  },
+  "lm-kalae": {
+   "text": "Ka Lae, South Point, the southernmost tip of the fifty states. Hold on tight, the winds and currents here are strong.",
+   "src": "/voice/lm-kalae.mp3",
+   "dur": 8.28,
+   "bytes": 41630
+  },
+  "lm-kealakekua": {
+   "text": "Kealakekua Bay, one of the best snorkel spots on the island. The white monument across the water marks where Captain Cook died in 1779.",
+   "src": "/voice/lm-kealakekua.mp3",
+   "dur": 11.02,
+   "bytes": 55344
+  },
+  "lm-hapuna": {
+   "text": "Hāpuna Beach, long white sand and clear water on the Kohala coast. On a calm day it's about as good as beaches get.",
+   "src": "/voice/lm-hapuna.mp3",
+   "dur": 8.2,
+   "bytes": 41238
+  },
+  "lm-pololu": {
+   "text": "Pololū Valley, at the end of the road in North Kohala. A steep trail drops to a black boulder beach, and the lookout view is worth the stop.",
+   "src": "/voice/lm-pololu.mp3",
+   "dur": 9.61,
+   "bytes": 48291
+  },
+  "lm-mokuola": {
+   "text": "Moku Ola, Coconut Island, right in Hilo Bay. The name means island of life, and it was once a place of healing.",
+   "src": "/voice/lm-mokuola.mp3",
+   "dur": 8.07,
+   "bytes": 40585
+  },
+  "lm-hulihee": {
+   "text": "Huliheʻe Palace, on Aliʻi Drive in Kailua-Kona. Built of lava rock in 1838, it later became a summer home for Hawaiian royalty.",
+   "src": "/voice/lm-hulihee.mp3",
+   "dur": 10.55,
+   "bytes": 52993
+  },
+  "lm-lavatree": {
+   "text": "Lava Tree State Monument. In 1790 lava swept through an ʻōhiʻa forest and hardened around the trunks, leaving these hollow lava molds.",
+   "src": "/voice/lm-lavatree.mp3",
+   "dur": 10.27,
+   "bytes": 51556
+  },
+  "lm-thurston": {
+   "text": "Nāhuku, the Thurston Lava Tube. About 500 years ago a river of lava drained out of this tunnel, and now you can walk right through it.",
+   "src": "/voice/lm-thurston.mp3",
+   "dur": 9.67,
+   "bytes": 48552
+  },
+  "town-hilo": {
+   "text": "Welcome to Hilo, on the green, rainy side of the island. The bayfront and the farmers market are local favorites.",
+   "src": "/voice/town-hilo.mp3",
+   "dur": 8.05,
+   "bytes": 40454
+  },
+  "town-kailua-kona": {
+   "text": "Kailua-Kona, the sunny side of the island. Kona coffee grows on the slopes above town, and the sunsets here are something else.",
+   "src": "/voice/town-kailua-kona.mp3",
+   "dur": 8.28,
+   "bytes": 41630
+  },
+  "town-waimea": {
+   "text": "Waimea, up in cattle country. Paniolo, Hawaiian cowboys, have ranched these green hills since the 1800s.",
+   "src": "/voice/town-waimea.mp3",
+   "dur": 9.17,
+   "bytes": 46071
+  },
+  "town-volcano": {
+   "text": "Volcano village, cool and misty up near Kīlauea. Grab a jacket, it gets chilly up here.",
+   "src": "/voice/town-volcano.mp3",
+   "dur": 6.4,
+   "bytes": 32226
+  },
+  "town-pahoa": {
+   "text": "Pāhoa, a funky little Puna town with old wooden storefronts. Puna is some of the youngest land on the island.",
+   "src": "/voice/town-pahoa.mp3",
+   "dur": 7.39,
+   "bytes": 37189
+  },
+  "town-hawi": {
+   "text": "Hāwī, way up in North Kohala. It's an old sugar town turned art town, and Kamehameha the Great was born on this coast.",
+   "src": "/voice/town-hawi.mp3",
+   "dur": 8.23,
+   "bytes": 41369
+  },
+  "cue-start": {
+   "text": "Aloha, I'm your co-pilot. Follow the arrow to our first pickup, and I'll point out the sights along the way.",
+   "src": "/voice/cue-start.mp3",
+   "dur": 6.82,
+   "bytes": 34316
+  },
+  "cue-firstPickup": {
+   "text": "Package on board. Nice and easy, now let's get it to the drop-off.",
+   "src": "/voice/cue-firstPickup.mp3",
+   "dur": 4.83,
+   "bytes": 24389
+  },
+  "cue-delivered": {
+   "text": "Delivered, mahalo! That's more KDU in the bank. Ready for the next one?",
+   "src": "/voice/cue-delivered.mp3",
+   "dur": 6.09,
+   "bytes": 30659
+  },
+  "cue-firstDiscovery": {
+   "text": "Ooh, our first discovery! Find all fifteen spots around the island to finish the collection.",
+   "src": "/voice/cue-firstDiscovery.mp3",
+   "dur": 6.43,
+   "bytes": 32356
+  },
+  "cue-allFound": {
+   "text": "That's all fifteen! You've seen the whole island from the sky. Mahalo for flying with me.",
+   "src": "/voice/cue-allFound.mp3",
+   "dur": 6.22,
+   "bytes": 31312
+  },
+  "cue-lowAlt": {
+   "text": "Whoa, pull up a little, we're getting close to the ground.",
+   "src": "/voice/cue-lowAlt.mp3",
+   "dur": 3.53,
+   "bytes": 17859
+  }
+ }
+}
