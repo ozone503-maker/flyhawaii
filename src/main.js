@@ -327,17 +327,35 @@ function addTokens(n) {
 addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
-const stick = { id: null, x: 0, y: 0 };
-const stickEl = $('stick'), knob = $('knob');
-stickEl.addEventListener('pointerdown', (e) => { stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); moveStick(e); });
-stickEl.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) moveStick(e); });
-const endStick = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
-stickEl.addEventListener('pointerup', endStick); stickEl.addEventListener('pointercancel', endStick);
+// Floating stick: the base anchors wherever the left thumb first lands, anywhere in the left zone
+const stick = { id: null, x: 0, y: 0, cx: 0, cy: 0 };
+const stickZone = $('stickZone'), stickEl = $('stick'), knob = $('knob');
+const STICK_R = 64;
+stickZone.addEventListener('pointerdown', (e) => {
+  if (stick.id !== null) return;
+  e.preventDefault(); stick.id = e.pointerId; stickZone.setPointerCapture(e.pointerId);
+  const z = stickZone.getBoundingClientRect();
+  stick.cx = e.clientX; stick.cy = e.clientY;
+  stickEl.style.left = `${e.clientX - z.left - 75}px`; stickEl.style.top = `${e.clientY - z.top - 75}px`; stickEl.style.bottom = 'auto';
+  stickEl.classList.add('live'); moveStick(e);
+});
+stickZone.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) moveStick(e); });
+const endStick = (e) => {
+  if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = '';
+  stickEl.classList.remove('live'); stickEl.style.left = stickEl.style.top = stickEl.style.bottom = '';
+};
+stickZone.addEventListener('pointerup', endStick); stickZone.addEventListener('pointercancel', endStick); stickZone.addEventListener('lostpointercapture', endStick);
 function moveStick(e) {
-  const r = stickEl.getBoundingClientRect(); const R = r.width / 2;
-  let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); const l = Math.hypot(dx, dy);
-  if (l > R) { dx *= R / l; dy *= R / l; }
-  stick.x = dx / R; stick.y = dy / R; knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  let dx = e.clientX - stick.cx, dy = e.clientY - stick.cy; const l = Math.hypot(dx, dy);
+  if (l > STICK_R) { dx *= STICK_R / l; dy *= STICK_R / l; }
+  stick.x = dx / STICK_R; stick.y = dy / STICK_R; knob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+// radial dead zone (15%) then an expo curve so small thumb moves give gentle changes
+const DEAD = 0.15, expo = (v) => Math.sign(v) * (0.3 * Math.abs(v) + 0.7 * Math.abs(v) ** 3);
+function shapeStick(x, y) {
+  const m = Math.hypot(x, y); if (m < DEAD) return [0, 0];
+  const k = Math.min(1, (m - DEAD) / (1 - DEAD)) / m;
+  return [expo(x * k), expo(y * k)];
 }
 const held = { up: false, down: false, boost: false };
 for (const [id, k] of [['btnUp', 'up'], ['btnDown', 'down'], ['btnBoost', 'boost']]) {
@@ -353,7 +371,7 @@ function readInput() {
   let fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
   let turn = (k('KeyA') || k('ArrowLeft') ? 1 : 0) - (k('KeyD') || k('ArrowRight') ? 1 : 0);
   let up = (k('Space') || k('KeyE') || k('KeyR') ? 1 : 0) - (k('KeyC') || k('KeyQ') || k('KeyF') || k('ControlLeft') ? 1 : 0);
-  if (stick.id !== null) { fwd = -stick.y; turn = -stick.x; if (Math.abs(fwd) < 0.12) fwd = 0; if (Math.abs(turn) < 0.12) turn = 0; }
+  if (stick.id !== null) { const [sx, sy] = shapeStick(stick.x, stick.y); fwd = -sy; turn = -sx; }
   up += (held.up ? 1 : 0) - (held.down ? 1 : 0);
   input.fwd = Math.max(-1, Math.min(1, fwd)); input.turn = Math.max(-1, Math.min(1, turn)); input.up = Math.max(-1, Math.min(1, up));
   input.boost = k('ShiftLeft') || k('ShiftRight') || held.boost;
@@ -391,19 +409,31 @@ const clock = new THREE.Clock();
 const tmp = new THREE.Vector3(), camTarget = new THREE.Vector3(), lookAt = new THREE.Vector3();
 let camInit = false;
 
+// Flight feel: everything eases toward a target, nothing jumps.
+// Speed readout in game mph: cruise reads 150 mph, full boost about 480 mph
+const GAME_MPH = 15;
+const CRUISE = 10, BOOST = 32, REVERSE = 3;      // world units/s (1 unit = 100 m)
+const ease = (cur, tgt, rate, dt) => cur + (tgt - cur) * (1 - Math.exp(-rate * dt));
 function step(dt, t) {
   readInput();
-  const maxSpeed = input.boost ? 45 : 16;
-  state.yaw += input.turn * 1.6 * dt;
+  // smooth the raw stick/keys first so taps and twitches don't jerk the craft
+  state.inF = ease(state.inF || 0, input.fwd, 5, dt);
+  state.inT = ease(state.inT || 0, input.turn, 7, dt);
+  // boost blends in and out over about a second
+  state.boostMix = ease(state.boostMix || 0, input.boost && input.fwd > 0.2 ? 1 : 0, 2.2, dt);
+  const top = lerp(CRUISE, BOOST, state.boostMix);
+  const tgtSpeed = state.inF >= 0 ? state.inF * top : state.inF * REVERSE;
+  // gentle acceleration, a little softer when slowing so stops glide
+  const speedUp = Math.abs(tgtSpeed) > Math.abs(state.speed || 0);
+  state.speed = ease(state.speed || 0, tgtSpeed, speedUp ? 1.1 : 1.6, dt);
+  // turn rate is capped by speed: nimble when hovering, wide and steady at boost
+  const sp = Math.abs(state.speed);
+  const maxTurn = lerp(1.5, 0.55, Math.min(1, sp / BOOST));
+  state.yawRate = ease(state.yawRate || 0, state.inT * maxTurn, 6, dt);
+  state.yaw += state.yawRate * dt;
   const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
-  const accel = input.fwd * (input.boost ? 40 : 16);
-  state.vel.addScaledVector(fwdDir, accel * dt);
-  state.vel.multiplyScalar(Math.pow(input.fwd === 0 ? 0.35 : 0.8, dt));
-  const hs = state.vel.length(); if (hs > maxSpeed) state.vel.multiplyScalar(maxSpeed / hs);
-  // re-align velocity a bit toward heading so turning feels responsive
-  const sp = state.vel.length();
-  if (sp > 0.1) { const along = Math.sign(state.vel.dot(fwdDir)) || 1; state.vel.lerp(fwdDir.clone().multiplyScalar(sp * along), Math.min(1, dt * 2.5)); }
-  state.vy = lerp(state.vy, input.up * (input.boost ? 14 : 7), Math.min(1, dt * 4));
+  state.vel.copy(fwdDir).multiplyScalar(state.speed);
+  state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix), 4, dt);
   state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
   const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
   const gy = groundY(state.pos.x, state.pos.z);
@@ -412,8 +442,8 @@ function step(dt, t) {
   state.pos.y = Math.min(state.pos.y, 70);
 
   // ufo visuals
-  state.bank = lerp(state.bank, input.turn * 0.35, Math.min(1, dt * 4));
-  const pitch = lerp(0, -input.fwd * 0.12, 1);
+  state.bank = lerp(state.bank, (state.yawRate / 1.5) * 0.4, Math.min(1, dt * 4));
+  const pitch = -state.inF * 0.12;
   ufo.group.position.copy(state.pos);
   ufo.group.position.y += Math.sin(t * 2.2) * 0.06;
   ufo.group.rotation.set(0, 0, 0); ufo.group.rotateY(state.yaw); ufo.group.rotateZ(state.bank); ufo.group.rotateX(pitch);
@@ -441,7 +471,7 @@ function step(dt, t) {
       updateMissionText();
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
-      const par = state.job.km * 1000 / UNIT_M / 14; // seconds at a relaxed pace
+      const par = state.job.km * 1000 / UNIT_M / 12; // seconds at a relaxed pace
       const bonus = Math.max(0, Math.round((par - secs) / par * state.job.reward * 0.6));
       addTokens(state.job.reward + bonus);
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
@@ -467,7 +497,7 @@ function step(dt, t) {
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = `${haversineKm(fromWorld(state.pos.x, state.pos.z), tg).toFixed(1)} km`;
   $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
-  $('spdVal').textContent = Math.round(state.vel.length() * UNIT_M * 3.6).toLocaleString();
+  $('spdVal').textContent = Math.round(state.vel.length() * GAME_MPH);
   if ((step.f = (step.f || 0) + 1) % 3 === 0) drawMinimap();
 }
 

@@ -41,8 +41,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #06121f; col
   border: 1px solid rgba(255,255,255,.25); background: var(--glass); color: var(--ink); font-weight: 900; }
 
 #touch { position: fixed; inset: 0; pointer-events: none; }
-#stick { pointer-events: auto; position: absolute; left: calc(24px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom));
+#stickZone { pointer-events: auto; position: absolute; left: 0; bottom: 0; width: 55%; height: 62%; touch-action: none; }
+#stick { pointer-events: none; position: absolute; opacity: .55; transition: opacity .15s; left: calc(24px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom));
   width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.22); }
+#stick.live { opacity: 1; transition: none; }
 #knob { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #fff8, #8fa3b3 60%, #4b5b68); box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 #touchBtns { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom));
