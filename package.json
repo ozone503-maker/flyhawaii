@@ -7,7 +7,8 @@
     "dev": "vite",
     "bake": "node scripts/bake-terrain.mjs && node scripts/bake-water.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

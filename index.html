@@ -18,12 +18,14 @@
       <div id="missionStep">Loading mission</div>
       <div id="missionTarget"></div>
       <div id="missionMeta"><span id="arrow">&#9650;</span><span id="dist"></span><span id="cargo"></span></div>
+      <div id="missionHint">Fly to the amber beacon</div>
     </div>
     <canvas id="minimap" width="160" height="160"></canvas>
     <div id="alt">Alt <span id="altVal">0</span> m &middot; <span id="spdVal">0</span> mph</div>
     <div id="found" title="Attractions discovered"><span class="dot"></span>Discovered <b id="foundCount">0/15</b></div>
     <div id="beam"><div id="beamFill"></div></div>
-    <div id="toast"></div>
+    <div id="toast" role="status"></div>
+    <div id="deliveryReward" role="status" aria-live="polite"></div>
     <div id="discover" aria-live="polite"></div>
     <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
     <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
@@ -73,6 +75,7 @@
   <div id="pause" class="overlay hidden">
     <div class="panel">
       <h2>Paused</h2>
+      <button id="soundBtn" class="metal-btn pewter" aria-pressed="false">Delivery sound: off</button>
       <button id="resumeBtn" class="metal-btn copper">Resume</button>
       <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
       <button id="changePilotBtn" class="metal-btn pewter">Change pilot</button>

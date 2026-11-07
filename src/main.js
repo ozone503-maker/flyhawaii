@@ -1,3 +1,4 @@
+import { formatDistance, approachHint, createDeliveryAudio } from './delivery-feedback.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { decodeHeightPng } from './height-png.js';
@@ -270,6 +271,34 @@ function placeBeacon(b, label, t, text, color) {
 }
 function target() { return state.phase === 'pickup' ? state.job.from : state.job.to; }
 const $ = (id) => document.getElementById(id);
+const deliveryAudio = createDeliveryAudio({
+  AudioContext: window.AudioContext || window.webkitAudioContext,
+  enabled: localStorage.getItem('fh_sound') === 'on',
+});
+const soundButton = $('soundBtn');
+function updateSoundButton() {
+  const on = localStorage.getItem('fh_sound') === 'on';
+  soundButton.textContent = `Delivery sound: ${on ? 'on' : 'off'}`;
+  soundButton.setAttribute('aria-pressed', String(on));
+}
+updateSoundButton();
+soundButton.addEventListener('click', () => {
+  const on = localStorage.getItem('fh_sound') !== 'on';
+  localStorage.setItem('fh_sound', on ? 'on' : 'off');
+  deliveryAudio.setEnabled(on); updateSoundButton();
+});
+// Unlock only on deliberate play/resume clicks, never from a timer.
+for (const id of ['startBtn', 'selGo', 'resumeBtn']) {
+  $(id).addEventListener('click', () => deliveryAudio.unlock());
+}
+function deliveryReward(amount, bonus) {
+  const el = $('deliveryReward');
+  el.textContent = `Delivered  +${amount} KDU${bonus ? ` (${bonus} speed bonus)` : ''}`;
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  clearTimeout(deliveryReward.timer);
+  deliveryReward.timer = setTimeout(() => el.classList.remove('on'), 3000);
+  deliveryAudio.complete();
+}
 function updateMissionText() {
   const j = state.job, m = $('mission');
   m.className = state.phase;
@@ -426,8 +455,8 @@ function step(dt, t) {
   ufo.lights.forEach((l, i) => { l.material.color.setHSL(ufo.hue, 1, 0.5 + 0.2 * Math.sin(t * 6 + i)); });
 
   // mission
-  const tg = target();
-  const dx = tg.w.x - state.pos.x, dz = tg.w.y - state.pos.z;
+  let tg = target();
+  let dx = tg.w.x - state.pos.x, dz = tg.w.y - state.pos.z;
   const horiz = Math.hypot(dx, dz);
   const agl = state.pos.y - groundY(tg.w.x, tg.w.y);
   const inZone = horiz < 3.2 && agl < 8;
@@ -451,7 +480,7 @@ function step(dt, t) {
       const bonus = Math.max(0, Math.round((par - secs) / par * state.job.reward * 0.6));
       addTokens(state.job.reward + bonus);
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
-      toast(`Delivered\n+${state.job.reward + bonus} KDU${bonus ? ` (speed bonus ${bonus})` : ''}`);
+      deliveryReward(state.job.reward + bonus, bonus);
       newJob();
     }
   }
@@ -468,10 +497,12 @@ function step(dt, t) {
     b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
   }
   // HUD
+  tg = target(); dx = tg.w.x - state.pos.x; dz = tg.w.y - state.pos.z;
   const bearing = Math.atan2(dx, dz); // world bearing
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
-  $('dist').textContent = `${haversineKm(fromWorld(state.pos.x, state.pos.z), tg).toFixed(1)} km`;
+  $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
+  $('missionHint').textContent = approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
   $('spdVal').textContent = Math.round(state.vel.length() * GAME_MPH);
   if ((step.f = (step.f || 0) + 1) % 3 === 0) drawMinimap();
@@ -588,7 +619,7 @@ function openSelect(fromPause) {
     sel = { r, sc, cam, ship: null, id: null, on: true };
     const loop = () => { if (!sel.on) return; requestAnimationFrame(loop);
       const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * r.getPixelRatio()) || cv.height !== Math.round(h * r.getPixelRatio())) { r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
-      if (sel.ship) { const tt = performance.now() / 1000; sel.ship.group.rotation.y = tt * 0.6; sel.ship.group.position.y = Math.sin(tt * 2) * 0.12;
+      if (sel.ship) { const tt = performance.now() / 1000; sel.ship.group.rotation.y = 0; sel.ship.group.position.y = Math.sin(tt * 2) * 0.12;
         sel.ship.lights.forEach((l, i) => l.material.color.setHSL(sel.ship.hue, 1, 0.5 + 0.2 * Math.sin(tt * 6 + i))); }
       r.render(sc, cam); };
     sel.loop = loop;

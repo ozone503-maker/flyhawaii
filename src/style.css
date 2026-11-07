@@ -125,3 +125,16 @@ h2 { font-size: 34px; margin: 0 0 16px; }
   #shipPreview { height: 170px; }
   .sel-panel h2 { font-size: 28px; }
 }
+
+/* One instruction in the existing mission panel, not another HUD card */
+#missionHint { font-size: 14px; margin-top: 5px; color: #eef4fa; }
+#deliveryReward { position: absolute; left: 50%; top: 29%; transform: translateX(-50%);
+  width: max-content; max-width: 88vw; padding: 12px 18px; border-radius: 12px;
+  background: rgba(6,18,31,.9); color: #55caff; font-size: 22px; font-weight: 800;
+  text-align: center; opacity: 0; pointer-events: none; }
+#deliveryReward.on { opacity: 1; animation: reward-arrive .4s ease-out; }
+@keyframes reward-arrive { from { transform: translate(-50%, 12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #tokens.bump, #deliveryReward.on { animation: none; }
+  #toast { transition: none; }
+}

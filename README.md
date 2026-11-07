@@ -39,3 +39,26 @@ After Start a pilot select screen appears. The choice is saved on the device (`l
 | Monkey Jockey | MJ Racer | Fastest boost, wider turns (boost x1.14, turn x0.9) |
 
 Ships are built in `src/ships.js`. Pilot portraits (`public/pilots/`) are original AI art made for Fly Hawaii from the owner's character references, with no helmets or hats. Sources are in `art/pilots/`.
+
+## Small delivery polish pass
+
+- All three pilots now use the existing disc geometry and baseline Mystery Drone
+  flight handling. Only skin colors differ: silver/blue, pink, light electric blue.
+- The cockpit uses simple untextured rear-head silhouettes instead of front-facing
+  portrait sprites. The selection preview stays behind the ship too.
+- The existing mission panel shows meters below 1 km and an approach instruction
+  matching the transfer zone, height and speed checks. No extra navigation card.
+- Delivery completion shows an electric-blue reward banner, including speed bonus.
+  Reduced-motion settings disable the banner and token pop animations.
+- Optional synthesized delivery sound is off by default. Enable it in Pause.
+  The preference is saved locally; playback requires a user click to unlock audio.
+
+Checks: `npm test`, `npm run build`, `git diff --check`.
+
+Manual check still needed: run `npm run dev -- --host 0.0.0.0`; test each pilot,
+turn sharply and reverse while checking the rear-head silhouettes; inspect the
+mission panel in portrait and landscape; approach an amber beacon high/fast/slow,
+pick up, follow the green drop-off beacon, and complete a delivery. Verify exact
+KDU increment, speed bonus, next-job guidance, sound off/on and reload preference.
+With OS reduced motion enabled, confirm rewards appear without scaling/sliding.
+Confirm Rainbow Falls and Ka Lae photo signs remain unchanged.
