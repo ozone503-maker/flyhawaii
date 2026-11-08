@@ -62,3 +62,17 @@ pick up, follow the green drop-off beacon, and complete a delivery. Verify exact
 KDU increment, speed bonus, next-job guidance, sound off/on and reload preference.
 With OS reduced motion enabled, confirm rewards appear without scaling/sliding.
 Confirm Rainbow Falls and Ka Lae photo signs remain unchanged.
+
+## Faster island travel
+
+Shared maximum cruise is now 25 world units/s (2.5 km/s), up from 10 (1 km/s).
+Shared full boost is 75.2 world units/s (7.52 km/s), up from 30.08 (3.008 km/s),
+including the existing 0.94 boost coefficient. Both are 2.5 times faster.
+The HUD keeps its existing stylized game-mph conversion, not real-world mph.
+At up to 30% smoothed forward throttle, target speed is unchanged. Above that,
+a smooth travel curve adds speed. Reverse is unchanged. Throttle release eases
+at rate 14 instead of 5 and speed braking at rate 6 instead of 1.6; acceleration
+remains gentle. Tests compare actual release stopping distance against the old
+model at 30, 60 and 120 fps, for both cruise and boost.
+A 100 km straight leg at steady speed drops from 100 s to 40 s at cruise, or
+33.2 s to 13.3 s at boost, before acceleration, turning and landing.

@@ -1,3 +1,4 @@
+import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createDeliveryAudio } from './delivery-feedback.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -412,25 +413,17 @@ const tmp = new THREE.Vector3(), camTarget = new THREE.Vector3(), lookAt = new T
 let camInit = false;
 
 // Flight feel: everything eases toward a target, nothing jumps.
-// Speed readout in game mph: cruise reads 150 mph, full boost about 480 mph
+// Existing stylized game-mph readout. Actual world speeds live in flight-speed.js.
 const GAME_MPH = 15;
-const CRUISE = 10, BOOST = 32, REVERSE = 3;      // world units/s (1 unit = 100 m)
-// pilot choice: each ship nudges turning, boost and climb a little, all stay close to balanced
+// All disc skins share flight stats
 let shipEnv = null;
 let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
-const ease = (cur, tgt, rate, dt) => cur + (tgt - cur) * (1 - Math.exp(-rate * dt));
 function step(dt, t) {
   readInput();
-  // smooth the raw stick/keys first so taps and twitches don't jerk the craft
-  state.inF = ease(state.inF || 0, input.fwd, 5, dt);
+  // Gentle throttle opening, faster release/braking, unchanged low-stick control.
+  const S = pilot.stats;
+  advanceSpeed(state, input, S, dt);
   state.inT = ease(state.inT || 0, input.turn, 7, dt);
-  // boost blends in and out over about a second
-  state.boostMix = ease(state.boostMix || 0, input.boost && input.fwd > 0.2 ? 1 : 0, 2.2, dt);
-  const S = pilot.stats; const top = lerp(CRUISE * S.cruise, BOOST * S.boost, state.boostMix);
-  const tgtSpeed = state.inF >= 0 ? state.inF * top : state.inF * REVERSE;
-  // gentle acceleration, a little softer when slowing so stops glide
-  const speedUp = Math.abs(tgtSpeed) > Math.abs(state.speed || 0);
-  state.speed = ease(state.speed || 0, tgtSpeed, speedUp ? 1.1 : 1.6, dt);
   // turn rate is capped by speed: nimble when hovering, wide and steady at boost
   const sp = Math.abs(state.speed);
   const maxTurn = lerp(1.5, 0.55, Math.min(1, sp / BOOST)) * S.turn;
