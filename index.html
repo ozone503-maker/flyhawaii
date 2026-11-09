@@ -12,7 +12,22 @@
 <body>
   <canvas id="game"></canvas>
 
-  <div id="hud" class="hidden">
+  <div id="hud" class="hidden" data-cam="chase">
+    <div id="cockpitFx" aria-hidden="true"></div>
+    <div id="dash" aria-hidden="true">
+      <div class="dash-face">
+        <div class="dash-row dash-row-top">
+          <div class="dash-slot" data-slot="tokens"></div>
+          <div class="dash-slot" data-slot="found"></div>
+          <div class="dash-slot dash-gauges" data-slot="alt"></div>
+          <div class="dash-slot dash-map" data-slot="minimap"></div>
+        </div>
+        <div class="dash-row dash-row-main">
+          <div class="dash-slot dash-mission" data-slot="mission"></div>
+          <div class="dash-slot dash-cd" data-slot="cd"></div>
+        </div>
+      </div>
+    </div>
     <div id="tokens"><span class="kdu-coin"></span><span id="tokenCount">0</span><span class="unit">KDU</span></div>
     <div id="mission">
       <div id="missionStep">Loading mission</div>
@@ -42,6 +57,7 @@
       </div>
     </div>
     <div id="hudRail">
+      <button id="camBtn" class="small-btn cam-btn" aria-label="Toggle camera" aria-pressed="false" title="Camera">Cam</button>
       <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
       <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
     </div>
@@ -63,7 +79,7 @@
       <button id="startBtn" class="metal-btn copper">Start flying</button>
       <div id="loading">Loading Big Island terrain</div>
       <div class="controls">
-        <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, C to descend, Shift to boost, M for music, , / . for previous and next track</div>
+        <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, Q / F to descend, Shift to boost, C to switch camera, M for music, , / . for previous and next track</div>
         <div><b>Touch</b> put your left thumb down anywhere on the left side and slide to fly and turn, right buttons for Up, Down and Boost</div>
         <div><b>Deliver</b> hover low inside a beacon to beam packages up or down</div>
       </div>

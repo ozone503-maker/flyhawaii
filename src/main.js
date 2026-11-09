@@ -1,6 +1,7 @@
 import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
+import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { decodeHeightPng } from './height-png.js';
@@ -229,6 +230,7 @@ function makeBeacon(color) {
 // ---------- state ----------
 const state = {
   running: false, paused: false,
+  camMode: cameraPreference(params.get('cam') || localStorage.getItem('fh_cam')),
   tokens: Number(localStorage.getItem('fh_kdu') || 0),
   delivered: Number(localStorage.getItem('fh_jobs') || 0),
   pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), vy: 0, bank: 0,
@@ -461,6 +463,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'Comma') { cdPlayer.prev(); cdPlayer.unlock(); unlockAudio(); }
   if (e.code === 'Period') { cdPlayer.next(); cdPlayer.unlock(); unlockAudio(); }
+  if (e.code === 'KeyC') { e.preventDefault(); toggleCamera(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
@@ -507,7 +510,7 @@ function readInput() {
   const k = (c) => keys.has(c);
   let fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
   let turn = (k('KeyA') || k('ArrowLeft') ? 1 : 0) - (k('KeyD') || k('ArrowRight') ? 1 : 0);
-  let up = (k('Space') || k('KeyE') || k('KeyR') ? 1 : 0) - (k('KeyC') || k('KeyQ') || k('KeyF') || k('ControlLeft') ? 1 : 0);
+  let up = (k('Space') || k('KeyE') || k('KeyR') ? 1 : 0) - (k('KeyQ') || k('KeyF') || k('ControlLeft') ? 1 : 0);
   if (stick.id !== null) { const [sx, sy] = shapeStick(stick.x, stick.y); fwd = -sy; turn = -sx; }
   up += (held.up ? 1 : 0) - (held.down ? 1 : 0);
   input.fwd = Math.max(-1, Math.min(1, fwd)); input.turn = Math.max(-1, Math.min(1, turn)); input.up = Math.max(-1, Math.min(1, up));
@@ -522,6 +525,8 @@ function togglePause(force) {
   cdPlayer.setGamePaused(state.paused || document.hidden);
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
+$('camBtn')?.addEventListener('click', () => toggleCamera());
+applyCamHud();
 $('resumeBtn').addEventListener('click', () => togglePause(false));
 $('newJobBtn').addEventListener('click', () => { newJob(); togglePause(false); });
 document.addEventListener('visibilitychange', () => {
@@ -650,8 +655,60 @@ function step(dt, t) {
 }
 
 let camYaw = 0, camH = 0;
+let camBlend = state.camMode === CAM_COCKPIT ? 1 : 0;
+const chasePos = new THREE.Vector3(), cockpitPos = new THREE.Vector3();
+const chaseLook = new THREE.Vector3(), cockpitLook = new THREE.Vector3();
+const _eyeLocal = new THREE.Vector3(), _lookLocal = new THREE.Vector3();
+
+function setPilotHeadVisible(vis) {
+  if (!ufo?.group) return;
+  ufo.group.traverse((o) => { if (o.userData?.isPilotHead) o.visible = vis; });
+}
+
+function applyCamHud() {
+  const cockpit = state.camMode === CAM_COCKPIT;
+  document.body.dataset.cam = state.camMode;
+  document.body.dataset.pilot = pilot?.id || 'drone';
+  const hud = $('hud'); if (hud) hud.dataset.cam = state.camMode;
+  const dash = $('dash'); if (dash) dash.setAttribute('aria-hidden', cockpit ? 'false' : 'true');
+  const fx = $('cockpitFx'); if (fx) fx.setAttribute('aria-hidden', cockpit ? 'false' : 'true');
+  const btn = $('camBtn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', String(cockpit));
+    btn.textContent = cockpit ? 'Chase' : 'Cam';
+    btn.title = cockpit ? 'Chase camera' : 'Cockpit camera';
+  }
+  const mount = {
+    tokens: 'tokens', found: 'found', alt: 'alt', minimap: 'minimap',
+    mission: 'mission', cd: 'cdPlayer',
+  };
+  for (const [slot, id] of Object.entries(mount)) {
+    const el = $(id); if (!el) continue;
+    const host = cockpit ? document.querySelector(`[data-slot="${slot}"]`) : hud;
+    if (host && el.parentElement !== host) host.appendChild(el);
+  }
+  if (cockpit) {
+    cdEls.root?.classList.add('open', 'dash-mounted');
+    setCdOpen(true);
+  } else {
+    cdEls.root?.classList.remove('dash-mounted');
+    if (isNarrowHud()) setCdOpen(false);
+  }
+  setPilotHeadVisible(!cockpit || camBlend < 0.55);
+  const wantNear = cockpit ? 0.04 : 0.35;
+  if (Math.abs(camera.near - wantNear) > 0.01) {
+    camera.near = wantNear; camera.updateProjectionMatrix();
+  }
+}
+
+function toggleCamera(force) {
+  const next = force || nextCameraMode(state.camMode);
+  state.camMode = next === CAM_COCKPIT ? CAM_COCKPIT : CAM_CHASE;
+  localStorage.setItem('fh_cam', state.camMode);
+  applyCamHud();
+}
+
 function updateCamera(dt) {
-  // third-person chase cam locked directly behind the saucer's heading
   if (!camInit) { camYaw = state.yaw; camInit = true; }
   let dy = state.yaw - camYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   camYaw += dy * Math.min(1, dt * 10);
@@ -659,14 +716,30 @@ function updateCamera(dt) {
   const spd = state.vel.length();
   const portrait = camera.aspect < 1;
   const dist = (portrait ? 7.5 : 5.5) + spd * 0.04, h = (portrait ? 2.2 : 1.6) + spd * 0.015;
-  camTarget.copy(state.pos).addScaledVector(back, dist); camTarget.y += h;
-  const cg = groundY(camTarget.x, camTarget.z) + 0.4;
-  camH = Math.max(camTarget.y, cg);
-  camera.position.set(camTarget.x, lerp(camera.position.y || camH, camH, Math.min(1, dt * 8)), camTarget.z);
-  if (camera.position.y < cg) camera.position.y = cg;
-  lookAt.copy(state.pos).addScaledVector(back, -4); lookAt.y += 0.3;
+  chasePos.copy(state.pos).addScaledVector(back, dist); chasePos.y += h;
+  const cg = groundY(chasePos.x, chasePos.z) + 0.4;
+  chasePos.y = Math.max(chasePos.y, cg);
+  chaseLook.copy(state.pos).addScaledVector(back, -4); chaseLook.y += 0.3;
+
+  if (ufo?.group) {
+    ufo.group.updateMatrixWorld(true);
+    const { eye, look } = cockpitEyeLocal();
+    _eyeLocal.set(eye[0], eye[1], eye[2]).applyMatrix4(ufo.group.matrixWorld);
+    _lookLocal.set(look[0], look[1], look[2]).applyMatrix4(ufo.group.matrixWorld);
+    cockpitPos.copy(_eyeLocal);
+    cockpitLook.copy(_lookLocal);
+  } else {
+    cockpitPos.copy(state.pos); cockpitPos.y += 0.35;
+    cockpitLook.copy(state.pos).addScaledVector(tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw)), 4);
+    cockpitLook.y += 0.2;
+  }
+
+  camBlend = camBlendStep(camBlend, state.camMode, dt, 5.5);
+  camera.position.lerpVectors(chasePos, cockpitPos, camBlend);
+  lookAt.lerpVectors(chaseLook, cockpitLook, camBlend);
   camera.lookAt(lookAt);
-  window.__sky.position.copy(camera.position);
+  setPilotHeadVisible(camBlend < 0.55);
+  if (window.__sky) window.__sky.position.copy(camera.position);
 }
 
 let lastStream = 0;
@@ -735,6 +808,8 @@ function setPilot(id) {
   pilot = pilotById(id); localStorage.setItem('fh_pilot', pilot.id);
   if (ufo && ufo.pilot.id !== pilot.id) { const old = ufo; ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group); ufo.group.position.copy(old.group.position); disposeShip(old); }
   $('pilotBadge').src = pilot.badge; $('pilotBadge').alt = pilot.name;
+  document.body.dataset.pilot = pilot.id;
+  if (state.running) applyCamHud();
 }
 // ---------- pilot select ----------
 let sel = null;

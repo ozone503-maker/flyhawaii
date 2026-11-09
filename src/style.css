@@ -243,3 +243,143 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 @media (prefers-reduced-motion: reduce) {
   .cd-disc.spin { animation: none; }
 }
+
+/* ----- Camera modes: chase vs cockpit dash ----- */
+.cam-btn {
+  background: linear-gradient(170deg, #f1f4f6 0%, #a8b2b9 35%, #6f7b83 58%, #a3adb4 80%, #dde3e7 100%);
+  color: #15191c; font-size: 11px; font-weight: 800; letter-spacing: 0;
+  border: 1px solid rgba(255,255,255,.4);
+  box-shadow: 0 3px 8px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.55);
+}
+.cam-btn[aria-pressed="true"] {
+  background: linear-gradient(170deg, #fbd3a8 0%, #c98149 30%, #8f4f22 55%, #c07a43 78%, #f0b47c 100%);
+  color: #2a1406;
+}
+
+#dash { display: none; pointer-events: none; position: absolute; left: 0; right: 0; bottom: 0;
+  height: min(34vh, 280px); z-index: 5;
+  padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 0%, rgba(6,12,20,.35) 18%, rgba(6,12,20,.72) 45%);
+}
+#dash .dash-face {
+  pointer-events: auto; height: 100%;
+  border-radius: 28px 28px 18px 18px / 40px 40px 18px 18px;
+  padding: 12px 14px 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), transparent 28%),
+    linear-gradient(165deg, #d8dee4 0%, #8a949c 28%, #4a5560 55%, #6f7b83 78%, #b8c0c6 100%);
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: 0 -8px 28px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -10px 24px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#dash .dash-row { display: flex; gap: 8px; align-items: stretch; min-height: 0; }
+#dash .dash-row-top { flex: 0 0 auto; }
+#dash .dash-row-main { flex: 1; min-height: 0; }
+#dash .dash-slot {
+  background: rgba(6,18,31,.82); border-radius: 12px;
+  border: 1px solid rgba(30,200,255,.28);
+  box-shadow: inset 0 0 18px rgba(30,200,255,.08), 0 0 10px rgba(30,200,255,.12);
+  padding: 6px 8px; min-width: 0; overflow: hidden;
+  display: flex; align-items: center;
+}
+#dash .dash-slot[data-slot="tokens"] { flex: 0 0 auto; }
+#dash .dash-slot[data-slot="found"] { flex: 0 0 auto; }
+#dash .dash-gauges { flex: 1; justify-content: center; }
+#dash .dash-map { flex: 0 0 auto; padding: 4px; }
+#dash .dash-mission { flex: 1.2; align-items: stretch; }
+#dash .dash-cd { flex: 1; }
+
+#cockpitFx {
+  display: none; pointer-events: none; position: absolute; inset: 0; z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 42%, transparent 38%, rgba(6,18,31,.2) 68%, rgba(6,18,31,.55) 100%);
+  box-shadow: inset 0 -120px 90px rgba(6,12,20,.35), inset 0 0 60px var(--cockpit-tint, rgba(30,200,255,.18));
+}
+#cockpitFx::before {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 6%; height: 14%;
+  border-radius: 50%; border: 2px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 20px var(--cockpit-tint, rgba(30,200,255,.2));
+  opacity: .55;
+}
+#cockpitFx::after {
+  content: ""; position: absolute; left: 12%; right: 12%; bottom: 30%; height: 10%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, transparent, var(--cockpit-rim, rgba(185,197,210,.35)));
+  opacity: .7; filter: blur(1px);
+}
+
+body[data-cam="cockpit"] #dash { display: block; }
+body[data-cam="cockpit"] #cockpitFx { display: block; }
+body[data-cam="cockpit"] #hud { --cockpit-tint: rgba(30,200,255,.22); --cockpit-rim: rgba(185,197,210,.4); }
+body[data-pilot="ipo"][data-cam="cockpit"] #hud { --cockpit-tint: rgba(255,118,180,.28); --cockpit-rim: rgba(255,184,220,.45); }
+body[data-pilot="mj"][data-cam="cockpit"] #hud { --cockpit-tint: rgba(117,207,255,.28); --cockpit-rim: rgba(177,233,255,.45); }
+
+/* Mounted instruments lose chase absolute chrome */
+body[data-cam="cockpit"] #tokens,
+body[data-cam="cockpit"] #mission,
+body[data-cam="cockpit"] #found,
+body[data-cam="cockpit"] #alt,
+body[data-cam="cockpit"] #minimap,
+body[data-cam="cockpit"] #cdPlayer {
+  position: relative !important; top: auto !important; left: auto !important; right: auto !important;
+  bottom: auto !important; transform: none !important; max-width: none !important;
+  margin: 0; width: 100%;
+  background: transparent; border: 0; box-shadow: none; backdrop-filter: none;
+  padding: 0;
+}
+body[data-cam="cockpit"] #mission { text-align: left; min-width: 0; }
+body[data-cam="cockpit"] #missionTarget { font-size: 15px; }
+body[data-cam="cockpit"] #minimap { width: 96px; height: 96px; border-radius: 10px; border: 1px solid rgba(30,200,255,.35); }
+body[data-cam="cockpit"] #cdPlayer.cd-player {
+  max-width: none; border-radius: 12px; padding: 6px 8px;
+  background: rgba(6,18,31,.55); border: 1px solid rgba(30,200,255,.25);
+}
+body[data-cam="cockpit"] #cdPlayer.cd-player .cd-controls,
+body[data-cam="cockpit"] #cdPlayer.cd-player .cd-meta,
+body[data-cam="cockpit"] #cdPlayer.cd-player .cd-vol { display: flex !important; }
+body[data-cam="cockpit"] #alt { font-size: 14px; font-weight: 800; color: var(--kdu); }
+body[data-cam="cockpit"] #found { font-size: 12px; }
+body[data-cam="cockpit"] #tokens { font-size: 20px; }
+body[data-cam="cockpit"] #hudRail { top: calc(12px + env(safe-area-inset-top)); right: 12px; z-index: 6; }
+body[data-cam="cockpit"] #touchBtns { bottom: calc(36vh + env(safe-area-inset-bottom)); }
+body[data-cam="cockpit"] #stick { bottom: calc(34vh + env(safe-area-inset-bottom)); }
+body[data-cam="cockpit"] #stickZone { height: 48%; }
+
+/* Chase declutter: keep essentials only */
+body[data-cam="chase"] #found,
+body[data-cam="chase"] #alt,
+body[data-cam="chase"] #minimap { display: none !important; }
+body[data-cam="chase"] #missionHint,
+body[data-cam="chase"] #missionStep,
+body[data-cam="chase"] #cargo { display: none; }
+body[data-cam="chase"] #mission {
+  padding: 6px 12px; min-width: 0; max-width: min(52vw, 280px);
+}
+body[data-cam="chase"] #missionTarget { font-size: 14px; margin: 0 0 2px; }
+body[data-cam="chase"] #tokens { font-size: 18px; padding: 6px 12px 6px 6px; }
+body[data-cam="chase"] #cdPlayer.cd-player:not(.open) .cd-controls,
+body[data-cam="chase"] #cdPlayer.cd-player:not(.open) .cd-meta { display: none; }
+
+@media (max-width: 640px) {
+  #dash { height: min(30vh, 220px); padding: 0 6px calc(6px + env(safe-area-inset-bottom)); }
+  #dash .dash-face { padding: 8px; gap: 6px; border-radius: 22px 22px 14px 14px / 30px 30px 14px 14px; }
+  #dash .dash-row { gap: 6px; }
+  body[data-cam="cockpit"] #minimap { width: 72px; height: 72px; }
+  body[data-cam="cockpit"] #tokens { font-size: 16px; }
+  body[data-cam="cockpit"] #missionTarget { font-size: 13px; }
+  body[data-cam="cockpit"] #missionHint { font-size: 11px; }
+  body[data-cam="cockpit"] #cdPlayer.cd-player { padding: 4px 6px; gap: 6px; }
+  body[data-cam="cockpit"] #cdPlayer.cd-player .cd-vol { display: none !important; }
+  body[data-cam="cockpit"] .cd-title { max-width: 90px; font-size: 11px; }
+  body[data-cam="cockpit"] #touchBtns { bottom: calc(32vh + env(safe-area-inset-bottom)); }
+  body[data-cam="cockpit"] #stick { bottom: calc(30vh + env(safe-area-inset-bottom)); }
+  body[data-cam="chase"] #mission {
+    top: calc(54px + env(safe-area-inset-top));
+    left: 12px; right: calc(110px + env(safe-area-inset-right));
+  }
+  body[data-cam="chase"] #cdPlayer.cd-player {
+    top: calc(12px + env(safe-area-inset-top));
+    left: auto; right: calc(108px + env(safe-area-inset-right));
+  }
+  body[data-cam="chase"] #tokens { max-width: calc(100vw - 160px); }
+}
