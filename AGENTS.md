@@ -24,6 +24,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/cutscene.js` | Arrival scene timeline (pure math): beats, camera orbit, coin path, count-up, pausable and skippable clock |
 | `src/arrival-fx.js` | Procedural 3D effects for arrival scenes: tractor beam, package, hex rings, sparkle burst |
 | `src/clips.js` | Cutaway clip list parsing and picking |
+| `src/businesses.js` | Delivery business list parsing, coordinate checks and job picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |
 | `src/camera-mode.js` | Chase and cockpit camera positions |
@@ -35,7 +36,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `test/fixtures/clips/` | Test-only placeholder clips. Never ship them |
 | `scripts/*.py` | Headless screenshot checks (Python Playwright + Chrome): `alien-shots.py`, `cutscene-shots.py`, `clip-shots.py` |
 | `scripts/bake-*.mjs` | One-off data baking for terrain and water. Rarely needed |
-| `public/` | Static files served as is: terrain, photos, pilots, music, clips |
+| `public/` | Static files served as is: terrain, photos, pilots, music, clips, businesses, locals |
 | `docs/` | Extra docs, including `docs/clips.md` |
 
 Keep logic that can be tested in small pure modules (like `cutscene.js` or `clips.js`) and add a test for it. `main.js` is big, so make focused edits there.
@@ -48,6 +49,10 @@ Keep logic that can be tested in small pure modules (like `cutscene.js` or `clip
    { "id": "track-05", "file": "track-05.mp3", "title": "ShockBot · Track 5" }
    ```
 3. `npm test && npm run build`, then open a PR
+
+## Adding a business
+
+Pickups and drop-offs are real businesses listed in `public/businesses/businesses.json`. Copy the coordinates from Google Maps, add an entry with `name`, `town` and `coords`, then `npm test && npm run build` and open a PR. Full details: [docs/businesses.md](docs/businesses.md).
 
 ## Adding a cutaway clip
 
@@ -63,7 +68,7 @@ Cutaway scenes are short live-action videos (for example an island local saying 
    ```
 3. `npm test && npm run build`, then open a PR
 
-`when` is optional: `delivery` (the default), `pickup` or `any`. After each delivery or pickup the game plays a random fitting clip and avoids repeating the last one. Delivery clips play before the KDU coins fly into the counter. Ids must be unique.
+`when` is optional: `delivery` (the default), `pickup` or `any`. `biz` is optional too: a business id makes the clip play only at that business. After each delivery or pickup the game plays a random fitting clip and avoids repeating the last one. Delivery clips play before the KDU coins fly into the counter. Ids must be unique.
 
 Clip spec:
 - Vertical 9:16 (720x1280 is plenty), 4 to 8 seconds

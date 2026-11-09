@@ -5,6 +5,7 @@ import { glyph, gaugeFraction, trackSeed, waveBars } from './alien-ui.js';
 import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath, CLIP_DURATION, CLIP_DURATION_PICKUP } from './cutscene.js';
 import { createArrivalFx } from './arrival-fx.js';
 import { normalizeClips, pickClip, shouldPlayClip, CLIP_HOLD_AT, CLIP_START_TIMEOUT, CLIP_MAX_SECONDS } from './clips.js';
+import { normalizeBusinesses, pickJobPair, pickPackage } from './businesses.js';
 import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -49,6 +50,12 @@ const TOWNS = [
   { id: 'pahoa',  town: 'Pahoa',         lat: 19.4970, lon: -154.9453, biz: ['Lava Lamp Records', 'Puna Star Fruit Stand'] },
   { id: 'hawi',   town: 'Hawi',          lat: 20.2414, lon: -155.8336, biz: ['Trade Wind Kite Works', 'Kohala Comet Chocolate'] },
 ];
+// Delivery stops come from public/businesses/businesses.json (see docs/businesses.md).
+// If that file is missing or has fewer than two good entries, the town businesses above are used.
+let BUSINESSES = [];
+function townBusinesses() {
+  return TOWNS.flatMap((t) => t.biz.map((name) => ({ id: `${t.id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, name, town: t.town, lat: t.lat, lon: t.lon, packages: [], placeholder: true })));
+}
 const PACKAGES = ['a box of malasadas', 'surfboard fins', 'a crate of coffee beans', 'glass floats', 'vinyl records', 'kite parts', 'ice cream (keep it cold)', 'a lei order', 'chocolate bars', 'saddle leather'];
 
 // ---------- renderer / scene ----------
@@ -262,11 +269,9 @@ function placeCoins() {
 }
 
 function newJob() {
-  const a = TOWNS[Math.floor(Math.random() * TOWNS.length)];
-  let b; do { b = TOWNS[Math.floor(Math.random() * TOWNS.length)]; } while (b === a);
-  const from = { ...a, name: a.biz[Math.floor(Math.random() * 2)] };
-  const to = { ...b, name: b.biz[Math.floor(Math.random() * 2)] };
-  const pkg = PACKAGES[Math.floor(Math.random() * PACKAGES.length)];
+  const pair = pickJobPair(BUSINESSES, Math.random, { lastId: state.job?.to?.id || '' });
+  const from = pair.from, to = pair.to;
+  const pkg = pickPackage(from, PACKAGES);
   const km = haversineKm(from, to);
   state.job = { from, to, pkg, km, reward: Math.round(20 + km * 1.6) };
   state.phase = 'pickup'; state.hover = 0;
@@ -592,11 +597,11 @@ clipEls.sound?.addEventListener('click', () => {
   clipEls.video.play?.()?.catch?.(() => {});
 });
 
-function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd } = {}) {
+function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd, bizId = '' } = {}) {
   if (!cutscenesOn || !arrivalFx) return false;
   if (state.cut) endCutscene();
   const az = Math.atan2(camera.position.x - state.pos.x, camera.position.z - state.pos.z);
-  const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list });
+  const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list, bizId });
   const clock = createCutsceneClock(kind, withClip ? (kind === 'delivery' ? CLIP_DURATION : CLIP_DURATION_PICKUP) : undefined);
   state.cut = {
     kind, clock, fromTokens, toTokens, onEnd, beatOpts: { clip: withClip },
@@ -604,7 +609,7 @@ function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.token
     clip: null,
   };
   if (withClip) {
-    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId, Math.random, kind), phase: 'loading', wait: 0, elapsed: 0 };
+    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId, Math.random, kind, bizId), phase: 'loading', wait: 0, elapsed: 0 };
     clock.holdAt(CLIP_HOLD_AT);
     prepareClip(state.cut);
   }
@@ -847,10 +852,10 @@ function step(dt, t) {
     if (state.phase === 'pickup') {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
-      const town = state.job.to.town;
+      const town = state.job.to.town, pickupBiz = state.job.from.id;
       gameAudio.pickup();
       updateMissionText();
-      if (!startCutscene('pickup', { onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
+      if (!startCutscene('pickup', { bizId: pickupBiz, onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
       const par = state.job.km * 1000 / UNIT_M / 12; // seconds at a relaxed pace
@@ -860,8 +865,9 @@ function step(dt, t) {
       addTokens(gain, { quiet: cine });
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
       deliveryReward(gain, bonus);
+      const dropBiz = state.job.to.id;
       newJob();
-      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens });
+      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropBiz });
     }
   }
   // coins
@@ -1049,17 +1055,22 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fit
 async function boot() {
   const startBtn = $('startBtn'); startBtn.disabled = true;
   const ok = (r) => { if (!r.ok) throw new Error(`${r.url} ${r.status}`); return r; };
-  const [m, hb, water, manifest, attrList, satImg] = await Promise.all([
+  const [m, hb, water, manifest, attrList, satImg, bizData] = await Promise.all([
     fetch('/terrain/meta.json').then(ok).then((r) => r.json()),
     fetch('/terrain/base-h.png').then(ok).then((r) => r.arrayBuffer()).then(decodeHeightPng),
     fetch('/terrain/waterways.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/chunks/chunks.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/photos/attractions.json').then(ok).then((r) => r.json()).catch(() => []),
-    fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null)]);
+    fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null),
+    fetch('/businesses/businesses.json', { cache: 'no-cache' }).then(ok).then((r) => r.json()).catch(() => null)]);
   meta = m; N = m.N; SIZE = m.sizeKm * 1000 / UNIT_M;
   H = new Int16Array(N * N); for (let k = 0; k < H.length; k++) H[k] = hb.data[k] - 6000; // stored as meters + 6000
   fixInlandSea();
   for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
+  const reg = normalizeBusinesses(bizData);
+  if (reg.problems.length) console.warn('businesses.json skipped:', reg.problems);
+  BUSINESSES = reg.businesses.length >= 2 ? reg.businesses : townBusinesses();
+  for (const b of BUSINESSES) b.w = toWorld(b.lat, b.lon);
   colorCanvas = buildTerrain(water, satImg);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
   try { drawMinimap(); } catch { /* HUD may not be mounted yet */ }
@@ -1088,7 +1099,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, get businesses() { return BUSINESSES; }, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

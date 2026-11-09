@@ -1,5 +1,7 @@
 // Cutaway clips (live action) shown in arrival scenes. Pure helpers.
 // Each clip may say when it plays: "delivery" (default), "pickup" or "any".
+// A clip may also name a business id ("biz"): it then plays only at that business, and that
+// business plays its own clips instead of the shared ones.
 export const CLIP_WHEN = ['delivery', 'pickup', 'any'];
 export const CLIP_HOLD_AT = 3.3;      // cutscene time where the clip plays (after the burst)
 export const CLIP_START_TIMEOUT = 2.5; // seconds to wait for a clip to start before skipping it
@@ -20,25 +22,31 @@ export function normalizeClips(data) {
       const file = c.file.trim();
       const id = String(c.id || file.replace(/\.[^.]+$/, '') || `clip-${i + 1}`);
       const src = /^(https?:)?\//.test(file) ? file : `/clips/${file}`;
-      return { id, file, src, when: clipWhen(c.when) };
+      const biz = typeof c.biz === 'string' ? c.biz.trim() : '';
+      return { id, file, src, when: clipWhen(c.when), biz };
     })
     .filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
 }
 
-/** Clips that can play for a scene kind ("delivery" or "pickup"). */
-export function clipsFor(list, kind) {
-  return (list || []).filter((c) => c && ((c.when || 'delivery') === 'any' || (c.when || 'delivery') === kind));
+/**
+ * Clips that can play for a scene kind ("delivery" or "pickup") at a business.
+ * The business's own clips win; otherwise only shared clips (no biz) qualify.
+ */
+export function clipsFor(list, kind, bizId = '') {
+  const fit = (list || []).filter((c) => c && ((c.when || 'delivery') === 'any' || (c.when || 'delivery') === kind));
+  const own = bizId ? fit.filter((c) => c.biz === bizId) : [];
+  return own.length ? own : fit.filter((c) => !c.biz);
 }
 
 /** Random clip for this kind that is not the last one played (unless it is the only one). */
-export function pickClip(list, lastId, rand = Math.random, kind = 'delivery') {
-  const fit = clipsFor(list, kind);
+export function pickClip(list, lastId, rand = Math.random, kind = 'delivery', bizId = '') {
+  const fit = clipsFor(list, kind, bizId);
   if (!fit.length) return null;
   const pool = fit.length > 1 ? fit.filter((c) => c.id !== lastId) : fit;
   return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
 }
 
 /** A clip plays when scenes are on and at least one clip fits this kind of arrival. */
-export function shouldPlayClip({ kind, scenesOn, clips }) {
-  return (kind === 'delivery' || kind === 'pickup') && !!scenesOn && clipsFor(clips, kind).length > 0;
+export function shouldPlayClip({ kind, scenesOn, clips, bizId = '' }) {
+  return (kind === 'delivery' || kind === 'pickup') && !!scenesOn && clipsFor(clips, kind, bizId).length > 0;
 }
