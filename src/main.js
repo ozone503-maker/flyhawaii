@@ -1,6 +1,7 @@
 import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
+import { glyph, gaugeFraction, trackSeed, waveBars } from './alien-ui.js';
 import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -288,8 +289,9 @@ const soundButton = $('soundBtn');
 const volumeSlider = $('volumeSlider');
 function updateSoundButton() {
   const on = gameAudio.isEnabled();
-  soundButton.textContent = `Engine sound: ${on ? 'on' : 'off'}`;
   soundButton.setAttribute('aria-pressed', String(on));
+  soundButton.setAttribute('aria-label', `Engine sound ${on ? 'on' : 'off'}`);
+  soundButton.classList.toggle('off', !on);
   volumeSlider.disabled = !on;
   volumeSlider.value = String(Math.round(gameAudio.getVolume() * 100));
   $('volumeLabel').textContent = `Volume ${Math.round(gameAudio.getVolume() * 100)}%`;
@@ -327,8 +329,11 @@ const cdEls = {
   next: $('cdNext'),
   vol: $('cdVol'),
   volLabel: $('cdVolLabel'),
+  pips: $('cdPips'),
+  wave: $('cdWave'),
 };
 let syncCdUi = (s = {}) => {};
+const waveState = { playing: false, seed: 0, energy: 1, col: '', colAt: -9 };
 const cdPlayer = createCdPlayer({
   audio: musicAudio,
   tracks: [],
@@ -342,12 +347,26 @@ syncCdUi = (s = {}) => {
   const enabled = s.enabled ?? cdPlayer.isEnabled();
   const volume = s.volume ?? cdPlayer.getVolume();
   if (cdEls.title) cdEls.title.textContent = track?.title || 'ShockBot';
+  if (cdEls.disc) cdEls.disc.title = track?.title || 'ShockBot';
   if (cdEls.play) {
-    cdEls.play.textContent = playing ? 'II' : '\u25B6';
+    const want = playing ? 'pause' : 'play';
+    if (cdEls.play.dataset.glyph !== want) { cdEls.play.innerHTML = glyph(want); cdEls.play.dataset.glyph = want; }
     cdEls.play.setAttribute('aria-pressed', String(!!playing));
     cdEls.play.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
+    cdEls.play.title = playing ? 'Pause music' : 'Play music';
   }
   if (cdEls.disc) cdEls.disc.classList.toggle('spin', !!playing);
+  if (cdEls.root) cdEls.root.classList.toggle('playing', !!playing);
+  const count = s.count ?? cdPlayer.getTracks().length;
+  const idx = s.index ?? cdPlayer.getIndex();
+  if (cdEls.pips && cdEls.pips.childElementCount !== count) {
+    cdEls.pips.innerHTML = '';
+    for (let i = 0; i < count; i++) cdEls.pips.append(document.createElement('i'));
+  }
+  if (cdEls.pips) [...cdEls.pips.children].forEach((el, i) => el.classList.toggle('on', i === idx));
+  waveState.playing = !!playing;
+  waveState.seed = trackSeed(track?.id || '');
+  waveState.energy = enabled ? 0.55 + volume * 0.45 : 0.2;
   if (cdEls.vol) {
     cdEls.vol.value = String(Math.round(volume * 100));
     cdEls.vol.disabled = !enabled;
@@ -356,13 +375,36 @@ syncCdUi = (s = {}) => {
   if (cdEls.root) cdEls.root.hidden = !(s.count ?? cdPlayer.getTracks().length);
 }
 syncCdUi();
+// Holographic waveform for the sound crystal. A procedural pulse (no analyser
+// on the music element, so iOS playback never depends on an AudioContext).
+function drawWave(t) {
+  const cv = cdEls.wave; if (!cv || cdEls.root?.hidden) return;
+  if (!cv.offsetParent) return; // hidden by layout
+  const ctx = cv.getContext('2d'); const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  const bars = waveBars(t, { count: 16, seed: waveState.seed, playing: waveState.playing, energy: waveState.energy });
+  if (!waveState.col || t - waveState.colAt > 1) { waveState.col = getComputedStyle(cdEls.root).getPropertyValue('--glow').trim() || '#1ec8ff'; waveState.colAt = t; }
+  const col = waveState.col;
+  const bw = w / bars.length;
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+  bars.forEach((v, i) => {
+    const bh = Math.max(2, v * (h - 6));
+    const x = i * bw + bw * 0.18, y = (h - bh) / 2;
+    ctx.globalAlpha = 0.45 + v * 0.55;
+    ctx.beginPath(); // angled shard bars
+    ctx.moveTo(x + bw * 0.16, y); ctx.lineTo(x + bw * 0.64, y); ctx.lineTo(x + bw * 0.48, y + bh); ctx.lineTo(x, y + bh);
+    ctx.closePath(); ctx.fill();
+  });
+  ctx.globalAlpha = 0.35; ctx.shadowBlur = 0; ctx.fillRect(0, h / 2 - 0.5, w, 1);
+  ctx.globalAlpha = 1;
+}
 function isNarrowHud() { return matchMedia('(max-width: 640px)').matches; }
 function setCdOpen(open) {
   if (!cdEls.root) return;
   cdEls.root.classList.toggle('open', !!open);
   if (cdEls.disc) {
     cdEls.disc.setAttribute('aria-expanded', String(!!open));
-    cdEls.disc.setAttribute('aria-label', open ? 'Collapse music player' : 'Open music player');
+    cdEls.disc.setAttribute('aria-label', open ? 'Collapse sound crystal' : 'Open sound crystal');
   }
 }
 cdEls.disc?.addEventListener('click', (e) => {
@@ -652,6 +694,9 @@ function step(dt, t) {
   $('missionHint').textContent = approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
   $('spdVal').textContent = Math.round(state.vel.length() * GAME_MPH);
+  const altEl = $('alt');
+  altEl.style.setProperty('--alt-f', gaugeFraction(state.pos.y / VEXAG * UNIT_M, 4300).toFixed(3));
+  altEl.style.setProperty('--spd-f', gaugeFraction(state.vel.length(), BOOST).toFixed(3));
   gameAudio.update({
     speed: state.speed || 0,
     throttle: state.inF || 0,
@@ -683,7 +728,8 @@ function applyCamHud() {
   const btn = $('camBtn');
   if (btn) {
     btn.setAttribute('aria-pressed', String(cockpit));
-    btn.textContent = cockpit ? 'Out' : 'In';
+    const g = cockpit ? 'view-out' : 'view-in';
+    if (btn.dataset.glyph !== g) { btn.innerHTML = glyph(g); btn.dataset.glyph = g; }
     btn.title = cockpit ? 'Chase camera' : 'Cockpit camera';
     btn.setAttribute('aria-label', cockpit ? 'Switch to chase camera' : 'Switch to cockpit camera');
   }
@@ -780,6 +826,7 @@ function frame() {
   else if (!state.running && ufo) { // attract mode orbit
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
   }
+  if (state.running) drawWave(t);
   renderer.render(scene, camera);
 }
 

@@ -33,9 +33,11 @@ test('cockpit eye sits inside the bubble looking forward', () => {
   assert.ok(look[1] >= eye[1] - 0.01); // not pitching into the nose
 });
 
-test('portrait cockpit looks up so the hull is only a thin sliver', () => {
+test('portrait cockpit pitches gently down so the horizon sits above center', () => {
   const { eye, look, fov } = cockpitEyeLocal(true);
-  assert.ok(look[1] > eye[1]);
-  assert.ok(eye[2] > 0); // eye sits a bit aft of the nose
-  assert.ok(fov >= 78);
+  const pitchDeg = Math.atan2(eye[1] - look[1], eye[2] - look[2]) * 180 / Math.PI;
+  assert.ok(pitchDeg > 5 && pitchDeg < fov / 2 - 10, `pitch ${pitchDeg}`); // horizon stays on screen
+  // eye stays inside the glass dome (radius 1.3 centered at y 0.48)
+  assert.ok(Math.hypot(eye[0], eye[1] - 0.48, eye[2]) < 1.3);
+  assert.ok(fov >= 70 && fov <= 86);
 });

@@ -421,3 +421,302 @@ body[data-cam="chase"] #cdPlayer.cd-player:not(.open) .cd-meta { display: none; 
   }
   body[data-cam="chase"] #tokens { max-width: calc(100vw - 160px); }
 }
+
+
+/* =====================================================================
+   Alien tech cockpit layer
+   No human words on controls, no round buttons: glyphs, shards, hexes,
+   clipped panels, scanlines and pilot colored holographic glow
+   ===================================================================== */
+body { --glow: #5fd4ff; --glow2: #1ec8ff; --hull: #c9d6e2; --glow-soft: rgba(95,212,255,.35); --glow-faint: rgba(95,212,255,.12); }
+body[data-pilot="ipo"] { --glow: #ff7ac0; --glow2: #ff4fa8; --hull: #ffc2e1; --glow-soft: rgba(255,122,192,.38); --glow-faint: rgba(255,122,192,.12); }
+body[data-pilot="mj"] { --glow: #7fe8ff; --glow2: #39d0ff; --hull: #c4f3ff; --glow-soft: rgba(127,232,255,.38); --glow-faint: rgba(127,232,255,.12); }
+
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.glyph { width: 22px; height: 22px; display: block; flex: 0 0 auto; overflow: visible; filter: drop-shadow(0 0 4px currentColor); }
+
+#hud {
+  --cut: 10px;
+  --bevel: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+  --holo: linear-gradient(180deg, rgba(10,24,40,.78), rgba(4,12,22,.72));
+  --scan: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px);
+}
+
+/* Shared holographic panel look for chase view floating readouts */
+#hud #tokens, #hud #mission, #hud #found, #hud #alt, #hud #discover {
+  border-radius: 0; border: 0; clip-path: var(--bevel);
+  background: var(--scan), linear-gradient(90deg, var(--glow-faint), transparent 40%), var(--holo);
+  box-shadow: inset 0 0 0 1px var(--glow-soft), inset 0 0 18px var(--glow-faint);
+}
+#hud #tokens { gap: 6px; padding: 6px 12px 6px 8px; }
+#hud .kdu-coin { width: 26px; height: 26px; border-radius: 0; background: none; box-shadow: none; color: var(--kdu); filter: drop-shadow(0 0 6px var(--kdu)); }
+#hud .kdu-coin::after { content: none; }
+#tokenCount { color: #e9fbff; text-shadow: 0 0 10px rgba(30,200,255,.7); font-variant-numeric: tabular-nums; }
+#tokens .unit { color: var(--kdu); text-shadow: 0 0 8px rgba(30,200,255,.6); }
+
+#mission #arrow { color: #ffd36b; font-size: 0; width: 18px; height: 18px; }
+#mission #arrow .glyph { width: 18px; height: 18px; }
+#found { gap: 6px; color: #ffe39a; }
+#found .glyph { width: 15px; height: 15px; color: #ffd36b; }
+#found b { color: #fff3cf; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Shared shard buttons (view, pause) */
+#hud .small-btn, #hud .cam-btn {
+  width: 46px; min-width: 0; height: 38px; padding: 0; border: 0; border-radius: 0;
+  display: grid; place-items: center; color: var(--glow); cursor: pointer;
+  clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  background: var(--scan), linear-gradient(160deg, rgba(255,255,255,.14), transparent 45%), linear-gradient(180deg, rgba(14,30,48,.9), rgba(4,10,18,.85));
+  box-shadow: inset 0 0 0 1px var(--glow-soft), inset 0 0 14px var(--glow-faint);
+  transition: filter .15s, transform .1s;
+}
+#hud .small-btn .glyph { width: 20px; height: 20px; }
+#hud .cam-btn[aria-pressed="true"] {
+  color: #fff; background: var(--scan), linear-gradient(160deg, rgba(255,255,255,.22), transparent 50%), linear-gradient(180deg, var(--glow2), rgba(6,16,28,.9) 92%);
+}
+#hud .small-btn:hover { filter: brightness(1.25); }
+#hud .small-btn:active { transform: translateY(1px) scale(.97); }
+#pilotBadge { border-radius: 0 !important; clip-path: polygon(25% 2%, 75% 2%, 100% 50%, 75% 98%, 25% 98%, 0 50%); box-shadow: none !important; background: var(--glow-soft); }
+#hudRail { gap: 8px; }
+
+/* ---------- Touch: holographic control pad and hex glyph pads ---------- */
+#stick {
+  border-radius: 0; border: 0; background: none; width: 150px; height: 150px;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  background:
+    var(--scan),
+    linear-gradient(var(--glow-faint), var(--glow-faint)),
+    radial-gradient(closest-side, transparent 62%, var(--glow-soft) 63% 65%, transparent 66%);
+  box-shadow: inset 0 0 0 2px var(--glow-soft), inset 0 0 30px var(--glow-faint);
+}
+#stick .stick-cross { position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(50% - .5px), var(--glow-soft) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(0deg, transparent calc(50% - .5px), var(--glow-soft) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px));
+  opacity: .7; }
+#knob {
+  width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--hull) 30%, var(--glow) 55%, rgba(6,18,31,.9) 100%);
+  box-shadow: none; filter: drop-shadow(0 0 10px var(--glow));
+}
+.tbtn {
+  border-radius: 0; border: 0; color: var(--glow); display: grid; place-items: center; padding: 0;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: var(--scan, none), linear-gradient(160deg, rgba(255,255,255,.22), transparent 42%), linear-gradient(180deg, rgba(36,48,60,.85), rgba(8,14,22,.8));
+  box-shadow: inset 0 0 0 2px var(--glow-soft), inset 0 0 22px var(--glow-faint);
+}
+#touch { --scan: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px); }
+.tbtn .glyph { width: 30px; height: 30px; }
+#btnBoost {
+  color: #ffd9b0;
+  clip-path: polygon(0 18%, 62% 18%, 62% 0, 100% 50%, 62% 100%, 62% 82%, 0 82%);
+  background: var(--scan), linear-gradient(160deg, #fbd3a8 0%, #c98149 30%, #8f4f22 58%, #3a2010 100%);
+  box-shadow: inset 0 0 18px rgba(255,190,120,.35);
+}
+#btnBoost .glyph { color: #fff1de; filter: drop-shadow(0 0 6px #ffb066); }
+.tbtn.active { filter: brightness(1.45); transform: scale(.94); }
+
+/* ---------- Sound crystal (was the CD player) ---------- */
+.cd-player {
+  border-radius: 0 !important; border: 0 !important; clip-path: var(--bevel);
+  background: var(--scan), linear-gradient(90deg, var(--glow-faint), transparent 60%), var(--holo) !important;
+  box-shadow: inset 0 0 0 1px var(--glow-soft), inset 0 0 18px var(--glow-faint) !important;
+  gap: 8px !important;
+}
+.cd-disc {
+  width: 40px; height: 44px; border-radius: 0; background: none !important; box-shadow: none !important;
+  display: grid; place-items: center; perspective: 120px; overflow: visible;
+}
+.cd-disc::after { content: none !important; }
+.cd-disc.spin { animation: none; }
+.crystal {
+  position: relative; width: 26px; height: 38px; display: block;
+  animation: crystal-float 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px var(--glow));
+}
+.crystal .facet, .crystal .core { position: absolute; inset: 0; display: block; }
+.crystal .facet.a {
+  clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
+  background: linear-gradient(115deg, #ffffff 0%, var(--hull) 22%, var(--glow) 48%, var(--glow2) 70%, #0b1e33 100%);
+  background-size: 220% 100%; animation: crystal-turn 4.5s linear infinite;
+}
+.crystal .facet.b {
+  clip-path: polygon(50% 0, 72% 38%, 50% 100%, 28% 38%);
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.08) 60%);
+  mix-blend-mode: screen; animation: crystal-facet 4.5s linear infinite;
+}
+.crystal .core { inset: 40% 38% 36%; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: #fff; opacity: .55; }
+.cd-disc.spin .crystal .facet.a, .cd-disc.spin .crystal .facet.b { animation-duration: 1.6s; }
+.cd-disc.spin .crystal .core { animation: crystal-pulse .52s ease-in-out infinite alternate; }
+@keyframes crystal-turn { from { background-position: 0 0; } to { background-position: 220% 0; } }
+@keyframes crystal-facet { 0% { transform: scaleX(1); opacity: .9; } 50% { transform: scaleX(.25) translateX(20%); opacity: .3; } 100% { transform: scaleX(1); opacity: .9; } }
+@keyframes crystal-float { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-2px); } }
+@keyframes crystal-pulse { from { opacity: .35; transform: scale(.8); } to { opacity: 1; transform: scale(1.25); } }
+
+.cd-wave { display: block; width: 96px; height: 24px; flex: 0 0 auto; }
+.cd-controls { gap: 2px !important; }
+.cd-btn, .cd-btn.cd-play {
+  width: 36px; height: 30px; border: 0; border-radius: 0; color: var(--glow); cursor: pointer; padding: 0;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  background: linear-gradient(160deg, rgba(255,255,255,.16), transparent 45%), rgba(10,24,40,.9);
+  box-shadow: inset 0 0 0 1px var(--glow-soft); display: grid; place-items: center;
+}
+.cd-btn .glyph { width: 17px; height: 17px; }
+.cd-btn.cd-play { width: 42px; color: #fff; background: linear-gradient(160deg, rgba(255,255,255,.25), transparent 50%), linear-gradient(180deg, var(--glow2), rgba(6,16,28,.95)); }
+.cd-btn.cd-play .glyph { width: 18px; height: 18px; }
+.cd-btn:hover { filter: brightness(1.25); }
+.cd-meta { gap: 5px !important; justify-content: center; }
+.cd-pips { display: flex; gap: 4px; flex-wrap: wrap; }
+.cd-pips i { width: 7px; height: 7px; display: block; transform: rotate(45deg); background: var(--glow-faint); box-shadow: inset 0 0 0 1px var(--glow-soft); }
+.cd-pips i.on { background: var(--glow); box-shadow: 0 0 8px var(--glow); }
+.cd-vol { gap: 0 !important; }
+#cdVol, #volumeSlider { -webkit-appearance: none; appearance: none; height: 12px; background: transparent; cursor: pointer; }
+#cdVol::-webkit-slider-runnable-track, #volumeSlider::-webkit-slider-runnable-track {
+  height: 6px; background: repeating-linear-gradient(90deg, var(--glow-soft) 0 6px, transparent 6px 8px); }
+#cdVol::-moz-range-track, #volumeSlider::-moz-range-track { height: 6px; background: repeating-linear-gradient(90deg, var(--glow-soft) 0 6px, transparent 6px 8px); }
+#cdVol::-webkit-slider-thumb, #volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 10px; height: 16px; margin-top: -5px; border: 0; border-radius: 0;
+  background: var(--glow); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); box-shadow: 0 0 8px var(--glow); }
+#cdVol::-moz-range-thumb, #volumeSlider::-moz-range-thumb { width: 10px; height: 16px; border: 0; border-radius: 0; background: var(--glow); }
+#cdVol:disabled { opacity: .4; }
+
+/* Chase: compact crystal readout, controls appear when open (phone) */
+@media (max-width: 640px) { body[data-cam="chase"] #cdPlayer.cd-player:not(.open) .cd-wave { display: none; } }
+
+/* ---------- Gauges: glyph, number, segmented bar ---------- */
+.gauge {
+  grid-template-columns: auto auto auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 3px; align-items: center;
+  border-radius: 0 !important; border: 0 !important; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  background: linear-gradient(180deg, var(--glow-faint), rgba(0,0,0,.25)) !important;
+  box-shadow: inset 0 0 0 1px var(--glow-soft);
+}
+.gauge .gauge-label { grid-column: auto; width: 14px; height: 14px; color: var(--glow); }
+.gauge-val { color: var(--kdu); text-shadow: 0 0 8px rgba(30,200,255,.6); }
+.gauge-bar { grid-column: 1 / -1; height: 4px; position: relative; display: block; min-width: 40px;
+  background: repeating-linear-gradient(90deg, var(--glow-faint) 0 5px, transparent 5px 7px); }
+.gauge-bar::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--f, 0) * 100%);
+  background: repeating-linear-gradient(90deg, var(--kdu) 0 5px, transparent 5px 7px); filter: drop-shadow(0 0 3px var(--kdu)); transition: width .2s linear; }
+#alt .gauge:first-child .gauge-bar { --f: var(--alt-f, 0); }
+#alt .gauge:last-child .gauge-bar { --f: var(--spd-f, 0); }
+
+/* ---------- Cockpit: dark alien console instead of a silver dash ---------- */
+#dash { background: linear-gradient(180deg, transparent 0%, rgba(2,6,12,.35) 30%, rgba(2,6,12,.75) 60%); }
+#dash .dash-face {
+  border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(0 22px, 22px 0, 30% 0, calc(30% + 10px) 8px, calc(70% - 10px) 8px, 70% 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+  padding-top: 14px;
+  background:
+    var(--scan),
+    linear-gradient(180deg, var(--glow-soft) 0 1px, transparent 1px),
+    radial-gradient(120% 90% at 50% 0%, var(--glow-faint), transparent 60%),
+    linear-gradient(180deg, rgba(14,24,36,.92), rgba(4,8,14,.96)) !important;
+  box-shadow: inset 0 2px 0 var(--glow-soft), inset 0 0 40px rgba(0,0,0,.6) !important;
+}
+#dash .dash-slot {
+  border: 0 !important; border-radius: 0 !important; clip-path: var(--bevel);
+  background: var(--scan), linear-gradient(180deg, var(--glow-faint), transparent 70%), rgba(2,8,16,.82) !important;
+  box-shadow: inset 0 0 0 1px var(--glow-soft), inset 0 0 16px var(--glow-faint) !important;
+}
+body[data-cam="cockpit"] #hud #tokens,
+body[data-cam="cockpit"] #hud #mission,
+body[data-cam="cockpit"] #hud #found,
+body[data-cam="cockpit"] #hud #alt,
+body[data-cam="cockpit"] #hud #cdPlayer.cd-player {
+  clip-path: none; background: transparent !important; box-shadow: none !important;
+}
+body[data-cam="cockpit"] #hud #cdPlayer.cd-player { padding: 0; }
+body[data-cam="cockpit"] #minimap {
+  border: 0 !important; border-radius: 0 !important;
+  clip-path: polygon(14% 0, 86% 0, 100% 14%, 100% 86%, 86% 100%, 14% 100%, 0 86%, 0 14%);
+}
+body[data-cam="cockpit"] #found { justify-content: center; gap: 5px; }
+body[data-cam="cockpit"] #found .glyph { width: 16px; height: 16px; }
+body[data-cam="cockpit"] #found b { font-size: 15px; }
+body[data-cam="cockpit"] .cd-wave { width: 120px; height: 30px; }
+body[data-cam="cockpit"] #hudRail { flex-direction: column; }
+
+/* Canopy: pilot tinted holographic frame instead of a soft vignette */
+#cockpitFx::before {
+  left: 0; right: 0; top: 0; height: 100%; border-radius: 0; filter: none; opacity: 1;
+  background:
+    linear-gradient(90deg, var(--glow-soft) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,
+    linear-gradient(-90deg, var(--glow-soft) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,
+    repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 4px);
+}
+#cockpitFx::after { display: none; }
+#cockpitFx { background:
+  linear-gradient(90deg, var(--glow-faint), transparent 12%, transparent 88%, var(--glow-faint)),
+  radial-gradient(ellipse at 50% 40%, transparent 60%, rgba(2,6,12,.35) 100%); box-shadow: none; }
+
+/* ---------- Pause menu engine sound glyph toggle ---------- */
+.engine-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 8px auto 4px; max-width: 320px; }
+.engine-row .volume-row { margin: 0; flex: 1; }
+.glyph-toggle {
+  width: 58px; height: 46px; flex: 0 0 auto; border: 0; cursor: pointer; display: grid; place-items: center; color: #1b1008;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: linear-gradient(170deg, #fbd3a8 0%, #c98149 30%, #8f4f22 55%, #c07a43 78%, #f0b47c 100%);
+}
+.glyph-toggle .glyph { width: 26px; height: 26px; filter: none; }
+.glyph-toggle.off { color: #2a3036; background: linear-gradient(170deg, #f1f4f6 0%, #a8b2b9 35%, #6f7b83 58%, #a3adb4 80%, #dde3e7 100%); }
+.glyph-toggle.off .glyph { opacity: .45; }
+.glyph-toggle.off::after { content: ""; position: absolute; width: 34px; height: 2px; background: #2a3036; transform: rotate(-35deg); }
+.glyph-toggle { position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal, .crystal .facet, .crystal .core { animation: none !important; }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 640px) {
+  #hud .small-btn, #hud .cam-btn { width: 42px; height: 34px; }
+  #hud .small-btn .glyph { width: 18px; height: 18px; }
+  #hud #tokens { padding: 5px 10px 5px 6px; }
+  #hud .kdu-coin { width: 22px; height: 22px; }
+  .tbtn .glyph { width: 26px; height: 26px; }
+  #cdPlayer.cd-player { border-radius: 0 !important; padding: 3px !important; }
+  #cdPlayer.cd-player.open { padding: 4px 8px 4px 4px !important; }
+  .cd-disc { width: 34px; height: 38px; }
+  .crystal { width: 22px; height: 32px; }
+  .cd-btn, .cd-btn.cd-play { width: 32px; height: 28px; }
+  .cd-btn.cd-play { width: 36px; }
+  body[data-cam="chase"] #cdPlayer.cd-player.open .cd-wave { display: none; }
+
+  body[data-cam="cockpit"] #found { font-size: 12px; flex-direction: column; gap: 2px; }
+  body[data-cam="cockpit"] #found b { font-size: 13px; }
+  body[data-cam="cockpit"] .cd-wave { width: 64px; height: 24px; }
+  body[data-cam="cockpit"] #cdPlayer .cd-meta { display: none !important; }
+  .gauge-bar { min-width: 0; }
+  .gauge .gauge-label { width: 12px; height: 12px; }
+}
+
+/* ---------- Layout polish for the alien dash ---------- */
+@media (min-width: 641px) {
+  #dash { height: min(30vh, 250px); }
+  #dash .dash-gauges { flex: 1 1 auto; max-width: none; width: auto; }
+  #dash .dash-gauges .gauge { padding: 6px 12px; }
+  #dash .dash-gauges .gauge-val { font-size: 20px; }
+  body[data-cam="cockpit"] #missionMeta { justify-content: flex-start; }
+  body[data-cam="cockpit"] #mission { display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+  body[data-cam="cockpit"] #missionTarget { margin: 0; }
+  body[data-cam="cockpit"] #missionHint { margin-top: 0; font-size: 13px; opacity: .85; }
+}
+@media (max-width: 640px) {
+  body[data-cam="cockpit"] #hud #cdPlayer.cd-player {
+    display: grid !important; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+    align-items: center; justify-items: center; column-gap: 4px !important; row-gap: 2px; height: 100%;
+  }
+  body[data-cam="cockpit"] #cdPlayer .cd-disc { grid-row: 1 / 3; }
+  body[data-cam="cockpit"] #cdPlayer .cd-wave { grid-column: 2; grid-row: 1; width: 100%; max-width: 110px; height: 20px; }
+  body[data-cam="cockpit"] #cdPlayer .cd-controls { grid-column: 2; grid-row: 2; }
+  body[data-cam="cockpit"] #cdPlayer .cd-btn { width: 30px; height: 26px; }
+  body[data-cam="cockpit"] #cdPlayer .cd-btn.cd-play { width: 34px; }
+  body[data-cam="cockpit"] #missionMeta { justify-content: flex-start; }
+}
+@media (min-width: 641px) {
+  #dash .dash-gauges .gauge { grid-template-columns: auto auto 1fr; justify-content: stretch; justify-items: start; column-gap: 8px; }
+  #dash .dash-gauges .gauge .gauge-label { width: 18px; height: 18px; }
+  #dash .dash-gauges .gauge-bar { height: 7px; width: 100%; }
+}
+@media (max-width: 640px) {
+  body[data-cam="cockpit"] #hud #cdPlayer.cd-player .cd-meta { display: none !important; }
+}

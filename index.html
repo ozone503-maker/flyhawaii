@@ -10,6 +10,25 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="g-view-in" viewBox="0 0 24 24"><path d="M2 12 12 5l10 7-10 7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="miter"/><path d="M12 9l3 3-3 3-3-3Z" fill="currentColor"/></symbol>
+      <symbol id="g-view-out" viewBox="0 0 24 24"><path d="M7 6 2 12l5 6M17 6l5 6-5 6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5 16.5 12 12 16.5 7.5 12Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 10.6l1.4 1.4-1.4 1.4-1.4-1.4Z" fill="currentColor"/></symbol>
+      <symbol id="g-pause" viewBox="0 0 24 24"><path d="M8 4h4.5L9 20H4.5ZM16 4h4.5L17 20h-4.5Z" fill="currentColor"/></symbol>
+      <symbol id="g-play" viewBox="0 0 24 24"><path d="M6 3l14 9-14 9 4-9Z" fill="currentColor"/></symbol>
+      <symbol id="g-prev" viewBox="0 0 24 24"><path d="M12 5 5 12l7 7M19 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 4v16" stroke="currentColor" stroke-width="1.4"/></symbol>
+      <symbol id="g-next" viewBox="0 0 24 24"><path d="M12 5l7 7-7 7M5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 4v16" stroke="currentColor" stroke-width="1.4"/></symbol>
+      <symbol id="g-up" viewBox="0 0 24 24"><path d="M4 13 12 5l8 8" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 19l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="g-down" viewBox="0 0 24 24"><path d="M4 11l8 8 8-8" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="g-boost" viewBox="0 0 24 24"><path d="M14 2 5 13.5h6L9 22l10-12h-6Z" fill="currentColor"/></symbol>
+      <symbol id="g-sound" viewBox="0 0 24 24"><path d="M2 12h3l2-5 3 10 3-14 3 15 2-6 2 0h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter"/></symbol>
+      <symbol id="g-find" viewBox="0 0 24 24"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2Z" fill="currentColor"/></symbol>
+      <symbol id="g-alt" viewBox="0 0 24 24"><path d="M12 3v14M6 9l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21h16" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="g-speed" viewBox="0 0 24 24"><path d="M3 17 9 7M9 17l6-10M15 17l6-10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 21h20" stroke="currentColor" stroke-width="1.4"/></symbol>
+      <symbol id="g-kdu" viewBox="0 0 24 24"><path d="M12 1.5 21.5 7v10L12 22.5 2.5 17V7Z" fill="currentColor" opacity=".9"/><path d="M12 6v12M12 12 7.5 8.5M12 12l4.5-3.5M8 15.5h8" fill="none" stroke="#03243f" stroke-width="1.9"/></symbol>
+      <symbol id="g-arrow" viewBox="0 0 24 24"><path d="M12 2l8 19-8-5-8 5Z" fill="currentColor"/></symbol>
+    </defs>
+  </svg>
   <canvas id="game"></canvas>
 
   <div id="hud" class="hidden" data-cam="chase">
@@ -28,49 +47,51 @@
         </div>
       </div>
     </div>
-    <div id="tokens"><span class="kdu-coin"></span><span id="tokenCount">0</span><span class="unit">KDU</span></div>
+    <div id="tokens"><svg class="glyph kdu-coin" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-kdu"></use></svg><span id="tokenCount">0</span><span class="unit">KDU</span></div>
     <div id="mission">
       <div id="missionStep">Loading mission</div>
       <div id="missionTarget"></div>
-      <div id="missionMeta"><span id="arrow">&#9650;</span><span id="dist"></span><span id="cargo"></span></div>
+      <div id="missionMeta"><span id="arrow"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-arrow"></use></svg></span><span id="dist"></span><span id="cargo"></span></div>
       <div id="missionHint">Fly to the amber beacon</div>
     </div>
     <div id="alt" class="gauges" aria-label="Altitude and speed">
-      <div class="gauge"><span class="gauge-label">Alt</span><span class="gauge-val" id="altVal">0</span><span class="gauge-unit">m</span></div>
-      <div class="gauge"><span class="gauge-label">Speed</span><span class="gauge-val" id="spdVal">0</span><span class="gauge-unit">mph</span></div>
+      <div class="gauge" title="Altitude"><svg class="glyph gauge-label" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-alt"></use></svg><span class="gauge-val" id="altVal">0</span><span class="gauge-unit">m</span><span class="gauge-bar" aria-hidden="true"></span></div>
+      <div class="gauge" title="Speed"><svg class="glyph gauge-label" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-speed"></use></svg><span class="gauge-val" id="spdVal">0</span><span class="gauge-unit">mph</span><span class="gauge-bar" aria-hidden="true"></span></div>
     </div>
-    <div id="found" title="Attractions discovered"><span class="dot"></span>Discovered <b id="foundCount">0/15</b></div>
+    <div id="found" title="Attractions discovered" aria-label="Attractions discovered"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-find"></use></svg><b id="foundCount">0/15</b></div>
     <div id="beam"><div id="beamFill"></div></div>
     <div id="toast" role="status"></div>
     <div id="deliveryReward" role="status" aria-live="polite"></div>
     <div id="discover" aria-live="polite"></div>
-    <div id="cdPlayer" class="cd-player" aria-label="ShockBot CD player" hidden>
-      <button type="button" class="cd-disc" id="cdDisc" aria-label="Open music player" aria-expanded="false"></button>
+    <div id="cdPlayer" class="cd-player" aria-label="ShockBot sound crystal" hidden>
+      <button type="button" class="cd-disc" id="cdDisc" aria-label="Open sound crystal" aria-expanded="false" title="ShockBot"><span class="crystal" aria-hidden="true"><i class="facet a"></i><i class="facet b"></i><i class="core"></i></span></button>
+      <canvas id="cdWave" class="cd-wave" width="192" height="48" aria-hidden="true"></canvas>
       <div class="cd-controls">
-        <button type="button" id="cdPrev" class="cd-btn" aria-label="Previous track">&#9664;&#9664;</button>
-        <button type="button" id="cdPlay" class="cd-btn cd-play" aria-label="Play or pause music" aria-pressed="false">&#9654;</button>
-        <button type="button" id="cdNext" class="cd-btn" aria-label="Next track">&#9654;&#9654;</button>
+        <button type="button" id="cdPrev" class="cd-btn" aria-label="Previous track" title="Previous track"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-prev"></use></svg></button>
+        <button type="button" id="cdPlay" class="cd-btn cd-play" aria-label="Play music" title="Play music" aria-pressed="false"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-play"></use></svg></button>
+        <button type="button" id="cdNext" class="cd-btn" aria-label="Next track" title="Next track"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-next"></use></svg></button>
       </div>
       <div class="cd-meta">
-        <div id="cdTitle" class="cd-title">ShockBot</div>
-        <label class="cd-vol" for="cdVol"><span id="cdVolLabel">Music 40%</span>
+        <div id="cdTitle" class="cd-title sr-only">ShockBot</div>
+        <div id="cdPips" class="cd-pips" aria-hidden="true"></div>
+        <label class="cd-vol" for="cdVol"><span id="cdVolLabel" class="sr-only">Music 40%</span>
           <input id="cdVol" type="range" min="0" max="100" value="40" step="1" aria-label="Music volume" />
         </label>
       </div>
     </div>
     <div id="hudRail">
-      <button id="camBtn" class="small-btn cam-btn" aria-label="Toggle camera" aria-pressed="false" title="Camera">View</button>
-      <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
+      <button id="camBtn" class="small-btn cam-btn" aria-label="Toggle camera" aria-pressed="false" title="Cockpit camera"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-view-in"></use></svg></button>
+      <button id="pauseBtn" class="small-btn" aria-label="Pause" title="Pause"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-pause"></use></svg></button>
       <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
     </div>
   </div>
 
   <div id="touch" class="hidden">
-    <div id="stickZone"><div id="stick"><div id="knob"></div></div></div>
+    <div id="stickZone"><div id="stick"><i class="stick-cross" aria-hidden="true"></i><div id="knob"></div></div></div>
     <div id="touchBtns">
-      <button class="tbtn" id="btnUp">Up</button>
-      <button class="tbtn" id="btnBoost">Boost</button>
-      <button class="tbtn" id="btnDown">Down</button>
+      <button class="tbtn" id="btnUp" aria-label="Climb" title="Climb"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-up"></use></svg></button>
+      <button class="tbtn" id="btnBoost" aria-label="Boost" title="Boost"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-boost"></use></svg></button>
+      <button class="tbtn" id="btnDown" aria-label="Descend" title="Descend"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-down"></use></svg></button>
     </div>
   </div>
 
@@ -82,7 +103,7 @@
       <div id="loading">Loading Big Island terrain</div>
       <div class="controls">
         <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, Q / F to descend, Shift to boost, C to switch camera, M for music, , / . for previous and next track</div>
-        <div><b>Touch</b> put your left thumb down anywhere on the left side and slide to fly and turn, right buttons for Up, Down and Boost</div>
+        <div><b>Touch</b> put your left thumb down anywhere on the left side and slide to fly and turn, right glyph pads to climb, descend and boost</div>
         <div><b>Deliver</b> hover low inside a beacon to beam packages up or down</div>
       </div>
       <p class="fine">Businesses in this prototype are fictional. Pilot portraits are original art made for Fly Hawaii. Map at true scale (1 unit = 100 m).<br />
@@ -109,11 +130,13 @@
   <div id="pause" class="overlay hidden">
     <div class="panel">
       <h2>Paused</h2>
-      <button id="soundBtn" class="metal-btn pewter" aria-pressed="true">Engine sound: on</button>
-      <p class="fine music-note">ShockBot music uses the cockpit CD player (M)</p>
-      <label id="volumeRow" class="volume-row" for="volumeSlider"><span id="volumeLabel">Volume 55%</span>
-        <input id="volumeSlider" type="range" min="0" max="100" value="55" step="1" aria-label="Master volume" />
-      </label>
+      <div class="engine-row">
+        <button id="soundBtn" class="glyph-toggle" aria-pressed="true" aria-label="Engine sound on" title="Engine sound"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-sound"></use></svg></button>
+        <label id="volumeRow" class="volume-row" for="volumeSlider"><span id="volumeLabel">Volume 55%</span>
+          <input id="volumeSlider" type="range" min="0" max="100" value="55" step="1" aria-label="Master volume" />
+        </label>
+      </div>
+      <p class="fine music-note">ShockBot music plays from the sound crystal (M)</p>
       <button id="resumeBtn" class="metal-btn copper">Resume</button>
       <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
       <button id="changePilotBtn" class="metal-btn pewter">Change pilot</button>

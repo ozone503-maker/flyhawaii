@@ -18,12 +18,13 @@ export function camBlendStep(blend, target, dt, rate = 6) {
 
 /**
  * Local eye / look in unscaled hull units (group already applies UFO_SCALE).
- * Forward is -Z. Look Y stays above eye Y so the pink nose is only a thin rim.
+ * Forward is -Z. Landscape looks level; portrait pitches down a little.
  */
 export function cockpitEyeLocal(portrait = false) {
   if (portrait) {
-    // Eye further aft and higher; look pitched up toward the horizon.
-    return { eye: [0, 1.28, 0.85], look: [0, 2.05, -16], fov: 86 };
+    // Eye high inside the glass dome, pitched about 10 degrees down so the
+    // horizon sits above screen center: more island, less empty sky.
+    return { eye: [0, 1.45, 0.5], look: [0, -1.46, -16], fov: 76 };
   }
   return { eye: [0, 0.95, 0.25], look: [0, 1.15, -9], fov: 66 };
 }
