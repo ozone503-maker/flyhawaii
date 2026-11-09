@@ -29,7 +29,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #06121f; col
 #mission.dropoff #missionTarget { color: #7dffb0; }
 #minimap { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; width: 140px; height: 140px; border-radius: 14px;
   border: 1px solid rgba(255,255,255,.18); background: #0a2540; }
-#alt { position: absolute; left: 12px; top: calc(62px + env(safe-area-inset-top)); font-size: 12px; background: var(--glass); padding: 4px 10px; border-radius: 999px; }
+#alt { position: absolute; left: 12px; top: calc(62px + env(safe-area-inset-top)); font-size: 12px; background: var(--glass); padding: 4px 10px; border-radius: 999px; z-index: 2; }
 #beam { position: absolute; left: 50%; bottom: 30%; transform: translateX(-50%); width: 180px; height: 10px; border-radius: 6px;
   background: rgba(0,0,0,.4); overflow: hidden; opacity: 0; transition: opacity .2s; }
 #beam.on { opacity: 1; }
@@ -37,7 +37,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #06121f; col
 #toast { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 26px; font-weight: 900; text-align: center;
   color: var(--kdu); text-shadow: 0 0 14px rgba(30,200,255,.8), 0 2px 0 #022; opacity: 0; transition: opacity .3s; white-space: pre-line; }
 #toast.on { opacity: 1; }
-.small-btn { pointer-events: auto; position: absolute; right: 12px; top: calc(160px + env(safe-area-inset-top)); width: 40px; height: 40px; border-radius: 12px;
+.small-btn { pointer-events: auto; width: 40px; height: 40px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,.25); background: var(--glass); color: var(--ink); font-weight: 900; }
 
 #touch { position: fixed; inset: 0; pointer-events: none; }
@@ -80,25 +80,19 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 #found .dot { width: 8px; height: 8px; border-radius: 50%; background: #ffd36b; box-shadow: 0 0 8px #ffd36b; }
 #found b { font-weight: 800; }
 
-#discover { position: absolute; left: 50%; top: calc(112px + env(safe-area-inset-top)); transform: translate(-50%, -6px); white-space: nowrap;
+#discover { position: absolute; left: 50%; top: calc(112px + env(safe-area-inset-top)); transform: translate(-50%, -6px); white-space: normal;
   font-size: 14px; padding: 6px 14px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(30,200,255,.5); color: #c9f4ff;
-  backdrop-filter: blur(6px); opacity: 0; transition: opacity .35s ease, transform .35s ease; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+  backdrop-filter: blur(6px); opacity: 0; transition: opacity .35s ease, transform .35s ease; max-width: min(92vw, 420px); overflow: hidden; text-overflow: ellipsis; }
 #discover b { color: #fff; }
 #discover.on { opacity: 1; transform: translate(-50%, 0); }
 
-@media (max-width: 640px) {
-  #mission { top: calc(64px + env(safe-area-inset-top)); max-width: 92vw; min-width: 0; padding: 8px 12px; }
-  #missionTarget { font-size: 15px; }
-  #minimap { width: 96px; height: 96px; }
-  #alt { top: auto; bottom: calc(190px + env(safe-area-inset-bottom)); }
-  .small-btn { top: calc(116px + env(safe-area-inset-top)); }
-  #tokens { font-size: 19px; }
-  #found { top: calc(62px + env(safe-area-inset-top)); }
-  #discover { top: auto; bottom: calc(232px + env(safe-area-inset-bottom)); font-size: 13px; }
-}
+/* Right rail under minimap: pause then pilot badge with even gaps */
+#hudRail { position: absolute; right: 12px; top: calc(160px + env(safe-area-inset-top));
+  display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+#hudRail .small-btn, #hudRail #pilotBadge { position: static; pointer-events: auto; }
+#pilotBadge { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,.4); display: block; }
 
-/* pilots */
-#pilotBadge { position: absolute; right: 10px; top: calc(208px + env(safe-area-inset-top)); width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+/* pilots select */
 .overlay#select { overflow-y: auto; align-items: start; }
 .sel-panel { max-width: 640px; padding-top: 4px; }
 .sel-panel h2 { margin: 8px 0 14px; }
@@ -116,18 +110,10 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 #selFeel { list-style: none; padding: 0; margin: 0 0 6px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 #selFeel li { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
 .metal-btn.slim { padding: 11px 20px; font-size: 16px; }
-@media (max-width: 640px) {
-  #pilotBadge { top: calc(164px + env(safe-area-inset-top)); width: 40px; height: 40px; right: 12px; }
-  #pilotGrid { gap: 8px; }
-  .pilot { padding: 6px 6px 8px; border-radius: 14px; }
-  .pilot .pname { font-size: 14px; }
-  .pilot .pship { font-size: 11.5px; }
-  #shipPreview { height: 170px; }
-  .sel-panel h2 { font-size: 28px; }
-}
 
 /* One instruction in the existing mission panel, not another HUD card */
 #missionHint { font-size: 14px; margin-top: 5px; color: #eef4fa; }
+#missionStep, #missionTarget, #missionHint { overflow-wrap: anywhere; word-break: normal; }
 #deliveryReward { position: absolute; left: 50%; top: 29%; transform: translateX(-50%);
   width: max-content; max-width: 88vw; padding: 12px 18px; border-radius: 12px;
   background: rgba(6,18,31,.9); color: #55caff; font-size: 22px; font-weight: 800;
@@ -157,7 +143,7 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 }
 .cd-player[hidden] { display: none !important; }
 .cd-disc {
-  width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto;
+  width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto; appearance: none; border: 0; padding: 0; cursor: pointer;
   background:
     radial-gradient(circle at 50% 50%, #d8dee4 0 7px, transparent 8px),
     conic-gradient(from 0deg, #9aa6ae, #e8eef2, #6c7880, #c3ccd2, #8a949c, #e8eef2, #9aa6ae);
@@ -193,20 +179,67 @@ h2 { font-size: 34px; margin: 0 0 16px; }
 .cd-vol { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700; color: #b7c9d6; }
 #cdVol { width: 100%; accent-color: var(--kdu); height: 16px; }
 .music-note { margin: 4px auto 8px; max-width: 280px; }
+
+/* Phone / narrow: CD collapses to a disc pill under KDU; never over joystick or Up/Boost/Down */
 @media (max-width: 640px) {
-  .cd-player {
-    left: 50%; transform: translateX(-50%);
-    bottom: calc(118px + env(safe-area-inset-bottom));
-    max-width: min(300px, calc(100vw - 20px));
-    padding: 6px 8px;
-    gap: 8px;
+  #tokens { font-size: 18px; padding: 6px 12px 6px 6px; max-width: calc(100vw - 130px); }
+  #tokens .unit { font-size: 12px; }
+  .kdu-coin { width: 24px; height: 24px; }
+  .kdu-coin::after { font-size: 13px; }
+
+  #cdPlayer.cd-player {
+    top: calc(54px + env(safe-area-inset-top));
+    left: calc(12px + env(safe-area-inset-left));
+    bottom: auto; right: auto;
+    transform: none;
+    max-width: min(210px, calc(100vw - 128px));
+    padding: 4px; gap: 6px; border-radius: 999px;
+    z-index: 4;
   }
-  .cd-disc { width: 34px; height: 34px; }
+  #cdPlayer.cd-player:not(.open) .cd-controls,
+  #cdPlayer.cd-player:not(.open) .cd-meta { display: none; }
+  #cdPlayer.cd-player.open {
+    border-radius: 14px; padding: 5px 8px 5px 5px; flex-wrap: nowrap;
+    max-width: min(268px, calc(100vw - 120px));
+    align-items: center;
+  }
+  #cdPlayer.cd-player.open .cd-controls,
+  #cdPlayer.cd-player.open .cd-meta { display: flex; }
+  #cdPlayer.cd-player.open .cd-vol { display: none; } /* keep strip short on phone */
+  .cd-disc { width: 36px; height: 36px; }
   .cd-disc::after { inset: 12px; }
-  .cd-btn { width: 30px; height: 30px; border-radius: 9px; }
-  .cd-btn.cd-play { width: 36px; height: 36px; }
-  .cd-title { font-size: 12px; max-width: 140px; }
+  .cd-btn { width: 28px; height: 28px; border-radius: 9px; }
+  .cd-btn.cd-play { width: 32px; height: 32px; }
+  .cd-title { font-size: 11px; max-width: 110px; }
+
+  #found { top: calc(104px + env(safe-area-inset-top)); left: 12px; z-index: 3; }
+
+  #mission {
+    top: calc(136px + env(safe-area-inset-top));
+    left: 12px; right: calc(110px + env(safe-area-inset-right)); transform: none;
+    max-width: none; width: auto; min-width: 0;
+    padding: 10px 12px 8px; z-index: 2;
+  }
+  #missionStep { font-size: 12px; white-space: normal; line-height: 1.25; }
+  #missionTarget { font-size: 15px; }
+  #missionHint { font-size: 12px; }
+
+  #minimap { width: 88px; height: 88px; right: 10px; }
+  #hudRail { top: calc(112px + env(safe-area-inset-top)); right: 10px; gap: 10px; }
+  #pilotBadge { width: 36px; height: 36px; }
+  .small-btn { width: 36px; height: 36px; }
+
+  #alt { top: auto; bottom: calc(190px + env(safe-area-inset-bottom)); left: 12px; }
+  #discover { top: auto; bottom: calc(232px + env(safe-area-inset-bottom)); font-size: 13px; max-width: 86vw; }
+
+  #pilotGrid { gap: 8px; }
+  .pilot { padding: 6px 6px 8px; border-radius: 14px; }
+  .pilot .pname { font-size: 14px; }
+  .pilot .pship { font-size: 11.5px; }
+  #shipPreview { height: 170px; }
+  .sel-panel h2 { font-size: 28px; }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .cd-disc.spin { animation: none; }
 }

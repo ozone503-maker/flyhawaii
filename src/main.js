@@ -173,7 +173,11 @@ function buildTerrain(water, satImg) {
   geo.computeVertexNormals();
   const colorCanvas = buildColorTexture(water, satImg);
   const tex = new THREE.CanvasTexture(colorCanvas);
-  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   const mat = new THREE.MeshLambertMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 });
   // The low-res whole-island base sinks out of the way wherever high-res chunks fully cover the ground
   mat.onBeforeCompile = (sh) => {
@@ -350,6 +354,25 @@ syncCdUi = (s = {}) => {
   if (cdEls.root) cdEls.root.hidden = !(s.count ?? cdPlayer.getTracks().length);
 }
 syncCdUi();
+function isNarrowHud() { return matchMedia('(max-width: 640px)').matches; }
+function setCdOpen(open) {
+  if (!cdEls.root) return;
+  cdEls.root.classList.toggle('open', !!open);
+  if (cdEls.disc) {
+    cdEls.disc.setAttribute('aria-expanded', String(!!open));
+    cdEls.disc.setAttribute('aria-label', open ? 'Collapse music player' : 'Open music player');
+  }
+}
+cdEls.disc?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!isNarrowHud()) {
+    // Desktop: disc toggles play
+    if (!cdPlayer.isEnabled()) { cdPlayer.setEnabled(true); localStorage.setItem('fh_music', 'on'); }
+    cdPlayer.toggle(); unlockAudio(); cdPlayer.unlock();
+    return;
+  }
+  setCdOpen(!cdEls.root.classList.contains('open'));
+});
 cdEls.play?.addEventListener('click', () => {
   if (!cdPlayer.isEnabled()) {
     cdPlayer.setEnabled(true);
@@ -687,21 +710,16 @@ async function boot() {
   labelPick = makeLabel(' ', '#fff'); labelDrop = makeLabel(' ', '#fff'); scene.add(labelPick, labelDrop);
   // town name labels
   for (const t of TOWNS) { const l = makeLabel(t.town, '#ffffff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.6, 1.6, 1); seat(l, t.w.x, t.w.y, 4); scene.add(l); }
-  const pinMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), pinGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 6);
-  for (const lm of LANDMARKS) {
-    snapPeak(lm); const w = toWorld(lm.lat, lm.lon); const gy = groundY(w.x, w.y);
-    const text = lm.ele ? `${lm.name} ${lm.ele.toLocaleString()} m` : lm.name;
-    const l = makeLabel(text, '#cfefff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.4, 1.4, 1); seat(l, w.x, w.y, 4.2); scene.add(l);
-    const pin = new THREE.Mesh(pinGeo, pinMat); pin.scale.y = 3.4; seat(pin, w.x, w.y, 1.7); scene.add(pin);
-  }
+  // Landmark names live on the photo-sign captions and the discovery toast, not giant floating banners or white poles.
+  for (const lm of LANDMARKS) snapPeak(lm);
   window.__landmarks = LANDMARKS;
   placeCoins();
   attractions = new Attractions({ list: attrList, fromWorld, toWorld, haversineKm, groundY, scene, camera,
     onDiscover: (a, bonus) => { addTokens(bonus); discoverNote(a, bonus); } });
   if (manifest && !params.has('nochunks')) {
-    const ring = Number(params.get('ring') || (isTouch ? 1 : 2));
+    const ring = Number(params.get('ring') || 2);
     streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
-      maxAniso: Math.min(8, renderer.capabilities.getMaxAnisotropy()), onLoad: () => reseat() });
+      maxAniso: renderer.capabilities.getMaxAnisotropy(), onLoad: () => reseat() });
   }
   // start near Hilo airport, facing west toward Mauna Kea
   const start = toWorld(19.72, -155.05);

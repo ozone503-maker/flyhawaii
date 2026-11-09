@@ -4,9 +4,9 @@
 import * as THREE from 'three';
 const FIRST_BONUS = 25;
 const KEY = 'fh_found';
-const SIGN_W = 2.2;     // world units (1 = 100 m), about the width of the saucer
-const LIFT = 0.12;      // bottom edge about 12 m above the highest ground under the sign
-const POST_H = LIFT + 0.02;
+const SIGN_W = 2.0;     // world units (1 = 100 m), a bit under the saucer width
+const LIFT = 1.15;      // bottom edge ~115 m up so the chase-cam ship does not cover the photo
+const POST_H = LIFT + 0.08;
 
 export class Attractions {
   constructor({ list, fromWorld, toWorld, haversineKm, groundY, scene, camera, onDiscover }) {
@@ -36,7 +36,7 @@ export class Attractions {
     x.fillText(a.name, pad + 14, pad + ph + 48, W - 28);
     x.fillStyle = 'rgba(220,235,245,0.75)'; x.font = '500 20px system-ui, sans-serif';
     x.fillText(`Photo: ${a.author}, ${a.license}, Wikimedia Commons`, pad + 14, pad + ph + 80, W - 28);
-    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
     const h = SIGN_W * c.height / c.width;
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, toneMapped: false, fog: false, side: THREE.DoubleSide, depthWrite: false });
     const board = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, h), mat);

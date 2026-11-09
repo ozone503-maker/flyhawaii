@@ -116,6 +116,7 @@ export class ChunkStreamer {
     ctx.fillStyle = 'rgba(235,250,255,0.9)';
     for (const fl of this.falls) if (fl.X > X0 && fl.X < X0 + pw && fl.Y > Y0 && fl.Y < Y0 + ph) { ctx.beginPath(); ctx.arc(fl.X - X0, fl.Y - Y0, 3, 0, Math.PI * 2); ctx.fill(); }
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = this.aniso;
+    tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
     const mat = this.material.clone(); mat.map = tex;
     const mesh = new THREE.Mesh(g, mat); mesh.name = `chunk ${c.cx},${c.cy}`;

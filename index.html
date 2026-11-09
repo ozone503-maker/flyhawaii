@@ -28,7 +28,7 @@
     <div id="deliveryReward" role="status" aria-live="polite"></div>
     <div id="discover" aria-live="polite"></div>
     <div id="cdPlayer" class="cd-player" aria-label="ShockBot CD player" hidden>
-      <div class="cd-disc" id="cdDisc" aria-hidden="true"></div>
+      <button type="button" class="cd-disc" id="cdDisc" aria-label="Open music player" aria-expanded="false"></button>
       <div class="cd-controls">
         <button type="button" id="cdPrev" class="cd-btn" aria-label="Previous track">&#9664;&#9664;</button>
         <button type="button" id="cdPlay" class="cd-btn cd-play" aria-label="Play or pause music" aria-pressed="false">&#9654;</button>
@@ -41,8 +41,10 @@
         </label>
       </div>
     </div>
-    <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
-    <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
+    <div id="hudRail">
+      <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
+      <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
+    </div>
   </div>
 
   <div id="touch" class="hidden">

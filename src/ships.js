@@ -28,7 +28,7 @@ function glass(color, opacity = 0.32) {
 function common(g, { rgb, lightColor, glowScale = [11, 7], beamColor }) {
   const glowTex = glowTexture(rgb);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-  glow.scale.set(glowScale[0], glowScale[1], 1); glow.position.y = -0.3; glow.userData.glow = true; g.add(glow);
+  glow.scale.set(glowScale[0] * 0.85, glowScale[1] * 0.85, 1); glow.position.y = -0.45; glow.userData.glow = true; g.add(glow);
   const pl = new THREE.PointLight(lightColor, 30, 40, 1.6); pl.position.y = -1.5; g.add(pl);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 3.5, 1, 24, 1, true),
     new THREE.MeshBasicMaterial({ color: beamColor, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -55,8 +55,10 @@ function buildDrone(p) {
   const hull = new THREE.Mesh(new THREE.SphereGeometry(3.0, 48, 16), blue); hull.scale.set(1, 0.17, 1); g.add(hull);
   const top = new THREE.Mesh(new THREE.SphereGeometry(2.1, 40, 12), blue); top.scale.set(1, 0.28, 1); top.position.y = 0.2; g.add(top);
   const under = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.0, 0.35, 32), deep); under.position.y = -0.4; g.add(under);
-  for (const [R, tube, y] of [[3.02, 0.11, 0], [2.15, 0.08, 0.36], [1.45, 0.1, -0.58]]) {
-    const r = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 10, 64), cyan); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r);
+  for (const [R, tube, y] of [[2.92, 0.09, 0.02], [2.15, 0.07, 0.36], [1.45, 0.09, -0.58]]) {
+    const ringMat = cyan.clone();
+    ringMat.polygonOffset = true; ringMat.polygonOffsetFactor = -1; ringMat.polygonOffsetUnits = -1;
+    const r = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 10, 64), ringMat); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r);
   }
   // four pods with glowing ring faces, like the wheels on his car
   for (let i = 0; i < 4; i++) {
