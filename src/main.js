@@ -12,6 +12,8 @@ import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
 import { Attractions } from './attractions.js';
 import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
+import { normalizeDestinations, pickJob } from './destinations.js';
+import bundledDestinations from '../public/destinations/destinations.json';
 
 // ---------- constants ----------
 // True scale: 1 world unit = 100 m on every axis. Positions come from real lat/lon (equirectangular
@@ -42,14 +44,16 @@ const LANDMARKS = [
 ];
 
 const TOWNS = [
-  { id: 'hilo',   town: 'Hilo',          lat: 19.7241, lon: -155.0868, biz: ['Mango Moon Bakery', 'Rainbow Falls Surf Repair'] },
-  { id: 'kona',   town: 'Kailua-Kona',   lat: 19.6400, lon: -155.9969, biz: ['Rocket Bean Coffee Co', 'Ali\u02BBi Glow Poke Bar'] },
-  { id: 'waimea', town: 'Waimea',        lat: 20.0234, lon: -155.6717, biz: ['Paniolo Pixel Feed & Gear', 'Upcountry Cloud Creamery'] },
-  { id: 'volcano',town: 'Volcano',       lat: 19.4296, lon: -155.2357, biz: ['Fern Fog Glass Studio', 'Steam Vent Noodle House'] },
-  { id: 'pahoa',  town: 'Pahoa',         lat: 19.4970, lon: -154.9453, biz: ['Lava Lamp Records', 'Puna Star Fruit Stand'] },
-  { id: 'hawi',   town: 'Hawi',          lat: 20.2414, lon: -155.8336, biz: ['Trade Wind Kite Works', 'Kohala Comet Chocolate'] },
+  { id: 'hilo',   town: 'Hilo',          lat: 19.7241, lon: -155.0868 },
+  { id: 'kona',   town: 'Kailua-Kona',   lat: 19.6400, lon: -155.9969 },
+  { id: 'waimea', town: 'Waimea',        lat: 20.0234, lon: -155.6717 },
+  { id: 'volcano',town: 'Volcano',       lat: 19.4296, lon: -155.2357 },
+  { id: 'pahoa',  town: 'Pahoa',         lat: 19.4970, lon: -154.9453 },
+  { id: 'hawi',   town: 'Hawi',          lat: 20.2414, lon: -155.8336 },
 ];
-const PACKAGES = ['a box of malasadas', 'surfboard fins', 'a crate of coffee beans', 'glass floats', 'vinyl records', 'kite parts', 'ice cream (keep it cold)', 'a lei order', 'chocolate bars', 'saddle leather'];
+// Job pickups and dropoffs come from public/destinations/destinations.json (see docs/destinations.md).
+// The bundled copy is a fallback if the runtime file can't load.
+const destLib = { list: normalizeDestinations(bundledDestinations, (m) => console.warn('[destinations]', m)), lastJob: null };
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -262,19 +266,28 @@ function placeCoins() {
 }
 
 function newJob() {
-  const a = TOWNS[Math.floor(Math.random() * TOWNS.length)];
-  let b; do { b = TOWNS[Math.floor(Math.random() * TOWNS.length)]; } while (b === a);
-  const from = { ...a, name: a.biz[Math.floor(Math.random() * 2)] };
-  const to = { ...b, name: b.biz[Math.floor(Math.random() * 2)] };
-  const pkg = PACKAGES[Math.floor(Math.random() * PACKAGES.length)];
-  const km = haversineKm(from, to);
-  state.job = { from, to, pkg, km, reward: Math.round(20 + km * 1.6) };
+  const job = pickJob(destLib.list, Math.random, { last: destLib.lastJob });
+  if (!job) { console.warn('[destinations] need at least two valid destinations'); return; }
+  destLib.lastJob = job;
+  const from = { ...job.from, w: toWorld(job.from.lat, job.from.lon) };
+  const to = { ...job.to, w: toWorld(job.to.lat, job.to.lon) };
+  state.job = { from, to, pkg: job.pkg, km: job.km, reward: Math.round(20 + job.km * 1.6) };
   state.phase = 'pickup'; state.hover = 0;
   placeBeacon(beaconPick, labelPick, from, `Pick up: ${from.name}`, '#ffc46b');
   placeBeacon(beaconDrop, labelDrop, to, `Deliver: ${to.name}`, '#7dffb0');
   beaconDrop.visible = labelDrop.visible = false;
   beaconPick.visible = labelPick.visible = true;
   updateMissionText();
+}
+async function loadDestinations() {
+  const url = (params.has('debug') && params.get('dest')) || '/destinations/destinations.json';
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const list = normalizeDestinations(await res.json(), (m) => console.warn('[destinations]', m));
+    if (list.length >= 2) destLib.list = list;
+    else console.warn('[destinations] fewer than two valid entries in', url, '- using the bundled list');
+  } catch (e) { console.warn('[destinations] could not load', url, '- using the bundled list', e); }
 }
 function placeBeacon(b, label, t, text, color) {
   seat(b, t.w.x, t.w.y, 0);
@@ -847,7 +860,7 @@ function step(dt, t) {
     if (state.phase === 'pickup') {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
-      const town = state.job.to.town;
+      const town = state.job.to.town || state.job.to.name;
       gameAudio.pickup();
       updateMissionText();
       if (!startCutscene('pickup', { onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
@@ -1055,7 +1068,8 @@ async function boot() {
     fetch('/terrain/waterways.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/chunks/chunks.json').then(ok).then((r) => r.json()).catch(() => null),
     fetch('/photos/attractions.json').then(ok).then((r) => r.json()).catch(() => []),
-    fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null)]);
+    fetch('/terrain/base-sat.jpg').then(ok).then((r) => r.blob()).then((b) => createImageBitmap(b)).catch(() => null),
+    loadDestinations()]);
   meta = m; N = m.N; SIZE = m.sizeKm * 1000 / UNIT_M;
   H = new Int16Array(N * N); for (let k = 0; k < H.length; k++) H[k] = hb.data[k] - 6000; // stored as meters + 6000
   fixInlandSea();
@@ -1088,7 +1102,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, destLib, newJob, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

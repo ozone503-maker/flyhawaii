@@ -23,6 +23,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/alien-ui.js` | Glyph markup helper, gauge fractions, the fake music waveform |
 | `src/cutscene.js` | Arrival scene timeline (pure math): beats, camera orbit, coin path, count-up, pausable and skippable clock |
 | `src/arrival-fx.js` | Procedural 3D effects for arrival scenes: tractor beam, package, hex rings, sparkle burst |
+| `src/destinations.js` | Destination list validation and job picking (pickup and dropoff) |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |
@@ -34,11 +35,12 @@ Node.js 24 is the target (see `engines` in package.json).
 | `test/*.test.js` | Unit tests for the pure modules (`node --test`) |
 | `test/fixtures/clips/` | Test-only placeholder clips. Never ship them |
 | `scripts/*.py` | Headless screenshot checks (Python Playwright + Chrome): `alien-shots.py`, `cutscene-shots.py`, `clip-shots.py` |
+| `scripts/add-destination.mjs` | Geocodes a business with OpenStreetMap and appends it to the destinations list |
 | `scripts/bake-*.mjs` | One-off data baking for terrain and water. Rarely needed |
-| `public/` | Static files served as is: terrain, photos, pilots, music, clips |
-| `docs/` | Extra docs, including `docs/clips.md` |
+| `public/` | Static files served as is: terrain, photos, pilots, music, clips, destinations |
+| `docs/` | Extra docs, including `docs/clips.md` and `docs/destinations.md` |
 
-Keep logic that can be tested in small pure modules (like `cutscene.js` or `clips.js`) and add a test for it. `main.js` is big, so make focused edits there.
+Keep logic that can be tested in small pure modules (like `cutscene.js`, `clips.js` or `destinations.js`) and add a test for it. `main.js` is big, so make focused edits there.
 
 ## Adding a song
 
@@ -76,6 +78,30 @@ Convert anything with ffmpeg:
 ffmpeg -i input.mov -t 8 -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=30" -c:v libx264 -profile:v high -preset slow -crf 26 -maxrate 4M -bufsize 8M -pix_fmt yuv420p -c:a aac -b:a 128k -ac 2 -movflags +faststart public/clips/thanks-01.mp4
 ```
 
+## Adding a business (destination)
+
+Jobs pick up and deliver at real businesses listed in `public/destinations/destinations.json`. Each one has its own exact lat/lon, so the beacon lands on the building. Town labels and landmarks are separate and stay as they are. Full details: [docs/destinations.md](docs/destinations.md).
+
+```bash
+node scripts/add-destination.mjs "Kona Farmers Market" "75-5767 Aliʻi Dr, Kailua-Kona, HI"
+node scripts/add-destination.mjs "Some Shop" "19.6402,-155.9967" --kind shop --town Kailua-Kona
+```
+
+The script geocodes with OpenStreetMap Nominatim (one request per second, max a few per run), appends the entry and prints an OSM link. Open the link and check the pin sits on the business, not the road or the middle of town. Use `--dry-run` to preview. Then `npm test && npm run build` and open a PR.
+
+An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
+
+```json
+{ "id": "kona-commons", "name": "Kona Commons", "town": "Kailua-Kona", "kind": "mall",
+  "lat": 19.650076, "lon": -156.004391, "address": "74-5444 Makala Blvd, Kailua-Kona, HI 96740",
+  "website": "https://www.konacommons.com/", "sponsor": false, "source": "https://www.openstreetmap.org/way/198255842" }
+```
+
+- `kind`: `hq`, `own` (Jessie's brands), `market`, `restaurant`, `mall` or `shop`
+- Record where the coordinates came from in `source`. Set `"approx": true` when they are a placeholder
+- Only add places that are open now. Set `"enabled": false` to pause one without deleting it
+- Entries with coordinates off the Big Island are skipped with a console warning, and `npm test` fails on them
+
 ## Game rules (do not change without Jessie)
 
 - True scale: 1 world unit = 100 m on every axis. Real coordinates, real elevation data
@@ -85,7 +111,7 @@ ffmpeg -i input.mov -t 8 -vf "scale=720:1280:force_original_aspect_ratio=increas
   - Monkey Jockey: light electric blue
 - Pilots show only the backs of their heads. No helmets, no hats
 - KDU (Kudoken) is always electric blue (`--kdu: #1ec8ff`), shown with the hexagon coin glyph
-- FlashTown is the HQ (a real place). Do not invent its coordinates; ask Jessie
+- FlashTown is the HQ (a real place). Its entry in the destinations list is a placeholder flagged `"approx": true`. Do not invent its coordinates; ask Jessie for the pin
 - The cockpit is alien tech:
   - No English words on buttons. Use glyphs from the SVG sprite in `index.html` (add new `<symbol id="g-...">` entries) and keep English in `aria-label` and `title` for accessibility
   - No round buttons. Use shards, hexagons, chevrons and clipped-corner panels with scanlines and a glow in the pilot's color

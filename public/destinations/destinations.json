@@ -1,0 +1,84 @@
+{
+  "about": "Places jobs pick up from and deliver to. One entry per business with its own exact lat/lon (WGS84). See docs/destinations.md. Add one with: node scripts/add-destination.mjs \"Name\" \"address or lat,lon\"",
+  "destinations": [
+    {
+      "id": "flashtown-hq",
+      "name": "FlashTown HQ",
+      "town": "Eden Roc",
+      "kind": "hq",
+      "lat": 19.49028,
+      "lon": -155.10278,
+      "approx": true,
+      "sponsor": false,
+      "packageHint": "a crate of KDU tokens",
+      "note": "PLACEHOLDER: Eden Roc place point, not FlashTown itself. Replace with Jessie's pin and remove approx.",
+      "source": "https://www.openstreetmap.org/?mlat=19.49028&mlon=-155.10278#map=15/19.49028/-155.10278"
+    },
+    {
+      "id": "kona-farmers-market",
+      "name": "Kona Farmers Market",
+      "town": "Kailua-Kona",
+      "kind": "market",
+      "lat": 19.637213,
+      "lon": -155.991901,
+      "address": "75-5767 Aliʻi Dr, Kailua-Kona, HI 96740 (corner of Aliʻi Dr and Hualālai Rd)",
+      "website": "https://www.konafarmersmarket.com/",
+      "hours": "Wed to Sun 7am to 4pm",
+      "sponsor": false,
+      "packageHint": "a crate of fresh produce",
+      "source": "https://www.openstreetmap.org/node/8307558646"
+    },
+    {
+      "id": "kona-commons",
+      "name": "Kona Commons",
+      "town": "Kailua-Kona",
+      "kind": "mall",
+      "lat": 19.650076,
+      "lon": -156.004391,
+      "address": "74-5444 Makala Blvd, Kailua-Kona, HI 96740",
+      "website": "https://www.konacommons.com/",
+      "hours": "Store hours vary, about 8am to 10pm",
+      "sponsor": false,
+      "source": "https://www.openstreetmap.org/way/198255842"
+    },
+    {
+      "id": "keauhou-shopping-center",
+      "name": "Keauhou Shopping Center",
+      "town": "Keauhou",
+      "kind": "mall",
+      "lat": 19.571372,
+      "lon": -155.961814,
+      "address": "78-6831 Aliʻi Dr, Kailua-Kona, HI 96740",
+      "website": "https://keauhoushoppingcenter.com/",
+      "hours": "Keauhou Farmers Market here Saturdays 8am to noon",
+      "sponsor": false,
+      "source": "https://www.openstreetmap.org/way/439439001"
+    },
+    {
+      "id": "volcano-farmers-market",
+      "name": "Volcano Farmers Market",
+      "town": "Volcano",
+      "kind": "market",
+      "lat": 19.434211,
+      "lon": -155.230069,
+      "address": "Cooper Center, 19-4030 Wright Rd, Volcano, HI 96785",
+      "hours": "Sundays 6am to 10am",
+      "sponsor": false,
+      "packageHint": "a box of fresh-baked bread",
+      "source": "https://www.openstreetmap.org/node/5457818036"
+    },
+    {
+      "id": "kilauea-lodge",
+      "name": "Kilauea Lodge Restaurant",
+      "town": "Volcano",
+      "kind": "restaurant",
+      "lat": 19.430972,
+      "lon": -155.231141,
+      "address": "19-3948 Old Volcano Rd, Volcano, HI 96785",
+      "website": "https://www.kilauealodge.com/restaurant/",
+      "hours": "Dinner daily 5pm to 8pm",
+      "sponsor": false,
+      "source": "https://www.openstreetmap.org/way/591402607"
+    }
+  ]
+}

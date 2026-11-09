@@ -4,7 +4,7 @@ A browser 3D game: fly a classic disc UFO over a true-scale Big Island of Hawaii
 
 Live: https://flyhawaii.vercel.app
 
-Helping out with an AI assistant? Read [AGENTS.md](AGENTS.md) first. It has the code map, the game and style rules, and how to add songs and cutaway clips.
+Helping out with an AI assistant? Read [AGENTS.md](AGENTS.md) first. It has the code map, the game and style rules, and how to add songs, cutaway clips and businesses.
 
 ## Run it locally
 
@@ -36,6 +36,7 @@ Phone testing on your network: `npm run dev -- --host 0.0.0.0`, then open the sh
 | `?touch=1` | Force touch controls on a desktop |
 | `?debug` | Exposes `window.__fh` for testing (start or skip a scene, read state) |
 | `?debug&clips=/path/clips.json` | Use a test-only clip list |
+| `?debug&dest=/path/destinations.json` | Use a test-only destinations list |
 | `?vex=2` | Exaggerate terrain height (default 1, true scale) |
 | `?ring=N`, `?nochunks` | Terrain chunk streaming radius, or base map only |
 
