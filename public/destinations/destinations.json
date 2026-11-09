@@ -6,13 +6,11 @@
       "name": "FlashTown HQ",
       "town": "Mountain View",
       "kind": "hq",
-      "lat": 19.4849,
-      "lon": -155.0927,
-      "approx": true,
+      "lat": 19.48148,
+      "lon": -155.098468,
       "sponsor": false,
       "packageHint": "a crate of KDU tokens",
-      "note": "On Punahele St in Eden Roc, Mountain View. Pin is a neighboring lot on the same street (within a few hundred meters). Replace with a Google Maps long-press on the farm and remove approx.",
-      "source": "https://www.landsearch.com/properties/11-1785-punahele-st-mountain-view-hi-96771/4888530 (same street)"
+      "source": "Jessie's Google Maps pin, 2026-11-09"
     },
     {
       "id": "kona-farmers-market",
