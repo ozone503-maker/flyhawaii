@@ -1,6 +1,13 @@
 {
   "clips": [
-    { "id": "test-thanks", "file": "/clips-test/test-thanks.mp4" },
-    { "id": "test-bars", "file": "/clips-test/test-bars.mp4" }
+    {
+      "id": "test-thanks",
+      "file": "/clips-test/test-thanks.mp4"
+    },
+    {
+      "id": "test-bars",
+      "file": "/clips-test/test-bars.mp4",
+      "when": "any"
+    }
   ]
 }

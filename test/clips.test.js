@@ -31,7 +31,7 @@ test('random pick avoids repeating the last clip', () => {
 test('clips only play for deliveries with scenes on', () => {
   const clips = [{ id: 'a' }];
   assert.equal(shouldPlayClip({ kind: 'delivery', scenesOn: true, clips }), true);
-  assert.equal(shouldPlayClip({ kind: 'pickup', scenesOn: true, clips }), false);
+  assert.equal(shouldPlayClip({ kind: 'pickup', scenesOn: true, clips }), false); // default when is delivery
   assert.equal(shouldPlayClip({ kind: 'delivery', scenesOn: false, clips }), false);
   assert.equal(shouldPlayClip({ kind: 'delivery', scenesOn: true, clips: [] }), false);
 });
@@ -72,4 +72,31 @@ test('music ducks under a clip and comes back', () => {
   q.unlock(); stuck.paused = false;
   q.duck(true); assert.equal(stuck.paused, true);
   q.duck(false); assert.equal(stuck.paused, false);
+});
+
+test('optional when field routes clips to deliveries, pickups or both', () => {
+  const list = normalizeClips({ clips: [
+    { id: 'd', file: 'd.mp4' },
+    { id: 'p', file: 'p.mp4', when: 'pickup' },
+    { id: 'a', file: 'a.mp4', when: 'ANY' },
+    { id: 'x', file: 'x.mp4', when: 'sunset' },
+  ] });
+  assert.deepEqual(list.map((c) => c.when), ['delivery', 'pickup', 'any', 'delivery']);
+  for (let i = 0; i < 40; i++) {
+    assert.ok(['p', 'a'].includes(pickClip(list, '', Math.random, 'pickup').id));
+    assert.ok(['d', 'a', 'x'].includes(pickClip(list, '', Math.random, 'delivery').id));
+  }
+  assert.equal(shouldPlayClip({ kind: 'pickup', scenesOn: true, clips: list }), true);
+  const onlyPickup = normalizeClips([{ id: 'p', file: 'p.mp4', when: 'pickup' }]);
+  assert.equal(shouldPlayClip({ kind: 'delivery', scenesOn: true, clips: onlyPickup }), false);
+  assert.equal(pickClip(onlyPickup, '', Math.random, 'delivery'), null);
+});
+
+test('pickup clip scenes hold for the clip and still end', async () => {
+  const { CLIP_DURATION_PICKUP } = await import('../src/cutscene.js');
+  const c = createCutsceneClock('pickup', CLIP_DURATION_PICKUP);
+  c.holdAt(3.3); c.tick(10); assert.equal(c.t, 3.3);
+  assert.equal(cutsceneBeats('pickup', c.t, c.dur, { clip: true }).coins, 0);
+  c.release(); c.tick(1); assert.equal(c.done, true);
+  assert.equal(cutsceneBeats('pickup', c.dur, c.dur, { clip: true }).cam, 0);
 });

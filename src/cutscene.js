@@ -14,7 +14,8 @@ const easeOut = (t) => 1 - Math.pow(1 - clamp01(t), 3);
 
 /** Beat weights 0..1 for a cutscene of `kind` at time `t` seconds. */
 export const CLIP_COIN_START = 3.35; // with a thank-you clip, coins fly after it
-export const CLIP_DURATION = 5.35;
+export const CLIP_DURATION = 5.35;          // delivery with a clip: clip, then coins
+export const CLIP_DURATION_PICKUP = 3.9;    // pickup with a clip: clip, then the camera eases home
 
 export function cutsceneBeats(kind, t, dur = CUTSCENE_DURATION[kind] || 3.5, { clip = false } = {}) {
   const d = Math.max(0.5, dur);

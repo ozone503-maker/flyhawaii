@@ -2,7 +2,7 @@ import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
 import { glyph, gaugeFraction, trackSeed, waveBars } from './alien-ui.js';
-import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath, CLIP_DURATION } from './cutscene.js';
+import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath, CLIP_DURATION, CLIP_DURATION_PICKUP } from './cutscene.js';
 import { createArrivalFx } from './arrival-fx.js';
 import { normalizeClips, pickClip, shouldPlayClip, CLIP_HOLD_AT, CLIP_START_TIMEOUT, CLIP_MAX_SECONDS } from './clips.js';
 import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
@@ -524,7 +524,7 @@ function resetHeldControls() {
   stickEl.classList.remove('live'); stickEl.style.left = stickEl.style.top = stickEl.style.bottom = '';
 }
 /** Plays after a pickup or delivery. Returns false when scenes are off. */
-// ---------- thank-you clips (live action, shown in the delivery scene) ----------
+// ---------- cutaway clips (live action, shown in arrival scenes; see AGENTS.md) ----------
 const clipEls = { root: $('clipFx'), video: $('clipVideo'), sound: $('clipSound') };
 const clipLib = { list: [], lastId: localStorage.getItem('fh_last_clip') || '' };
 let clipPlaying = false; // mutes the engine hum while a clip is on screen
@@ -597,14 +597,14 @@ function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.token
   if (state.cut) endCutscene();
   const az = Math.atan2(camera.position.x - state.pos.x, camera.position.z - state.pos.z);
   const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list });
-  const clock = createCutsceneClock(kind, withClip ? CLIP_DURATION : undefined);
+  const clock = createCutsceneClock(kind, withClip ? (kind === 'delivery' ? CLIP_DURATION : CLIP_DURATION_PICKUP) : undefined);
   state.cut = {
     kind, clock, fromTokens, toTokens, onEnd, beatOpts: { clip: withClip },
     startAngle: az, sweep: (Math.random() < 0.5 ? -1 : 1) * 1.9, coins: [],
     clip: null,
   };
   if (withClip) {
-    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId), phase: 'loading', wait: 0, elapsed: 0 };
+    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId, Math.random, kind), phase: 'loading', wait: 0, elapsed: 0 };
     clock.holdAt(CLIP_HOLD_AT);
     prepareClip(state.cut);
   }

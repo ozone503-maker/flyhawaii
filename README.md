@@ -1,99 +1,57 @@
-# Fly Hawaii (prototype)
+# Fly Hawaii
 
-Three.js + Vite. Fly a UFO over a true-scale Big Island, deliver packages, earn Kudoken (KDU).
+A browser 3D game: fly a classic disc UFO over a true-scale Big Island of Hawaii, run delivery errands for local businesses and earn Kudoken (KDU). Built with Three.js and Vite, no game engine, no paid assets.
 
-- `npm run bake` refetches bathymetry and OSM waterways; `node scripts/bake-copernicus.mjs` (CH_TILES=path to cartoon-hawaii public/maps/tiles) re-chunks the Copernicus/Sentinel tiles
-- `npm run dev` / `npm run build`
-- `?debug=1` exposes `window.__fh` for testing, `?vex=2` doubles vertical scale (default 1 = true scale), `?ring=N` sets the chunk ring, `?nochunks` shows only the base
+Live: https://flyhawaii.vercel.app
 
-Terrain streaming
-- Whole-island base: public/terrain/base-h.png (1024x1024 16-bit, meters + 6000, about 160 m/cell; GLO-30 averaged on land, terrarium bathymetry offshore) and base-sat.jpg (2048x2048 Sentinel-2 mosaic)
-- Near the UFO: public/chunks/h-X-Y.png (16-bit gray meters, 6.4 km chunks sampled every 50 m from 12.5 m/px GLO-30, 1-sample border for seamless normals) plus s-X-Y.jpg Sentinel-2 imagery at 12.5 m/px. 3x3 chunks on phones, 5x5 on desktop, max 3 fetches at once; the base sinks under fully covered ground
-- 16-bit PNGs are decoded in the browser (src/height-png.js, ported from cartoon-hawaii) since browsers downsample to 8 bit
+Helping out with an AI assistant? Read [AGENTS.md](AGENTS.md) first. It has the code map, the game and style rules, and how to add songs and cutaway clips.
 
-Data sources and credits
+## Run it locally
+
+Needs Node.js 24 (20 or newer works) and npm.
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # unit tests (node --test)
+npm run build      # production build into dist/
+npm run preview    # serve dist/ locally
+```
+
+Phone testing on your network: `npm run dev -- --host 0.0.0.0`, then open the shown address on the phone.
+
+## Controls
+
+- Keyboard: W / S or arrows fly, A / D turn, Space climbs, Q / F / Ctrl descends, Shift boosts, C switches chase and cockpit view, P or Esc pauses
+- Music: M toggles, `,` and `.` change track
+- Touch: left thumb anywhere on the left half is the flight pad, right side has climb, descend and boost pads
+- Deliveries: hover low and slow inside the amber beacon to beam a package up, then inside the green beacon to drop it off. Arrival scenes play after each pickup and delivery; any key or tap skips them
+
+## Handy URL options
+
+| Option | What it does |
+| --- | --- |
+| `?cam=cockpit` | Start in the cockpit view |
+| `?pilot=drone`, `ipo`, `mj` | Pick a pilot |
+| `?touch=1` | Force touch controls on a desktop |
+| `?debug` | Exposes `window.__fh` for testing (start or skip a scene, read state) |
+| `?debug&clips=/path/clips.json` | Use a test-only clip list |
+| `?vex=2` | Exaggerate terrain height (default 1, true scale) |
+| `?ring=N`, `?nochunks` | Terrain chunk streaming radius, or base map only |
+
+## Deploys
+
+Every push to `master` deploys to production on Vercel (project `flyhawaii`). Pull requests get preview deployments.
+
+## Data sources and credits
+
 - Copernicus DEM © DLR/Airbus, provided under COPERNICUS by the EU and ESA (GLO-30)
 - Contains modified Copernicus Sentinel data 2025-2026 (Sentinel-2 imagery)
-- Both preprocessed into 4096 px tiles in the cartoon-hawaii repo (public/maps/tiles), read only here
-- Bathymetry offshore: AWS Terrain Tiles (Mapzen terrarium, z11: NOAA/ETOPO, SRTM, USGS)
-- Rivers, streams, waterfalls: OpenStreetMap contributors (ODbL) via Overpass API, baked to public/terrain/waterways.json
-- Landmark and town coordinates: OpenStreetMap / Nominatim / Wikipedia; summits snapped to the DEM high point, labeled with official elevations. Ka Lae 18.9111, -155.6811 (Wikipedia/GNIS; GLO-30 southernmost land pixel 18.91108, -155.68196)
+- Bathymetry offshore: AWS Terrain Tiles (Mapzen terrarium: NOAA/ETOPO, SRTM, USGS)
+- Rivers, streams, waterfalls and place data: OpenStreetMap contributors (ODbL), baked to `public/terrain/waterways.json`
+- Attraction photos: Wikimedia Commons (CC BY, CC BY-SA or public domain), credited on each in-game sign and in `public/photos/CREDITS.md`
 - Projection: equirectangular at the map's center latitude, 1 unit = 100 m on all axes
 
-Attraction photo signs
-- 15 zones in public/photos/attractions.json (true coordinates, radius in km). Each photo stands in the world as a small sign (about 220 m wide, bottom edge about 12 m above the highest ground under it) at the landmark, turning to face the camera and fading in from about 2x radius + 3 km. Name and photo credit are printed on the sign
-- Entering a zone the first time gives +25 KDU, a small non-blocking note and counts toward Discovered N/15 (localStorage fh_found)
-- Photos are lazy-loaded only within about 2x radius + 3 km of a zone, each 150-240 KB
-- Every photo is from Wikimedia Commons (CC BY, CC BY-SA or public domain); author, license and source per photo in public/photos/CREDITS.md and on each sign
+Terrain details: `public/terrain/base-h.png` (16-bit heights, meters + 6000) and `base-sat.jpg` cover the whole island; `public/chunks/` holds 6.4 km high detail chunks streamed around the UFO. `npm run bake` refetches bathymetry and waterways; `scripts/bake-copernicus.mjs` re-chunks the source tiles.
 
-Shelved co-pilot
-- The scripted co-pilot was removed from the game. Its script and bake tools are kept out of the build in voice-src/ and scripts/ (bake-voice.sh, voice-prep.py) in case it comes back
-## Pilots and ships
-
-After Start a pilot select screen appears. The choice is saved on the device (`localStorage.fh_pilot`, or `?pilot=drone|ipo|mj`) and can be changed from the pause menu.
-
-| Pilot | Ship | Feel |
-| --- | --- | --- |
-| Mystery Drone | Cyan Ring Drone | Sharpest turns (turn x1.18, boost x0.94) |
-| Ipo | Fruity Puppy Cruiser | All round, best climb (turn x1.05, boost x1.02, climb x1.1) |
-| Monkey Jockey | MJ Racer | Fastest boost, wider turns (boost x1.14, turn x0.9) |
-
-Ships are built in `src/ships.js`. Pilot portraits (`public/pilots/`) are original AI art made for Fly Hawaii from the owner's character references, with no helmets or hats. Sources are in `art/pilots/`.
-
-## Small delivery polish pass
-
-- All three pilots now use the existing disc geometry and baseline Mystery Drone
-  flight handling. Only skin colors differ: silver/blue, pink, light electric blue.
-- The cockpit uses simple untextured rear-head silhouettes instead of front-facing
-  portrait sprites. The selection preview stays behind the ship too.
-- The existing mission panel shows meters below 1 km and an approach instruction
-  matching the transfer zone, height and speed checks. No extra navigation card.
-- Delivery completion shows an electric-blue reward banner, including speed bonus.
-  Reduced-motion settings disable the banner and token pop animations.
-- Optional synthesized delivery sound is off by default. Enable it in Pause.
-  The preference is saved locally; playback requires a user click to unlock audio.
-
-Checks: `npm test`, `npm run build`, `git diff --check`.
-
-Manual check still needed: run `npm run dev -- --host 0.0.0.0`; test each pilot,
-turn sharply and reverse while checking the rear-head silhouettes; inspect the
-mission panel in portrait and landscape; approach an amber beacon high/fast/slow,
-pick up, follow the green drop-off beacon, and complete a delivery. Verify exact
-KDU increment, speed bonus, next-job guidance, sound off/on and reload preference.
-With OS reduced motion enabled, confirm rewards appear without scaling/sliding.
-Confirm Rainbow Falls and Ka Lae photo signs remain unchanged.
-
-## Faster island travel
-
-Shared maximum cruise is now 25 world units/s (2.5 km/s), up from 10 (1 km/s).
-Shared full boost is 75.2 world units/s (7.52 km/s), up from 30.08 (3.008 km/s),
-including the existing 0.94 boost coefficient. Both are 2.5 times faster.
-The HUD keeps its existing stylized game-mph conversion, not real-world mph.
-At up to 30% smoothed forward throttle, target speed is unchanged. Above that,
-a smooth travel curve adds speed. Reverse is unchanged. Throttle release eases
-at rate 14 instead of 5 and speed braking at rate 6 instead of 1.6; acceleration
-remains gentle. Tests compare actual release stopping distance against the old
-model at 30, 60 and 120 fps, for both cruise and boost.
-A 100 km straight leg at steady speed drops from 100 s to 40 s at cruise, or
-33.2 s to 13.3 s at boost, before acceleration, turning and landing.
-
-## Synthesized flight sound
-
-WebAudio only, no sample packs. Sound defaults on unless `fh_sound=off`.
-Master volume defaults to 55% (`fh_volume`). Unlock happens on Start / Fly /
-Resume click, pointerdown, Enter or Space. Pause menu toggles sound and volume.
-Pause or a hidden tab mutes the engine bed. Layers: dual-oscillator UFO hum
-that rises with speed/throttle, filtered wind noise, boost whoosh, pickup
-two-note chime, delivery three-note chime, discovery triangle arpeggio. Output
-runs through a compressor.
-
-## ShockBot CD player
-
-Cockpit music player streams `/music/*.mp3` listed in `/music/tracks.json`.
-
-- M toggles music
-- `,` / `.` previous / next track
-- Music volume is separate from engine sound (pause menu)
-
-To add songs: drop `track-NN.mp3` in `public/music/` and append an entry to `tracks.json`.
-
+Businesses in the game are fictional. Pilot portraits are original art made for Fly Hawaii.

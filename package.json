@@ -1,7 +1,7 @@
 {
   "name": "flyhawaii",
   "version": "1.0.0",
-  "description": "",
+  "description": "Fly a UFO over a true-scale Big Island of Hawaii and run deliveries for KDU",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -22,5 +22,8 @@
     "sharp": "^0.35.5",
     "vite": "^8.3.5"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  }
 }
