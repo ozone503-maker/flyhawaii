@@ -22,9 +22,9 @@ export function camBlendStep(blend, target, dt, rate = 6) {
  */
 export function cockpitEyeLocal(portrait = false) {
   if (portrait) {
-    // Eye high inside the glass dome, pitched about 10 degrees down so the
-    // horizon sits above screen center: more island, less empty sky.
-    return { eye: [0, 1.45, 0.5], look: [0, -1.46, -16], fov: 76 };
+    // Eye high and forward in the glass dome so the hull is a thin band,
+    // pitched about 6 degrees down so the horizon sits near 40% from the top.
+    return { eye: [0, 1.6, -0.3], look: [0, -0.08, -16.3], fov: 76 };
   }
   return { eye: [0, 0.95, 0.25], look: [0, 1.15, -9], fov: 66 };
 }

@@ -2,6 +2,8 @@ import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
 import { glyph, gaugeFraction, trackSeed, waveBars } from './alien-ui.js';
+import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath } from './cutscene.js';
+import { createArrivalFx } from './arrival-fx.js';
 import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -216,7 +218,8 @@ function makeLabel(text, color) {
 function makeBeacon(color) {
   const g = new THREE.Group(); g.scale.setScalar(0.35);
   const col = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 260, 24, 1, true),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    // Normal blending keeps the job beacon amber or green even far away against bright sky
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   col.position.y = 130; g.add(col);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(9, 0.6, 8, 48), new THREE.MeshBasicMaterial({ color, fog: false }));
   ring.rotation.x = Math.PI / 2; ring.position.y = 1.5; g.add(ring);
@@ -236,6 +239,7 @@ const state = {
   delivered: Number(localStorage.getItem('fh_jobs') || 0),
   pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), vy: 0, bank: 0,
   job: null, phase: 'pickup', hover: 0, jobStart: 0,
+  cut: null, // active arrival cutscene
 };
 const keys = new Set();
 const input = { fwd: 0, turn: 0, up: 0, boost: false };
@@ -485,14 +489,99 @@ function discoverNote(a, bonus) {
   clearTimeout(discoverNote._t); discoverNote._t = setTimeout(() => el.classList.remove('on'), 3200);
   gameAudio.discover();
 }
-function addTokens(n) {
+function addTokens(n, { quiet = false } = {}) {
   state.tokens += n; localStorage.setItem('fh_kdu', state.tokens);
+  if (quiet) return;
   $('tokenCount').textContent = state.tokens.toLocaleString();
-  const el = $('tokens'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  bumpTokens();
+}
+function bumpTokens() { const el = $('tokens'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+// ---------- arrival cutscenes ----------
+let arrivalFx = null;
+let cutscenesOn = cutscenePreference.enabled(localStorage.getItem('fh_cutscenes'));
+const cutBtn = $('cutBtn');
+function updateCutButton() {
+  if (!cutBtn) return;
+  cutBtn.setAttribute('aria-pressed', String(cutscenesOn));
+  cutBtn.setAttribute('aria-label', `Arrival scenes ${cutscenesOn ? 'on' : 'off'}`);
+  cutBtn.classList.toggle('off', !cutscenesOn);
+  const lab = $('cutLabel'); if (lab) lab.textContent = `Arrival scenes ${cutscenesOn ? 'on' : 'off'}`;
+}
+updateCutButton();
+cutBtn?.addEventListener('click', () => {
+  cutscenesOn = !cutscenesOn;
+  localStorage.setItem('fh_cutscenes', cutscenesOn ? 'on' : 'off');
+  updateCutButton();
+});
+function resetHeldControls() {
+  keys.clear();
+  for (const k of Object.keys(held)) held[k] = false;
+  document.querySelectorAll('.tbtn.active').forEach((b) => b.classList.remove('active'));
+  if (stick.id !== null) { try { stickZone.releasePointerCapture(stick.id); } catch { /* gone */ } }
+  stick.id = null; stick.x = stick.y = 0; knob.style.transform = '';
+  stickEl.classList.remove('live'); stickEl.style.left = stickEl.style.top = stickEl.style.bottom = '';
+}
+/** Plays after a pickup or delivery. Returns false when scenes are off. */
+function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd } = {}) {
+  if (!cutscenesOn || !arrivalFx) return false;
+  if (state.cut) endCutscene();
+  const az = Math.atan2(camera.position.x - state.pos.x, camera.position.z - state.pos.z);
+  state.cut = {
+    kind, clock: createCutsceneClock(kind), fromTokens, toTokens, onEnd,
+    startAngle: az, sweep: (Math.random() < 0.5 ? -1 : 1) * 1.9, coins: [],
+  };
+  resetHeldControls();
+  arrivalFx.start(kind, pilot.id);
+  document.body.classList.add('cutscene');
+  if (kind === 'delivery') {
+    const layer = $('coinFx');
+    for (let i = 0; i < 9; i++) {
+      const c = document.createElement('div'); c.className = 'fx-coin'; c.innerHTML = glyph('kdu');
+      layer.append(c); state.cut.coins.push(c);
+    }
+  }
+  return true;
+}
+function endCutscene() {
+  const c = state.cut; if (!c) return;
+  state.cut = null;
+  arrivalFx?.stop();
+  c.coins.forEach((el) => el.remove());
+  document.body.classList.remove('cutscene');
+  if (c.kind === 'delivery') { $('tokenCount').textContent = state.tokens.toLocaleString(); bumpTokens(); }
+  resetHeldControls();
+  c.onEnd?.();
+}
+function skipCutscene() { if (state.cut && !state.paused) state.cut.clock.skip(); }
+const _proj = new THREE.Vector3();
+function tickCutscene(dt, t) {
+  const c = state.cut; if (!c) return;
+  const done = c.clock.tick(dt);
+  const b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur);
+  arrivalFx.update(b, ufo.group.position, groundY(state.pos.x, state.pos.z), t);
+  if (c.kind === 'delivery') {
+    // KDU coins arc from the disc into the counter while it counts up
+    _proj.copy(state.pos).project(camera);
+    const from = [(_proj.x + 1) / 2 * innerWidth, (1 - _proj.y) / 2 * innerHeight];
+    const r = $('tokens').getBoundingClientRect();
+    const to = [r.left + 22, r.top + r.height / 2];
+    c.coins.forEach((el, i) => {
+      const p = Math.max(0, Math.min(1, (b.coins - i * 0.055) / (1 - 0.055 * (c.coins.length - 1))));
+      const [x, y, s] = coinPath(p, [from[0] + (i % 3 - 1) * 14, from[1] + 10], to, 90 + (i % 4) * 25);
+      el.style.opacity = p > 0 && p < 1 ? '1' : '0';
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${s}) rotate(${p * 540}deg)`;
+    });
+    const shown = countUp(c.fromTokens, c.toTokens, b.coins);
+    const el = $('tokenCount'); const txt = shown.toLocaleString();
+    if (el.textContent !== txt) { el.textContent = txt; if (b.coins > 0) gameAudio.coinTick?.(); }
+  }
+  if (done) endCutscene();
 }
 
 // ---------- input ----------
 addEventListener('keydown', (e) => {
+  if (state.cut && !state.paused && e.code !== 'KeyP' && e.code !== 'Escape') { skipCutscene(); return; }
   keys.add(e.code);
   if (e.code === 'Space') e.preventDefault();
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
@@ -508,6 +597,12 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') { e.preventDefault(); toggleCamera(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
+// Tap or click anywhere skips an arrival scene (but not the pause rail or menus)
+addEventListener('pointerdown', (e) => {
+  if (!state.cut || state.paused) return;
+  if (e.target.closest?.('#hudRail, .overlay')) return;
+  e.preventDefault(); skipCutscene();
+}, { capture: true });
 addEventListener('blur', () => keys.clear());
 // Floating stick: the base anchors wherever the left thumb first lands, anywhere in the left zone
 const stick = { id: null, x: 0, y: 0, cx: 0, cy: 0 };
@@ -615,6 +710,7 @@ let shipEnv = null;
 let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
 function step(dt, t) {
   readInput();
+  if (state.cut) { input.fwd = input.turn = input.up = 0; input.boost = false; }
   // Gentle throttle opening, faster release/braking, unchanged low-stick control.
   const S = pilot.stats;
   advanceSpeed(state, input, S, dt);
@@ -627,6 +723,7 @@ function step(dt, t) {
   const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
   state.vel.copy(fwdDir).multiplyScalar(state.speed);
   state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix) * S.climb, 4, dt);
+  if (state.cut) { state.speed = ease(state.speed, 0, 7, dt); state.vy = ease(state.vy, 0, 7, dt); state.vel.copy(fwdDir).multiplyScalar(state.speed); }
   state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
   const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
   const gy = groundY(state.pos.x, state.pos.z);
@@ -648,7 +745,7 @@ function step(dt, t) {
   const horiz = Math.hypot(dx, dz);
   const agl = state.pos.y - groundY(tg.w.x, tg.w.y);
   const inZone = horiz < 3.2 && agl < 8;
-  const beamOn = inZone && state.vel.length() < 9;
+  const beamOn = inZone && state.vel.length() < 9 && !state.cut;
   if (beamOn) state.hover += dt; else state.hover = Math.max(0, state.hover - dt * 2);
   const need = 1.4;
   $('beam').classList.toggle('on', state.hover > 0); $('beamFill').style.width = `${Math.min(100, state.hover / need * 100)}%`;
@@ -660,17 +757,21 @@ function step(dt, t) {
     if (state.phase === 'pickup') {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
-      toast(`Package on board\nFly to ${state.job.to.town}`);
+      const town = state.job.to.town;
       gameAudio.pickup();
       updateMissionText();
+      if (!startCutscene('pickup', { onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
       const par = state.job.km * 1000 / UNIT_M / 12; // seconds at a relaxed pace
       const bonus = Math.max(0, Math.round((par - secs) / par * state.job.reward * 0.6));
-      addTokens(state.job.reward + bonus);
+      const before = state.tokens, gain = state.job.reward + bonus;
+      const cine = cutscenesOn && !!arrivalFx;
+      addTokens(gain, { quiet: cine });
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
-      deliveryReward(state.job.reward + bonus, bonus);
+      deliveryReward(gain, bonus);
       newJob();
+      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens });
     }
   }
   // coins
@@ -681,7 +782,7 @@ function step(dt, t) {
   // beacon animation
   for (const b of [beaconPick, beaconDrop]) {
     const d = Math.hypot(b.position.x - state.pos.x, b.position.z - state.pos.z);
-    b.userData.col.material.opacity = 0.05 + 0.25 * sstep(4, 40, d);
+    b.userData.col.material.opacity = 0.06 + 0.4 * sstep(4, 40, d);
     b.userData.ring.scale.setScalar(1 + 0.08 * Math.sin(t * 4)); b.userData.box.rotation.y += dt;
     b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
   }
@@ -708,6 +809,7 @@ function step(dt, t) {
 }
 
 let camYaw = 0, camH = 0;
+const _cinePos = new THREE.Vector3(), _cineLook = new THREE.Vector3();
 let camBlend = state.camMode === CAM_COCKPIT ? 1 : 0;
 const chasePos = new THREE.Vector3(), cockpitPos = new THREE.Vector3();
 const chaseLook = new THREE.Vector3(), cockpitLook = new THREE.Vector3();
@@ -806,11 +908,27 @@ function updateCamera(dt) {
   camBlend = camBlendStep(camBlend, state.camMode, dt, 5.5);
   camera.position.lerpVectors(chasePos, cockpitPos, camBlend);
   lookAt.lerpVectors(chaseLook, cockpitLook, camBlend);
-  camera.lookAt(lookAt);
   const chaseFov = portrait ? 72 : 62;
-  const wantFov = chaseFov + (cockpitFov - chaseFov) * camBlend;
+  let wantFov = chaseFov + (cockpitFov - chaseFov) * camBlend;
+  let cineW = 0;
+  if (state.cut) {
+    // cinematic orbit around the hovering disc, blended over the normal camera
+    const c = state.cut, b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur);
+    const gy = groundY(state.pos.x, state.pos.z), agl = Math.max(0.5, state.pos.y - gy);
+    const radius = (4.6 + Math.min(agl, 8) * 0.35) * (portrait ? 1.3 : 1);
+    const o = orbitOffset(b.orbit, { startAngle: c.startAngle, sweep: c.sweep, radius, height: 0.3 + Math.min(agl, 8) * 0.1 });
+    _cinePos.set(state.pos.x + o[0], state.pos.y + o[1], state.pos.z + o[2]);
+    _cinePos.y = Math.max(_cinePos.y, groundY(_cinePos.x, _cinePos.z) + 0.6);
+    _cineLook.set(state.pos.x, state.pos.y - Math.min(agl * 0.4, 2), state.pos.z);
+    cineW = b.cam;
+    camera.position.lerp(_cinePos, cineW);
+    lookAt.lerp(_cineLook, cineW);
+    wantFov += ((portrait ? 70 : 54) - wantFov) * cineW;
+  }
+  camera.lookAt(lookAt);
   if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
-  setPilotHeadVisible(camBlend < 0.55);
+  setPilotHeadVisible(camBlend < 0.55 || cineW > 0.4);
+  document.body.classList.toggle('cine-wide', cineW > 0.4);
   if (window.__sky) window.__sky.position.copy(camera.position);
 }
 
@@ -821,7 +939,7 @@ function frame() {
   if (attractions && state.running && !state.paused && t - lastAttr > 0.2) { lastAttr = t; attractions.update(state.pos.x, state.pos.z); }
   attractions?.tick(dt);
   if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
-  if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
+  if (state.running && !state.paused) { step(dt, t); tickCutscene(dt, t); updateCamera(dt); }
   else if (state.running) { updateCamera(dt); if (state.camMode === CAM_COCKPIT && mmBase) drawMinimap(); }
   else if (!state.running && ufo) { // attract mode orbit
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
@@ -859,6 +977,7 @@ async function boot() {
   ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group);
   beaconPick = makeBeacon(0xffa94d); beaconDrop = makeBeacon(0x4dff9a); scene.add(beaconPick, beaconDrop);
   labelPick = makeLabel(' ', '#fff'); labelDrop = makeLabel(' ', '#fff'); scene.add(labelPick, labelDrop);
+  arrivalFx = createArrivalFx(scene);
   // town name labels
   for (const t of TOWNS) { const l = makeLabel(t.town, '#ffffff'); l.material.depthTest = true; l.scale.set(l.userData.aspect * 1.6, 1.6, 1); seat(l, t.w.x, t.w.y, 4); scene.add(l); }
   // Landmark names live on the photo-sign captions and the discovery toast, not giant floating banners or white poles.
@@ -879,7 +998,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; } };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; } };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

@@ -720,3 +720,56 @@ body[data-cam="cockpit"] #hudRail { flex-direction: column; }
 @media (max-width: 640px) {
   body[data-cam="cockpit"] #hud #cdPlayer.cd-player .cd-meta { display: none !important; }
 }
+
+/* ---------- Arrival cutscenes ---------- */
+#cineBars, #coinFx, #skipBtn { display: none; }
+#cineBars .bar { position: absolute; left: 0; right: 0; height: 7vh; background: linear-gradient(var(--dir, 180deg), rgba(2,6,12,.92), rgba(2,6,12,.6) 70%, transparent);
+  transform: scaleY(0); transition: transform .35s ease; z-index: 7; pointer-events: none; }
+#cineBars .bar.top { top: 0; transform-origin: top; }
+#cineBars .bar.bottom { bottom: 0; transform-origin: bottom; --dir: 0deg; }
+body.cutscene #cineBars { display: block; }
+body.cine-wide #cineBars .bar { transform: scaleY(1); }
+body.cutscene #touch { display: none !important; }
+body.cutscene #mission, body.cutscene #cdPlayer, body.cutscene #beam, body.cutscene #discover { opacity: 0; transition: opacity .25s; }
+body.cutscene #dash .dash-slot:not([data-slot="tokens"]) { opacity: .18; transition: opacity .3s; }
+body.cutscene.cine-wide #cockpitFx { opacity: 0; }
+#cockpitFx { transition: opacity .3s; }
+body.cutscene #tokens { z-index: 9; }
+body.cutscene #dash { z-index: 8; }
+
+#coinFx { position: fixed; inset: 0; pointer-events: none; z-index: 12; }
+body.cutscene #coinFx { display: block; }
+.fx-coin { position: absolute; left: 0; top: 0; width: 30px; height: 30px; color: var(--kdu); opacity: 0; will-change: transform;
+  filter: drop-shadow(0 0 8px var(--kdu)) drop-shadow(0 0 3px #fff); }
+.fx-coin .glyph { width: 100%; height: 100%; filter: none; }
+
+#skipBtn {
+  position: absolute; right: calc(14px + env(safe-area-inset-right)); bottom: calc(7vh + 12px + env(safe-area-inset-bottom)); z-index: 11;
+  width: 46px; height: 34px; border: 0; padding: 0; color: var(--glow); cursor: pointer; pointer-events: auto;
+  clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%); place-items: center;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px), linear-gradient(180deg, rgba(14,30,48,.9), rgba(4,10,18,.85));
+  box-shadow: inset 0 0 0 1px var(--glow-soft); animation: skip-blink 1.4s ease-in-out infinite;
+}
+#skipBtn .glyph { width: 20px; height: 20px; }
+body.cutscene #skipBtn { display: grid; }
+body.cutscene[data-cam="cockpit"] #skipBtn { bottom: calc(min(30vh, 250px) + 12px); }
+@keyframes skip-blink { 50% { opacity: .55; } }
+#deliveryReward { z-index: 10; }
+body.cutscene #toast { top: 24%; }
+
+.cut-row { margin-top: 10px; justify-content: flex-start; max-width: 320px; }
+.cut-label { font-size: 15px; font-weight: 700; color: #eaf6ff; }
+@media (max-width: 640px) {
+  body.cutscene[data-cam="cockpit"] #skipBtn { bottom: calc(min(22vh, 175px) + 12px); }
+}
+@media (prefers-reduced-motion: reduce) { #skipBtn { animation: none; } }
+
+/* During the wide shot the cockpit dash slides down to just its top strip */
+#dash { transition: transform .4s ease; }
+body.cutscene.cine-wide #dash { transform: translateY(52%); }
+body.cutscene.cine-wide[data-cam="cockpit"] #skipBtn { bottom: calc(min(30vh, 250px) * .48 + 12px); }
+@media (max-width: 640px) {
+  body[data-cam="cockpit"] #tokens .unit { display: none; }
+  body.cutscene.cine-wide[data-cam="cockpit"] #skipBtn { bottom: calc(min(22vh, 175px) * .48 + 12px); }
+}
+body.cutscene #hudRail { z-index: 11; }

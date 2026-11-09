@@ -49,7 +49,7 @@ function makeNoiseBuffer(context) {
 
 export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT_VOLUME } = {}) {
   let context, master, duck, engineGain, windGain, filter, windFilter;
-  let oscA, oscB, noise, started = false, muted = false, lastBoost = 0;
+  let oscA, oscB, noise, started = false, muted = false, lastBoost = 0, lastTick = 0;
 
   function alive() {
     return enabled && !muted && context?.state === 'running' && master;
@@ -200,6 +200,14 @@ export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT
       if (!alive()) return;
       try { tone(context, duck, { freqs: [523.25, 659.25, 783.99], gap: 0.11, hold: 0.22, peak: 0.5 }); }
       catch { /* Delivery and rewards must still work if audio fails. */ }
+    },
+    coinTick() {
+      if (!alive()) return;
+      const now = context.currentTime;
+      if (now - lastTick < 0.06) return; // throttle the count-up blips
+      lastTick = now;
+      try { tone(context, duck, { freqs: [1318.5 + Math.random() * 200], type: 'triangle', hold: 0.06, peak: 0.16 }); }
+      catch { /* ignore */ }
     },
     discover() {
       if (!alive()) return;
