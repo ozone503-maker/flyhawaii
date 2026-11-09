@@ -17,11 +17,13 @@ with sync_playwright() as p:
     pg.wait_for_function("!document.getElementById('startBtn').disabled", timeout=120000)
     pg.click('#startBtn'); time.sleep(1)
     if pg.is_visible('#selGo'): pg.click('#selGo')
+    time.sleep(1); pg.keyboard.press('Digit1')
     time.sleep(2)
     log.append(f"loaded {pg.evaluate('window.__fh.destLib.list.length')} destinations: {pg.evaluate('window.__fh.destLib.list.map(d => d.id).join(\", \")')}")
     for tid in targets:
         pg.evaluate("""(tid) => { const f = window.__fh;
-          for (let i = 0; i < 500 && f.state.job.to.id !== tid; i++) f.newJob();
+          const L = f.destLib.list, to = L.find(d => d.id === tid), from = L.find(d => d.id !== tid);
+          f.acceptOffer({ from, to, pkg: 'a test parcel', legKm: 1, pay: 10, tags: [] });
           f.state.phase = 'dropoff'; f.updateMissionText(); const { beaconPick, beaconDrop } = f.beacons; beaconPick.visible = false; beaconDrop.visible = true;
           const t = f.state.job.to; // park the ship 600 m out to sea / downhill, facing the beacon
           const off = t.lon < -155.5 ? [-9, 2.5] : [2.5, 9];

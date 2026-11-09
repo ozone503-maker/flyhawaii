@@ -209,6 +209,13 @@ export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT
       try { tone(context, duck, { freqs: [1318.5 + Math.random() * 200], type: 'triangle', hold: 0.06, peak: 0.16 }); }
       catch { /* ignore */ }
     },
+    // Fly-through ring: bright rising chime, higher for rarer rings and longer streaks.
+    ring(level = 0, combo = 1) {
+      if (!alive()) return;
+      const base = 659.25 * Math.pow(2, (Math.min(level, 3) * 3 + Math.min(combo - 1, 6)) / 12);
+      try { tone(context, duck, { freqs: [base, base * 1.25, base * 1.5, ...(level >= 2 ? [base * 2] : [])], gap: 0.045, hold: 0.12, peak: 0.34, type: 'triangle' }); }
+      catch { /* ignore */ }
+    },
     discover() {
       if (!alive()) return;
       try { tone(context, duck, { freqs: [659.25, 880, 1046.5], gap: 0.09, hold: 0.2, peak: 0.4, type: 'triangle' }); }

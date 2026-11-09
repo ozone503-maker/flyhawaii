@@ -12,7 +12,10 @@ import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
 import { Attractions } from './attractions.js';
 import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
-import { normalizeDestinations, pickJob } from './destinations.js';
+import { normalizeDestinations } from './destinations.js';
+import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
+import { createRingField } from './ring-field.js';
+import { RING_TIERS } from './rings.js';
 import bundledDestinations from '../public/destinations/destinations.json';
 
 // ---------- constants ----------
@@ -249,35 +252,81 @@ const state = {
 const keys = new Set();
 const input = { fwd: 0, turn: 0, up: 0, boost: false };
 
-let ufo, beaconPick, beaconDrop, labelPick, labelDrop, colorCanvas, coins = [];
+let ufo, beaconPick, beaconDrop, labelPick, labelDrop, colorCanvas, ringField = null;
+const prevPos = new THREE.Vector3();
 
-function placeCoins() {
-  const coinGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 28);
-  coinGeo.rotateX(Math.PI / 2);
-  const coinMat = new THREE.MeshStandardMaterial({ color: 0x1ec8ff, emissive: 0x0a6cff, emissiveIntensity: 0.9, metalness: 0.7, roughness: 0.25 });
-  let tries = 0;
-  while (coins.length < 40 && tries++ < 4000) {
-    const x = (Math.random() - 0.5) * SIZE * 0.8, z = (Math.random() - 0.5) * SIZE * 0.8;
-    if (elevM(x, z) < 20) continue;
-    const m = new THREE.Mesh(coinGeo, coinMat);
-    seat(m, x, z, 2 + Math.random() * 5);
-    scene.add(m); coins.push(m);
+// KDU rings live on land (or just off the coast) at flyable heights
+function randomRingSpot(rand) {
+  for (let tries = 0; tries < 40; tries++) {
+    const x = (rand() - 0.5) * SIZE * 0.8, z = (rand() - 0.5) * SIZE * 0.8;
+    if (elevM(x, z) < 15) continue;
+    return { x, y: groundY(x, z) + 2.5 + rand() * 6, z };
   }
+  return null;
 }
 
-function newJob() {
-  const job = pickJob(destLib.list, Math.random, { last: destLib.lastJob });
-  if (!job) { console.warn('[destinations] need at least two valid destinations'); return; }
-  destLib.lastJob = job;
-  const from = { ...job.from, w: toWorld(job.from.lat, job.from.lon) };
-  const to = { ...job.to, w: toWorld(job.to.lat, job.to.lon) };
-  state.job = { from, to, pkg: job.pkg, km: job.km, reward: Math.round(20 + job.km * 1.6) };
+// ---------- jobs: offer board ----------
+const board = { open: false, offers: [], cool: 0, lastKeys: new Set() };
+function acceptOffer(o) {
+  if (!o) return;
+  const from = { ...o.from, w: toWorld(o.from.lat, o.from.lon) };
+  const to = { ...o.to, w: toWorld(o.to.lat, o.to.lon) };
+  state.job = { from, to, pkg: o.pkg, km: o.legKm, reward: o.pay, tags: o.tags };
   state.phase = 'pickup'; state.hover = 0;
   placeBeacon(beaconPick, labelPick, from, `Pick up: ${from.name}`, '#ffc46b');
   placeBeacon(beaconDrop, labelDrop, to, `Deliver: ${to.name}`, '#7dffb0');
   beaconDrop.visible = labelDrop.visible = false;
   beaconPick.visible = labelPick.visible = true;
+  ringField?.seedRoute([{ x: state.pos.x, z: state.pos.z }, { x: from.w.x, z: from.w.y }, { x: to.w.x, z: to.w.y }]);
+  closeJobBoard();
   updateMissionText();
+  gameAudio.pickup();
+}
+function clearJob() {
+  state.job = null; state.hover = 0;
+  if (beaconPick) beaconPick.visible = labelPick.visible = beaconDrop.visible = labelDrop.visible = false;
+  ringField?.clearRoute();
+  updateMissionText();
+}
+function openJobBoard({ reroll = false } = {}) {
+  if (!state.running) return;
+  const here = fromWorld(state.pos.x, state.pos.z);
+  board.offers = makeOffers(destLib.list, here, Math.random, { avoid: reroll ? board.lastKeys : new Set() });
+  board.lastKeys = new Set(board.offers.map((o) => o.key));
+  board.open = true; resetHeldControls();
+  renderJobBoard();
+  $('jobBoard').classList.remove('hidden'); document.body.classList.add('jobboard');
+  updateMissionText();
+}
+function closeJobBoard() { board.open = false; $('jobBoard').classList.add('hidden'); document.body.classList.remove('jobboard'); }
+function rerollJobs() {
+  if (!board.open || board.cool > 0 || state.paused) return;
+  board.cool = REROLL_COOLDOWN; openJobBoard({ reroll: true });
+}
+function renderJobBoard() {
+  const wrap = $('jbCards'); wrap.innerHTML = '';
+  if (!board.offers.length) { wrap.textContent = 'No jobs right now. Add places to public/destinations/destinations.json'; return; }
+  for (const o of board.offers) {
+    const b = document.createElement('button'); b.className = 'jb-card'; b.dataset.slot = o.slot;
+    if (o.tags.length) b.classList.add(`tag-${o.tags[0]}`);
+    const tag = o.tags.map((t) => `<span class="jb-tag ${t}">${TAGS[t].label} +${Math.round((TAGS[t].mult - 1) * 100)}%</span>`).join('');
+    b.innerHTML = `<span class="jb-key">${o.slot}</span>
+      <span class="jb-pay">${glyph('kdu')}<b></b><small>KDU</small></span>
+      <span class="jb-route"><span class="jb-stop pick"><b></b><i></i></span>${glyph('next', 'jb-to')}<span class="jb-stop drop"><b></b><i></i></span></span>
+      <span class="jb-meta"><span class="jb-km"></span><span class="jb-eta"></span><span class="jb-dead"></span></span>
+      <span class="jb-pkg"></span>${tag}`;
+    b.querySelector('.jb-pay b').textContent = o.pay.toLocaleString();
+    const [p, d] = b.querySelectorAll('.jb-stop');
+    p.querySelector('b').textContent = o.from.name; p.querySelector('i').textContent = o.from.town || '';
+    d.querySelector('b').textContent = o.to.name; d.querySelector('i').textContent = o.to.town || '';
+    b.querySelector('.jb-km').textContent = formatKm(o.totalKm);
+    b.querySelector('.jb-eta').textContent = formatEta(o.etaSec);
+    b.querySelector('.jb-dead').textContent = `${formatKm(o.deadheadKm)} to pickup`;
+    b.querySelector('.jb-pkg').textContent = o.pkg;
+    b.setAttribute('aria-label', `Job ${o.slot}: ${o.pkg} from ${o.from.name} to ${o.to.name}, ${formatKm(o.totalKm)}, ${o.pay} KDU${o.tags.length ? `, ${o.tags.join(', ')}` : ''}`);
+    b.addEventListener('click', () => { if (!state.paused) { unlockAudio(); acceptOffer(o); } });
+    wrap.append(b);
+  }
 }
 async function loadDestinations() {
   const url = (params.has('debug') && params.get('dest')) || '/destinations/destinations.json';
@@ -296,7 +345,7 @@ function placeBeacon(b, label, t, text, color) {
   label.scale.set(label.userData.aspect * 2.2, 2.2, 1);
   seat(label, t.w.x, t.w.y, 9);
 }
-function target() { return state.phase === 'pickup' ? state.job.from : state.job.to; }
+function target() { return state.job ? (state.phase === 'pickup' ? state.job.from : state.job.to) : null; }
 const $ = (id) => document.getElementById(id);
 const gameAudio = createGameAudio({
   AudioContext: window.AudioContext || window.webkitAudioContext,
@@ -484,6 +533,13 @@ function deliveryReward(amount, bonus) {
 }
 function updateMissionText() {
   const j = state.job, m = $('mission');
+  if (!j) {
+    m.className = 'idle';
+    $('missionStep').textContent = 'No job yet';
+    $('missionTarget').textContent = 'Pick your next job';
+    $('cargo').textContent = ''; $('dist').textContent = ''; $('missionHint').textContent = 'Choose one of four offers';
+    return;
+  }
   m.className = state.phase;
   if (state.phase === 'pickup') {
     $('missionStep').textContent = `Job ${state.delivered + 1}: pick up ${j.pkg}`;
@@ -494,6 +550,28 @@ function updateMissionText() {
     $('missionTarget').textContent = `${j.to.name}, ${j.to.town}`;
     $('cargo').textContent = `${j.reward} KDU + speed bonus`;
   }
+}
+// "+N" pops where a ring was crossed (pooled DOM nodes)
+const _popV = new THREE.Vector3();
+function ringPop(h, gain) {
+  const layer = $('ringPops'); if (!layer) return;
+  let el = [...layer.children].find((e) => !e.classList.contains('on'));
+  if (!el) { if (layer.children.length >= 8) el = layer.firstElementChild; else { el = document.createElement('div'); el.className = 'ring-pop'; layer.append(el); } }
+  _popV.set(h.x, h.y, h.z).project(camera);
+  const onScreen = _popV.z < 1 && Math.abs(_popV.x) < 1.1 && Math.abs(_popV.y) < 1.1;
+  const x = onScreen ? (_popV.x + 1) / 2 * innerWidth : innerWidth / 2, y = onScreen ? (1 - _popV.y) / 2 * innerHeight : innerHeight * 0.42;
+  el.className = `ring-pop tier-${h.tier.id}`;
+  el.innerHTML = `${glyph('kdu')}<b>+${gain}</b>${h.combo > 1 ? `<i>x${h.combo}</i>` : ''}${h.chainBonus ? `<em>Chain +${h.chainBonus}</em>` : ''}`;
+  // lift it above the disc so it never sits on top of the ship
+  el.style.left = `${Math.max(60, Math.min(innerWidth - 60, x))}px`; el.style.top = `${Math.max(80, Math.min(innerHeight - 80, Math.min(y, innerHeight * 0.5) - innerHeight * 0.12))}px`;
+  void el.offsetWidth; el.classList.add('on');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 1100);
+}
+function updateRerollUi() {
+  const b = $('jbReroll'); if (!b) return;
+  b.disabled = board.cool > 0;
+  b.style.setProperty('--cool', (board.cool / REROLL_COOLDOWN).toFixed(3));
+  $('jbCool').textContent = board.cool > 0 ? `${Math.ceil(board.cool)}` : '';
 }
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 1800); }
 function discoverNote(a, bonus) {
@@ -680,6 +758,11 @@ function tickCutscene(dt, t) {
 // ---------- input ----------
 addEventListener('keydown', (e) => {
   if (state.cut && !state.paused && e.code !== 'KeyP' && e.code !== 'Escape') { skipCutscene(); return; }
+  if (board.open && !state.paused) {
+    const n = /^(Digit|Numpad)([1-4])$/.exec(e.code);
+    if (n) { e.preventDefault(); unlockAudio(); acceptOffer(board.offers[Number(n[2]) - 1]); return; }
+    if (e.code === 'KeyR') { e.preventDefault(); rerollJobs(); return; }
+  }
   keys.add(e.code);
   if (e.code === 'Space') e.preventDefault();
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
@@ -768,7 +851,8 @@ $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('camBtn')?.addEventListener('click', () => toggleCamera());
 applyCamHud();
 $('resumeBtn').addEventListener('click', () => togglePause(false));
-$('newJobBtn').addEventListener('click', () => { newJob(); togglePause(false); });
+$('newJobBtn').addEventListener('click', () => { if (state.cut) endCutscene(); clearJob(); togglePause(false); openJobBoard(); });
+$('jbReroll').addEventListener('click', () => rerollJobs());
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) togglePause(true);
   gameAudio.setMuted(state.paused || document.hidden);
@@ -791,9 +875,12 @@ function drawMinimap() {
   ctx.drawImage(mmBase, 0, 0, W, W);
   const toMM = (x, z) => [(x / SIZE + 0.5) * W, (z / SIZE + 0.5) * W];
   for (const t of TOWNS) { const [a, b] = toMM(t.w.x, t.w.y); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(a - 1.5, b - 1.5, 3, 3); }
-  const tg = target(); const [tx, tz] = toMM(tg.w.x, tg.w.y);
-  ctx.fillStyle = state.phase === 'pickup' ? '#ffc46b' : '#7dffb0';
-  ctx.beginPath(); ctx.arc(tx, tz, 5, 0, Math.PI * 2); ctx.fill();
+  const tg = target();
+  if (tg) {
+    const [tx, tz] = toMM(tg.w.x, tg.w.y);
+    ctx.fillStyle = state.phase === 'pickup' ? '#ffc46b' : '#7dffb0';
+    ctx.beginPath(); ctx.arc(tx, tz, 5, 0, Math.PI * 2); ctx.fill();
+  }
   const [ux, uz] = toMM(state.pos.x, state.pos.z);
   ctx.save(); ctx.translate(ux, uz); ctx.rotate(-state.yaw);
   ctx.fillStyle = '#1ec8ff'; ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 5); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
@@ -813,7 +900,9 @@ let shipEnv = null;
 let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
 function step(dt, t) {
   readInput();
-  if (state.cut) { input.fwd = input.turn = input.up = 0; input.boost = false; }
+  prevPos.copy(state.pos);
+  if (board.cool > 0) { board.cool = Math.max(0, board.cool - dt); updateRerollUi(); }
+  if (state.cut || board.open) { input.fwd = input.turn = input.up = 0; input.boost = false; }
   // Gentle throttle opening, faster release/braking, unchanged low-stick control.
   const S = pilot.stats;
   advanceSpeed(state, input, S, dt);
@@ -826,7 +915,7 @@ function step(dt, t) {
   const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
   state.vel.copy(fwdDir).multiplyScalar(state.speed);
   state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix) * S.climb, 4, dt);
-  if (state.cut) { state.speed = ease(state.speed, 0, 7, dt); state.vy = ease(state.vy, 0, 7, dt); state.vel.copy(fwdDir).multiplyScalar(state.speed); }
+  if (state.cut || board.open) { state.speed = ease(state.speed, 0, 7, dt); state.vy = ease(state.vy, 0, 7, dt); state.vel.copy(fwdDir).multiplyScalar(state.speed); }
   state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
   const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
   const gy = groundY(state.pos.x, state.pos.z);
@@ -844,10 +933,10 @@ function step(dt, t) {
 
   // mission
   let tg = target();
-  let dx = tg.w.x - state.pos.x, dz = tg.w.y - state.pos.z;
+  let dx = tg ? tg.w.x - state.pos.x : 1e9, dz = tg ? tg.w.y - state.pos.z : 1e9;
   const horiz = Math.hypot(dx, dz);
-  const agl = state.pos.y - groundY(tg.w.x, tg.w.y);
-  const inZone = horiz < 3.2 && agl < 8;
+  const agl = tg ? state.pos.y - groundY(tg.w.x, tg.w.y) : 1e9;
+  const inZone = !!tg && horiz < 3.2 && agl < 8;
   const beamOn = inZone && state.vel.length() < 9 && !state.cut;
   if (beamOn) state.hover += dt; else state.hover = Math.max(0, state.hover - dt * 2);
   const need = 1.4;
@@ -873,15 +962,20 @@ function step(dt, t) {
       addTokens(gain, { quiet: cine });
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
       deliveryReward(gain, bonus);
-      const dropId = state.job.to.id; // newJob() replaces the job, the clip belongs to this drop-off
-      newJob();
-      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropId });
+      const dropId = state.job.to.id; // clearJob() drops the job, the clip belongs to this drop-off
+      clearJob();
+      if (!(cine && startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropId, onEnd: () => openJobBoard() }))) openJobBoard();
     }
   }
-  // coins
-  for (let i = coins.length - 1; i >= 0; i--) {
-    const c = coins[i]; c.rotation.y += dt * 2.5;
-    if (c.position.distanceToSquared(state.pos) < 2.5) { scene.remove(c); grounded.delete(c); coins.splice(i, 1); addTokens(1); toast('+1 KDU'); }
+  // KDU rings: fly through the middle
+  if (ringField) {
+    const hits = ringField.update(dt, t, prevPos, state.pos, state.yaw, { collect: !state.cut });
+    for (const h of hits) {
+      const gain = h.value + h.chainBonus;
+      addTokens(gain);
+      gameAudio.ring(RING_TIERS.indexOf(h.tier), h.combo);
+      ringPop(h, gain);
+    }
   }
   // beacon animation
   for (const b of [beaconPick, beaconDrop]) {
@@ -891,12 +985,17 @@ function step(dt, t) {
     b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
   }
   // HUD
-  tg = target(); dx = tg.w.x - state.pos.x; dz = tg.w.y - state.pos.z;
+  tg = target();
+  if (!tg) { $('arrow').style.transform = ''; finishHud(); return; }
+  dx = tg.w.x - state.pos.x; dz = tg.w.y - state.pos.z;
   const bearing = Math.atan2(dx, dz); // world bearing
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
   $('missionHint').textContent = approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  finishHud();
+}
+function finishHud() {
   $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
   $('spdVal').textContent = Math.round(state.vel.length() * GAME_MPH);
   const altEl = $('alt');
@@ -1088,7 +1187,8 @@ async function boot() {
   // Landmark names live on the photo-sign captions and the discovery toast, not giant floating banners or white poles.
   for (const lm of LANDMARKS) snapPeak(lm);
   window.__landmarks = LANDMARKS;
-  placeCoins();
+  ringField = createRingField(scene, { groundAt: groundY, randomSpot: randomRingSpot, maxY: 62 });
+  ringField.populate();
   attractions = new Attractions({ list: attrList, fromWorld, toWorld, haversineKm, groundY, scene, camera,
     onDiscover: (a, bonus) => { addTokens(bonus); discoverNote(a, bonus); } });
   if (manifest && !params.has('nochunks')) {
@@ -1101,9 +1201,9 @@ async function boot() {
   state.pos.set(start.x, groundY(start.x, start.y) + 3, start.y);
   state.yaw = Math.PI / 2; // face west toward Mauna Kea
   $('tokenCount').textContent = state.tokens.toLocaleString();
-  newJob();
+  updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, destLib, newJob, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
@@ -1175,6 +1275,7 @@ function startGame() {
   if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
   state.running = true; clock.getDelta();
   applyCamHud();
+  if (!state.job && !board.open) openJobBoard();
   try { drawMinimap(); } catch { /* terrain may still be wiring */ }
 }
 $('startBtn').addEventListener('click', () => openSelect(false));
