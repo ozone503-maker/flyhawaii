@@ -97,7 +97,8 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
   "website": "https://www.konacommons.com/", "sponsor": false, "source": "https://www.openstreetmap.org/way/198255842" }
 ```
 
-- `kind`: `hq`, `own` (Jessie's brands), `market`, `restaurant`, `mall` or `shop`
+- `kind`: `hq`, `own` (Jessie's brands), `market`, `restaurant`, `mall`, `shop` or `hotel`
+- `local` (name, portrait from `public/locals/`, lines) and `packages` give each business its own character and goods
 - Record where the coordinates came from in `source`. Set `"approx": true` when they are a placeholder
 - Only add places that are open now. Set `"enabled": false` to pause one without deleting it
 - Entries with coordinates off the Big Island are skipped with a console warning, and `npm test` fails on them

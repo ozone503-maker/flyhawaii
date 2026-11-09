@@ -102,3 +102,31 @@ test('distanceKm matches a known span (Kona market to Volcano market about 80 km
   const km = distanceKm({ lat: 19.637213, lon: -155.991901 }, { lat: 19.434211, lon: -155.230069 });
   assert.ok(km > 78 && km < 84, String(km));
 });
+
+test('every local portrait in the shipped list exists, and locals and packages pass through', async () => {
+  const { existsSync } = await import('node:fs');
+  for (const d of normalizeDestinations(shipped)) {
+    if (d.local?.portrait) assert.ok(existsSync(new URL(`../public/locals/${d.local.portrait}`, import.meta.url)), d.local.portrait);
+  }
+  const [d] = normalizeDestinations([{ name: 'Suisan', kind: 'hotel', lat: 19.72, lon: -155.07,
+    packages: ['ahi', ' ', 'poke'], local: { name: 'Uncle Kenji', portrait: 'fisherman.webp', lines: ['Ho!', ''] } }]);
+  assert.equal(d.kind, 'hotel');
+  assert.deepEqual(d.packages, ['ahi', 'poke']);
+  assert.deepEqual(d.local, { name: 'Uncle Kenji', portrait: 'fisherman.webp', lines: ['Ho!'] });
+  assert.equal(packageFor(d, () => 0.9), 'poke');
+});
+
+test('a business plays its own clips, other businesses only get shared clips', async () => {
+  const { normalizeClips, pickClip, clipsFor, shouldPlayClip } = await import('../src/clips.js');
+  const list = normalizeClips([
+    { id: 'shared', file: 'shared.mp4' },
+    { id: 'hfm', file: 'hfm.mp4', biz: 'hilo-farmers-market' },
+    { id: 'vh', file: 'vh.mp4', biz: 'volcano-house', when: 'any' },
+  ]);
+  assert.deepEqual(clipsFor(list, 'delivery', 'hilo-farmers-market').map((c) => c.id), ['hfm']);
+  assert.deepEqual(clipsFor(list, 'delivery', 'suisan-fish-market').map((c) => c.id), ['shared']);
+  assert.deepEqual(clipsFor(list, 'pickup', 'volcano-house').map((c) => c.id), ['vh']);
+  assert.equal(pickClip(list, 'hfm', Math.random, 'delivery', 'hilo-farmers-market').id, 'hfm');
+  assert.equal(shouldPlayClip({ kind: 'pickup', scenesOn: true, clips: list, bizId: 'kona' }), false);
+  assert.equal(shouldPlayClip({ kind: 'pickup', scenesOn: true, clips: list, bizId: 'volcano-house' }), true);
+});

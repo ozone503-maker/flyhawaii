@@ -26,7 +26,21 @@
       "hours": "Wed to Sun 7am to 4pm",
       "sponsor": false,
       "packageHint": "a crate of fresh produce",
-      "source": "https://www.openstreetmap.org/node/8307558646"
+      "source": "https://www.openstreetmap.org/node/8307558646",
+      "local": {
+        "name": "Uncle Keola",
+        "portrait": "mac-nut-farmer.webp",
+        "lines": [
+          "Eh, you made it down Aliʻi with all that? Nice flying!",
+          "Mahalo plenty, the tourists been asking all morning.",
+          "Kudokens for you. Come try the coffee, on the house."
+        ]
+      },
+      "packages": [
+        "sacks of Kona coffee cherry",
+        "a crate of mac nuts",
+        "fresh lei for the stand"
+      ]
     },
     {
       "id": "kona-commons",
@@ -79,6 +93,360 @@
       "hours": "Dinner daily 5pm to 8pm",
       "sponsor": false,
       "source": "https://www.openstreetmap.org/way/591402607"
+    },
+    {
+      "id": "hilo-farmers-market",
+      "name": "Hilo Farmers Market",
+      "town": "Hilo",
+      "kind": "market",
+      "lat": 19.72333,
+      "lon": -155.08475,
+      "address": "Mamo St & Kamehameha Ave, Hilo",
+      "sponsor": false,
+      "packages": [
+        "a crate of apple bananas",
+        "a box of rambutan",
+        "orchid sprays for the flower stall"
+      ],
+      "local": {
+        "name": "Aunty Mele",
+        "portrait": "papaya-aunty.webp",
+        "lines": [
+          "Ho, just in time! The cruise ship crowd comes at ten.",
+          "Mahalo nui, you're the best.",
+          "Here, Kudokens for you, and take one papaya for the road!"
+        ]
+      },
+      "source": "https://hilofarmersmarket.com/ (Mamo St and Kamehameha Ave)"
+    },
+    {
+      "id": "volcano-house",
+      "name": "Volcano House",
+      "town": "Volcano",
+      "kind": "hotel",
+      "lat": 19.42833,
+      "lon": -155.25806,
+      "address": "1 Crater Rim Dr, Hawaiʻi Volcanoes National Park",
+      "sponsor": false,
+      "packages": [
+        "fresh bread for The Rim",
+        "a box of local jams",
+        "rain ponchos for the guests"
+      ],
+      "local": {
+        "name": "Malia",
+        "portrait": "glass-artist.webp",
+        "lines": [
+          "You flew in over the caldera? Brave!",
+          "The kitchen was waiting on this. Mahalo nui.",
+          "Here's a tip of Kudokens. Stay for the glow tonight."
+        ]
+      },
+      "source": "https://www.hawaiivolcanohouse.com/"
+    },
+    {
+      "id": "makuu-farmers-market",
+      "name": "Makuʻu Farmers Market",
+      "town": "Pāhoa",
+      "kind": "market",
+      "lat": 19.50551,
+      "lon": -154.95701,
+      "address": "Keaʻau-Pāhoa Rd (Hwy 130), Pāhoa",
+      "sponsor": false,
+      "packages": [
+        "a sack of fresh poi",
+        "a flat of lilikoʻi",
+        "a bundle of taro leaves"
+      ],
+      "local": {
+        "name": "Uncle Kimo",
+        "portrait": "taro-farmer.webp",
+        "lines": [
+          "Eh, the taro still warm from the ground!",
+          "Sunday market no can wait, mahalo for hustling.",
+          "Take some Kudokens, you earned um."
+        ]
+      },
+      "source": "https://travel.sygic.com/en/poi/maku-u-farmer-s-market-poi:39371",
+      "approx": true,
+      "note": "Close but not exact. Replace with a Google Maps pin and remove approx."
+    },
+    {
+      "id": "uncle-roberts-awa-club",
+      "name": "Uncle Robert's ʻAwa Club",
+      "town": "Kalapana",
+      "kind": "market",
+      "lat": 19.36098,
+      "lon": -154.97083,
+      "address": "12-5038 Kapoho Beach Rd, Kalapana",
+      "sponsor": false,
+      "packages": [
+        "a jug of fresh ʻawa",
+        "a box of night market leis",
+        "a cooler of coconut water"
+      ],
+      "local": {
+        "name": "Leilani",
+        "portrait": "ukulele-girl.webp",
+        "lines": [
+          "Shoots, right before the band starts!",
+          "Uncle going be stoked, mahalo plenty.",
+          "Here, some Kudokens for the road home."
+        ]
+      },
+      "source": "https://mapstr.com/place/5SByi5OvmQg (Apple Maps pin)"
+    },
+    {
+      "id": "suisan-fish-market",
+      "name": "Suisan Fish Market",
+      "town": "Hilo",
+      "kind": "market",
+      "lat": 19.724,
+      "lon": -155.07024,
+      "address": "93 Lihiwai St, Hilo",
+      "sponsor": false,
+      "packages": [
+        "a cooler of fresh ahi",
+        "a tub of shoyu poke",
+        "a bag of ice for the fish case"
+      ],
+      "local": {
+        "name": "Uncle Kenji",
+        "portrait": "fisherman.webp",
+        "lines": [
+          "Ho, still cold! You fly fast, brah.",
+          "Poke counter was almost empty, mahalo.",
+          "Kudokens for you, no be shy."
+        ]
+      },
+      "source": "https://maps.apple.com/place?place-id=I44136735F4A837BB"
+    },
+    {
+      "id": "kens-house-of-pancakes",
+      "name": "Ken's House of Pancakes",
+      "town": "Hilo",
+      "kind": "restaurant",
+      "lat": 19.72234,
+      "lon": -155.06475,
+      "address": "1730 Kamehameha Ave, Hilo",
+      "sponsor": false,
+      "packages": [
+        "a crate of macadamia nut syrup",
+        "a box of fresh eggs",
+        "a sack of pancake flour"
+      ],
+      "local": {
+        "name": "Auntie Rose",
+        "portrait": "baker.webp",
+        "lines": [
+          "Breakfast rush saved! Mahalo, sweetheart.",
+          "The griddle stay hot, come back hungry.",
+          "Take these Kudokens, extra syrup on the side."
+        ]
+      },
+      "source": "http://www.latlong.net/poi/ken-s-house-of-pancakes-330177"
+    },
+    {
+      "id": "hana-hou-restaurant",
+      "name": "Hana Hou Restaurant",
+      "town": "Nāʻālehu",
+      "kind": "restaurant",
+      "lat": 19.05999,
+      "lon": -155.5867,
+      "address": "Nāʻālehu Shopping Center, Hwy 11",
+      "sponsor": false,
+      "packages": [
+        "a pan of malasadas",
+        "a tray of fresh laulau",
+        "a box of Kaʻū oranges"
+      ],
+      "local": {
+        "name": "Uncle Moku",
+        "portrait": "pig-cook.webp",
+        "lines": [
+          "Hana hou! You came right back, eh?",
+          "Southernmost grinds say mahalo.",
+          "Couple Kudokens for the long ride north."
+        ]
+      },
+      "source": "https://mapcarta.com/W536043556 (Nāʻālehu Shopping Center, OSM)"
+    },
+    {
+      "id": "bamboo-restaurant",
+      "name": "Bamboo Restaurant",
+      "town": "Hāwī",
+      "kind": "restaurant",
+      "lat": 20.23818,
+      "lon": -155.83131,
+      "address": "55-3415 Akoni Pule Hwy, Hāwī",
+      "sponsor": false,
+      "packages": [
+        "a crate of passion fruit",
+        "a basket of Kohala greens",
+        "a case of island ginger"
+      ],
+      "local": {
+        "name": "Makana",
+        "portrait": "paniolo.webp",
+        "lines": [
+          "Way up north and you still on time!",
+          "Kohala wind brought you in good. Mahalo.",
+          "Kudokens, fresh from the till."
+        ]
+      },
+      "source": "https://maps.roadtrippers.com/places/14064987"
+    },
+    {
+      "id": "royal-kona-resort",
+      "name": "Royal Kona Resort",
+      "town": "Kailua-Kona",
+      "kind": "hotel",
+      "lat": 19.63255,
+      "lon": -155.9897,
+      "address": "75-5852 Aliʻi Dr, Kailua-Kona",
+      "sponsor": false,
+      "packages": [
+        "a stack of fresh beach towels",
+        "a box of luau leis",
+        "a case of Kona coffee"
+      ],
+      "local": {
+        "name": "Kawika",
+        "portrait": "surfer.webp",
+        "lines": [
+          "Right on time for sunset, braddah.",
+          "Guests going love this, mahalo nui.",
+          "Kudokens, cuz you shred the sky."
+        ]
+      },
+      "source": "https://www.royalkona.com/ (schema geo)"
+    },
+    {
+      "id": "king-kamehamehas-kona-beach-hotel",
+      "name": "King Kamehameha's Kona Beach Hotel",
+      "town": "Kailua-Kona",
+      "kind": "hotel",
+      "lat": 19.64096,
+      "lon": -155.99752,
+      "address": "75-5660 Palani Rd, Kailua-Kona",
+      "sponsor": false,
+      "packages": [
+        "a box of snorkel masks",
+        "a crate of pineapples for the luau",
+        "a bundle of ti leaves"
+      ],
+      "local": {
+        "name": "Nalu",
+        "portrait": "snorkel-girl.webp",
+        "lines": [
+          "Perfect, the bay stay calm today!",
+          "Mahalo for flying it straight to the beach.",
+          "Here, Kudokens, go cool off after."
+        ]
+      },
+      "source": "https://konabeachresort.com/ (Google Maps pin)"
+    },
+    {
+      "id": "hilton-waikoloa-village",
+      "name": "Hilton Waikoloa Village",
+      "town": "Waikōloa",
+      "kind": "hotel",
+      "lat": 19.92353,
+      "lon": -155.88725,
+      "address": "69-425 Waikoloa Beach Dr, Waikōloa",
+      "sponsor": false,
+      "packages": [
+        "a crate of canoe paddles",
+        "a box of lagoon fish food",
+        "a cooler of fresh fruit"
+      ],
+      "local": {
+        "name": "Keoni",
+        "portrait": "paddler.webp",
+        "lines": [
+          "Ho, made it before the boats leave!",
+          "This place so big, mahalo for finding me.",
+          "Kudokens for you, paddle hard."
+        ]
+      },
+      "source": "https://www.waymarking.com/waymarks/WM6Q8A_Hilton_Waikoloa_Village_Waikoloa_Hawaii"
+    },
+    {
+      "id": "mauna-lani",
+      "name": "Mauna Lani",
+      "town": "Kohala Coast",
+      "kind": "hotel",
+      "lat": 19.9431,
+      "lon": -155.8579,
+      "address": "68-1400 Mauna Lani Dr, Kohala Coast",
+      "sponsor": false,
+      "packages": [
+        "a box of orchid leis",
+        "a case of fresh coconuts",
+        "a crate of Waimea strawberries"
+      ],
+      "local": {
+        "name": "Aunty Pua",
+        "portrait": "orchid-aunty.webp",
+        "lines": [
+          "Oh, these orchids still smiling!",
+          "You have such good timing, mahalo.",
+          "Take some Kudokens, darling."
+        ]
+      },
+      "source": "https://mapcarta.com/25347132"
+    },
+    {
+      "id": "mauna-kea-beach-hotel",
+      "name": "Mauna Kea Beach Hotel",
+      "town": "Kohala Coast",
+      "kind": "hotel",
+      "lat": 20.00542,
+      "lon": -155.82373,
+      "address": "62-100 Mauna Kea Beach Dr, Kohala Coast",
+      "sponsor": false,
+      "packages": [
+        "a cooler of fresh mahi",
+        "a tackle box for the charter",
+        "a crate of limes"
+      ],
+      "local": {
+        "name": "Captain Ben",
+        "portrait": "fishing-captain.webp",
+        "lines": [
+          "Aye, the charter can leave now!",
+          "Smooth landing on Kaunaʻoa. Mahalo.",
+          "Kudokens, from one captain to another."
+        ]
+      },
+      "source": "https://en.wikipedia.org/wiki/Mauna_Kea_Beach_Hotel"
+    },
+    {
+      "id": "four-seasons-resort-hualalai",
+      "name": "Four Seasons Resort Hualālai",
+      "town": "Kaʻūpūlehu",
+      "kind": "hotel",
+      "lat": 19.8298,
+      "lon": -155.9818,
+      "address": "72-100 Kaʻūpūlehu Dr, Kailua-Kona",
+      "sponsor": false,
+      "packages": [
+        "a box of reef-safe sunscreen",
+        "a crate of Kona lobster",
+        "a case of lilikoʻi juice"
+      ],
+      "local": {
+        "name": "Hiʻilani",
+        "portrait": "turtle-volunteer.webp",
+        "lines": [
+          "Easy over the honu, yeah? Mahalo!",
+          "The keiki program needed this today.",
+          "Kudokens for you, protect the reef."
+        ]
+      },
+      "source": "https://mapcarta.com/28524122 (210 m south of the fire station)",
+      "approx": true,
+      "note": "Close but not exact. Replace with a Google Maps pin and remove approx."
     }
   ]
 }
