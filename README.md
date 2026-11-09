@@ -6,6 +6,10 @@ Live: https://flyhawaii.vercel.app
 
 Helping out with an AI assistant? Read [AGENTS.md](AGENTS.md) first. It has the code map, the game and style rules, and how to add songs and cutaway clips.
 
+## Businesses
+
+Pickups and drop-offs are real Big Island businesses. See [public/businesses/README.md](public/businesses/README.md) for the list, the ones waiting on a pin, and how to add one.
+
 ## Run it locally
 
 Needs Node.js 24 (20 or newer works) and npm.
