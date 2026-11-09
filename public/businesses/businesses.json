@@ -85,88 +85,316 @@
       }
     },
     {
-      "name": "Mango Moon Bakery",
-      "kind": "other",
+      "name": "Makuʻu Farmers Market",
+      "kind": "market",
+      "town": "Pāhoa",
+      "coords": "19.50551, -154.95701",
+      "address": "Keaʻau-Pāhoa Rd (Hwy 130), Pāhoa",
+      "packages": [
+        "a sack of fresh poi",
+        "a flat of lilikoʻi",
+        "a bundle of taro leaves"
+      ],
+      "local": {
+        "name": "Uncle Kimo",
+        "portrait": "taro-farmer.webp",
+        "lines": [
+          "Eh, the taro still warm from the ground!",
+          "Sunday market no can wait, mahalo for hustling.",
+          "Take some Kudokens, you earned um."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
+    },
+    {
+      "name": "Uncle Robert's ʻAwa Club",
+      "kind": "market",
+      "town": "Kalapana",
+      "coords": "19.36098, -154.97083",
+      "address": "12-5038 Kapoho Beach Rd, Kalapana",
+      "packages": [
+        "a jug of fresh ʻawa",
+        "a box of night market leis",
+        "a cooler of coconut water"
+      ],
+      "local": {
+        "name": "Leilani",
+        "portrait": "ukulele-girl.webp",
+        "lines": [
+          "Shoots, right before the band starts!",
+          "Uncle going be stoked, mahalo plenty.",
+          "Here, some Kudokens for the road home."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
+    },
+    {
+      "name": "Suisan Fish Market",
+      "kind": "market",
       "town": "Hilo",
-      "coords": "19.7241, -155.0868",
-      "placeholder": true
+      "coords": "19.72400, -155.07024",
+      "address": "93 Lihiwai St, Hilo",
+      "packages": [
+        "a cooler of fresh ahi",
+        "a tub of shoyu poke",
+        "a bag of ice for the fish case"
+      ],
+      "local": {
+        "name": "Uncle Kenji",
+        "portrait": "fisherman.webp",
+        "lines": [
+          "Ho, still cold! You fly fast, brah.",
+          "Poke counter was almost empty, mahalo.",
+          "Kudokens for you, no be shy."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Rainbow Falls Surf Repair",
-      "kind": "other",
+      "name": "Ken's House of Pancakes",
+      "kind": "restaurant",
       "town": "Hilo",
-      "coords": "19.7241, -155.0868",
-      "placeholder": true
+      "coords": "19.72234, -155.06475",
+      "address": "1730 Kamehameha Ave, Hilo",
+      "packages": [
+        "a crate of macadamia nut syrup",
+        "a box of fresh eggs",
+        "a sack of pancake flour"
+      ],
+      "local": {
+        "name": "Auntie Rose",
+        "portrait": "baker.webp",
+        "lines": [
+          "Breakfast rush saved! Mahalo, sweetheart.",
+          "The griddle stay hot, come back hungry.",
+          "Take these Kudokens, extra syrup on the side."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Rocket Bean Coffee Co",
-      "kind": "other",
+      "name": "Hana Hou Restaurant",
+      "kind": "restaurant",
+      "town": "Nāʻālehu",
+      "coords": "19.05999, -155.58670",
+      "address": "Nāʻālehu Shopping Center, Hwy 11",
+      "packages": [
+        "a pan of malasadas",
+        "a tray of fresh laulau",
+        "a box of Kaʻū oranges"
+      ],
+      "local": {
+        "name": "Uncle Moku",
+        "portrait": "pig-cook.webp",
+        "lines": [
+          "Hana hou! You came right back, eh?",
+          "Southernmost grinds say mahalo.",
+          "Couple Kudokens for the long ride north."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
+    },
+    {
+      "name": "Bamboo Restaurant",
+      "kind": "restaurant",
+      "town": "Hāwī",
+      "coords": "20.23818, -155.83131",
+      "address": "55-3415 Akoni Pule Hwy, Hāwī",
+      "packages": [
+        "a crate of passion fruit",
+        "a basket of Kohala greens",
+        "a case of island ginger"
+      ],
+      "local": {
+        "name": "Makana",
+        "portrait": "paniolo.webp",
+        "lines": [
+          "Way up north and you still on time!",
+          "Kohala wind brought you in good. Mahalo.",
+          "Kudokens, fresh from the till."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
+    },
+    {
+      "name": "Royal Kona Resort",
+      "kind": "hotel",
       "town": "Kailua-Kona",
-      "coords": "19.64, -155.9969",
-      "placeholder": true
+      "coords": "19.63255, -155.98970",
+      "address": "75-5852 Aliʻi Dr, Kailua-Kona",
+      "packages": [
+        "a stack of fresh beach towels",
+        "a box of luau leis",
+        "a case of Kona coffee"
+      ],
+      "local": {
+        "name": "Kawika",
+        "portrait": "surfer.webp",
+        "lines": [
+          "Right on time for sunset, braddah.",
+          "Guests going love this, mahalo nui.",
+          "Kudokens, cuz you shred the sky."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Aliʻi Glow Poke Bar",
-      "kind": "other",
+      "name": "King Kamehameha's Kona Beach Hotel",
+      "kind": "hotel",
       "town": "Kailua-Kona",
-      "coords": "19.64, -155.9969",
-      "placeholder": true
+      "coords": "19.64096, -155.99752",
+      "address": "75-5660 Palani Rd, Kailua-Kona",
+      "packages": [
+        "a box of snorkel masks",
+        "a crate of pineapples for the luau",
+        "a bundle of ti leaves"
+      ],
+      "local": {
+        "name": "Nalu",
+        "portrait": "snorkel-girl.webp",
+        "lines": [
+          "Perfect, the bay stay calm today!",
+          "Mahalo for flying it straight to the beach.",
+          "Here, Kudokens, go cool off after."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Paniolo Pixel Feed & Gear",
-      "kind": "other",
-      "town": "Waimea",
-      "coords": "20.0234, -155.6717",
-      "placeholder": true
+      "name": "Hilton Waikoloa Village",
+      "kind": "hotel",
+      "town": "Waikōloa",
+      "coords": "19.92353, -155.88725",
+      "address": "69-425 Waikoloa Beach Dr, Waikōloa",
+      "packages": [
+        "a crate of canoe paddles",
+        "a box of lagoon fish food",
+        "a cooler of fresh fruit"
+      ],
+      "local": {
+        "name": "Keoni",
+        "portrait": "paddler.webp",
+        "lines": [
+          "Ho, made it before the boats leave!",
+          "This place so big, mahalo for finding me.",
+          "Kudokens for you, paddle hard."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Upcountry Cloud Creamery",
-      "kind": "other",
-      "town": "Waimea",
-      "coords": "20.0234, -155.6717",
-      "placeholder": true
+      "name": "Mauna Lani",
+      "kind": "hotel",
+      "town": "Kohala Coast",
+      "coords": "19.94310, -155.85790",
+      "address": "68-1400 Mauna Lani Dr, Kohala Coast",
+      "packages": [
+        "a box of orchid leis",
+        "a case of fresh coconuts",
+        "a crate of Waimea strawberries"
+      ],
+      "local": {
+        "name": "Aunty Pua",
+        "portrait": "orchid-aunty.webp",
+        "lines": [
+          "Oh, these orchids still smiling!",
+          "You have such good timing, mahalo.",
+          "Take some Kudokens, darling."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Fern Fog Glass Studio",
-      "kind": "other",
-      "town": "Volcano",
-      "coords": "19.4296, -155.2357",
-      "placeholder": true
+      "name": "Mauna Kea Beach Hotel",
+      "kind": "hotel",
+      "town": "Kohala Coast",
+      "coords": "20.00542, -155.82373",
+      "address": "62-100 Mauna Kea Beach Dr, Kohala Coast",
+      "packages": [
+        "a cooler of fresh mahi",
+        "a tackle box for the charter",
+        "a crate of limes"
+      ],
+      "local": {
+        "name": "Captain Ben",
+        "portrait": "fishing-captain.webp",
+        "lines": [
+          "Aye, the charter can leave now!",
+          "Smooth landing on Kaunaʻoa. Mahalo.",
+          "Kudokens, from one captain to another."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     },
     {
-      "name": "Steam Vent Noodle House",
-      "kind": "other",
-      "town": "Volcano",
-      "coords": "19.4296, -155.2357",
-      "placeholder": true
-    },
-    {
-      "name": "Lava Lamp Records",
-      "kind": "other",
-      "town": "Pahoa",
-      "coords": "19.497, -154.9453",
-      "placeholder": true
-    },
-    {
-      "name": "Puna Star Fruit Stand",
-      "kind": "other",
-      "town": "Pahoa",
-      "coords": "19.497, -154.9453",
-      "placeholder": true
-    },
-    {
-      "name": "Trade Wind Kite Works",
-      "kind": "other",
-      "town": "Hawi",
-      "coords": "20.2414, -155.8336",
-      "placeholder": true
-    },
-    {
-      "name": "Kohala Comet Chocolate",
-      "kind": "other",
-      "town": "Hawi",
-      "coords": "20.2414, -155.8336",
-      "placeholder": true
+      "name": "Four Seasons Resort Hualālai",
+      "kind": "hotel",
+      "town": "Kaʻūpūlehu",
+      "coords": "19.82980, -155.98180",
+      "address": "72-100 Kaʻūpūlehu Dr, Kailua-Kona",
+      "packages": [
+        "a box of reef-safe sunscreen",
+        "a crate of Kona lobster",
+        "a case of lilikoʻi juice"
+      ],
+      "local": {
+        "name": "Hiʻilani",
+        "portrait": "turtle-volunteer.webp",
+        "lines": [
+          "Easy over the honu, yeah? Mahalo!",
+          "The keiki program needed this today.",
+          "Kudokens for you, protect the reef."
+        ]
+      },
+      "sponsor": {
+        "active": false,
+        "tagline": "",
+        "url": ""
+      }
     }
   ]
 }
