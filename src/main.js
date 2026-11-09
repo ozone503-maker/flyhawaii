@@ -539,17 +539,25 @@ document.addEventListener('visibilitychange', () => {
 const mm = $('minimap'), mctx = mm.getContext('2d');
 let mmBase;
 function drawMinimap() {
-  const W = mm.width;
-  mctx.drawImage(mmBase, 0, 0, W, W);
+  const map = document.getElementById('minimap') || mm;
+  if (!map || !mmBase || !SIZE) return;
+  const ctx = map.getContext('2d', { alpha: false }) || mctx;
+  if (!ctx) return;
+  const W = map.width > 0 ? map.width : 160;
+  if (map.width !== W) map.width = W;
+  if (map.height !== W) map.height = W;
+  ctx.fillStyle = '#0a2540';
+  ctx.fillRect(0, 0, W, W);
+  ctx.drawImage(mmBase, 0, 0, W, W);
   const toMM = (x, z) => [(x / SIZE + 0.5) * W, (z / SIZE + 0.5) * W];
-  for (const t of TOWNS) { const [a, b] = toMM(t.w.x, t.w.y); mctx.fillStyle = 'rgba(255,255,255,.7)'; mctx.fillRect(a - 1.5, b - 1.5, 3, 3); }
+  for (const t of TOWNS) { const [a, b] = toMM(t.w.x, t.w.y); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(a - 1.5, b - 1.5, 3, 3); }
   const tg = target(); const [tx, tz] = toMM(tg.w.x, tg.w.y);
-  mctx.fillStyle = state.phase === 'pickup' ? '#ffc46b' : '#7dffb0';
-  mctx.beginPath(); mctx.arc(tx, tz, 5, 0, Math.PI * 2); mctx.fill();
+  ctx.fillStyle = state.phase === 'pickup' ? '#ffc46b' : '#7dffb0';
+  ctx.beginPath(); ctx.arc(tx, tz, 5, 0, Math.PI * 2); ctx.fill();
   const [ux, uz] = toMM(state.pos.x, state.pos.z);
-  mctx.save(); mctx.translate(ux, uz); mctx.rotate(-state.yaw);
-  mctx.fillStyle = '#1ec8ff'; mctx.beginPath(); mctx.moveTo(0, -7); mctx.lineTo(5, 5); mctx.lineTo(-5, 5); mctx.closePath(); mctx.fill();
-  mctx.restore();
+  ctx.save(); ctx.translate(ux, uz); ctx.rotate(-state.yaw);
+  ctx.fillStyle = '#1ec8ff'; ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 5); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
 }
 
 // ---------- loop ----------
@@ -651,7 +659,7 @@ function step(dt, t) {
     paused: state.paused,
     hidden: document.hidden,
   });
-  if ((step.f = (step.f || 0) + 1) % 3 === 0) drawMinimap();
+  drawMinimap();
 }
 
 let camYaw = 0, camH = 0;
@@ -675,11 +683,12 @@ function applyCamHud() {
   const btn = $('camBtn');
   if (btn) {
     btn.setAttribute('aria-pressed', String(cockpit));
-    btn.textContent = cockpit ? 'Chase' : 'Cam';
+    btn.textContent = cockpit ? 'Out' : 'In';
     btn.title = cockpit ? 'Chase camera' : 'Cockpit camera';
+    btn.setAttribute('aria-label', cockpit ? 'Switch to chase camera' : 'Switch to cockpit camera');
   }
   const mount = {
-    tokens: 'tokens', found: 'found', alt: 'alt', minimap: 'minimap',
+    tokens: 'tokens', found: 'found', alt: 'alt',
     mission: 'mission', cd: 'cdPlayer',
   };
   for (const [slot, id] of Object.entries(mount)) {
@@ -690,6 +699,18 @@ function applyCamHud() {
   if (cockpit) {
     cdEls.root?.classList.add('open', 'dash-mounted');
     setCdOpen(true);
+    const map = $('minimap');
+    if (map) {
+      const side = isNarrowHud() ? 128 : 160;
+      if (map.width !== side) { map.width = side; map.height = side; }
+      map.style.width = isNarrowHud() ? '64px' : '108px';
+      map.style.height = map.style.width;
+    }
+    const paint = () => { try { drawMinimap(); } catch { /* waits for terrain */ } };
+    paint();
+    requestAnimationFrame(paint);
+    setTimeout(paint, 300);
+    setTimeout(paint, 1000);
   } else {
     cdEls.root?.classList.remove('dash-mounted');
     if (isNarrowHud()) setCdOpen(false);
@@ -721,23 +742,28 @@ function updateCamera(dt) {
   chasePos.y = Math.max(chasePos.y, cg);
   chaseLook.copy(state.pos).addScaledVector(back, -4); chaseLook.y += 0.3;
 
+  let cockpitFov = 64;
   if (ufo?.group) {
     ufo.group.updateMatrixWorld(true);
-    const { eye, look } = cockpitEyeLocal();
+    const { eye, look, fov } = cockpitEyeLocal(portrait);
+    cockpitFov = fov || (portrait ? 78 : 64);
     _eyeLocal.set(eye[0], eye[1], eye[2]).applyMatrix4(ufo.group.matrixWorld);
     _lookLocal.set(look[0], look[1], look[2]).applyMatrix4(ufo.group.matrixWorld);
     cockpitPos.copy(_eyeLocal);
     cockpitLook.copy(_lookLocal);
   } else {
-    cockpitPos.copy(state.pos); cockpitPos.y += 0.35;
-    cockpitLook.copy(state.pos).addScaledVector(tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw)), 4);
-    cockpitLook.y += 0.2;
+    cockpitPos.copy(state.pos); cockpitPos.y += 0.45;
+    cockpitLook.copy(state.pos).addScaledVector(tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw)), 5);
+    cockpitLook.y += 0.55;
   }
 
   camBlend = camBlendStep(camBlend, state.camMode, dt, 5.5);
   camera.position.lerpVectors(chasePos, cockpitPos, camBlend);
   lookAt.lerpVectors(chaseLook, cockpitLook, camBlend);
   camera.lookAt(lookAt);
+  const chaseFov = portrait ? 72 : 62;
+  const wantFov = chaseFov + (cockpitFov - chaseFov) * camBlend;
+  if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
   setPilotHeadVisible(camBlend < 0.55);
   if (window.__sky) window.__sky.position.copy(camera.position);
 }
@@ -750,13 +776,17 @@ function frame() {
   attractions?.tick(dt);
   if (streamer && state.running && t - lastStream > 0.25) { lastStream = t; streamer.update(state.pos); COVER.copy(streamer.cover); }
   if (state.running && !state.paused) { step(dt, t); updateCamera(dt); }
+  else if (state.running) { updateCamera(dt); if (state.camMode === CAM_COCKPIT && mmBase) drawMinimap(); }
   else if (!state.running && ufo) { // attract mode orbit
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
   }
   renderer.render(scene, camera);
 }
 
-function fitFov() { camera.fov = innerWidth < innerHeight ? 72 : 62; }
+function fitFov() {
+  if (state.running && state.camMode === CAM_COCKPIT) return; // updateCamera owns FOV while flying cockpit
+  camera.fov = innerWidth < innerHeight ? 72 : 62;
+}
 fitFov();
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; fitFov(); camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
@@ -777,6 +807,7 @@ async function boot() {
   for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
   colorCanvas = buildTerrain(water, satImg);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
+  try { drawMinimap(); } catch { /* HUD may not be mounted yet */ }
   shipEnv = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
   ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group);
   beaconPick = makeBeacon(0xffa94d); beaconDrop = makeBeacon(0x4dff9a); scene.add(beaconPick, beaconDrop);
@@ -872,6 +903,8 @@ function startGame() {
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
   state.running = true; clock.getDelta();
+  applyCamHud();
+  try { drawMinimap(); } catch { /* terrain may still be wiring */ }
 }
 $('startBtn').addEventListener('click', () => openSelect(false));
 setPilot(pilot.id);

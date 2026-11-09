@@ -20,7 +20,7 @@
           <div class="dash-slot" data-slot="tokens"></div>
           <div class="dash-slot" data-slot="found"></div>
           <div class="dash-slot dash-gauges" data-slot="alt"></div>
-          <div class="dash-slot dash-map" data-slot="minimap"></div>
+          <div class="dash-slot dash-map" data-slot="minimap"><canvas id="minimap" width="160" height="160"></canvas></div>
         </div>
         <div class="dash-row dash-row-main">
           <div class="dash-slot dash-mission" data-slot="mission"></div>
@@ -35,8 +35,10 @@
       <div id="missionMeta"><span id="arrow">&#9650;</span><span id="dist"></span><span id="cargo"></span></div>
       <div id="missionHint">Fly to the amber beacon</div>
     </div>
-    <canvas id="minimap" width="160" height="160"></canvas>
-    <div id="alt">Alt <span id="altVal">0</span> m &middot; <span id="spdVal">0</span> mph</div>
+    <div id="alt" class="gauges" aria-label="Altitude and speed">
+      <div class="gauge"><span class="gauge-label">Alt</span><span class="gauge-val" id="altVal">0</span><span class="gauge-unit">m</span></div>
+      <div class="gauge"><span class="gauge-label">Speed</span><span class="gauge-val" id="spdVal">0</span><span class="gauge-unit">mph</span></div>
+    </div>
     <div id="found" title="Attractions discovered"><span class="dot"></span>Discovered <b id="foundCount">0/15</b></div>
     <div id="beam"><div id="beamFill"></div></div>
     <div id="toast" role="status"></div>
@@ -57,7 +59,7 @@
       </div>
     </div>
     <div id="hudRail">
-      <button id="camBtn" class="small-btn cam-btn" aria-label="Toggle camera" aria-pressed="false" title="Camera">Cam</button>
+      <button id="camBtn" class="small-btn cam-btn" aria-label="Toggle camera" aria-pressed="false" title="Camera">View</button>
       <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
       <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
     </div>

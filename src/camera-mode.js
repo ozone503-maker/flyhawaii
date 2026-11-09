@@ -16,7 +16,14 @@ export function camBlendStep(blend, target, dt, rate = 6) {
   return blend + (t - blend) * k;
 }
 
-/** Local eye / look offsets in unscaled ship hull units (group already applies UFO_SCALE). */
-export function cockpitEyeLocal() {
-  return { eye: [0, 0.72, -0.05], look: [0, 0.55, -6] };
+/**
+ * Local eye / look in unscaled hull units (group already applies UFO_SCALE).
+ * Forward is -Z. Look Y stays above eye Y so the pink nose is only a thin rim.
+ */
+export function cockpitEyeLocal(portrait = false) {
+  if (portrait) {
+    // Eye further aft and higher; look pitched up toward the horizon.
+    return { eye: [0, 1.28, 0.85], look: [0, 2.05, -16], fov: 86 };
+  }
+  return { eye: [0, 0.95, 0.25], look: [0, 1.15, -9], fov: 66 };
 }
