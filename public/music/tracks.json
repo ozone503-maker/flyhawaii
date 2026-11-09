@@ -1,0 +1,9 @@
+{
+  "album": "ShockBot",
+  "tracks": [
+    { "id": "track-01", "file": "track-01.mp3", "title": "ShockBot · Track 1" },
+    { "id": "track-02", "file": "track-02.mp3", "title": "ShockBot · Track 2" },
+    { "id": "track-03", "file": "track-03.mp3", "title": "ShockBot · Track 3" },
+    { "id": "track-04", "file": "track-04.mp3", "title": "ShockBot · Track 4" }
+  ]
+}

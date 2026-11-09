@@ -86,3 +86,14 @@ Pause or a hidden tab mutes the engine bed. Layers: dual-oscillator UFO hum
 that rises with speed/throttle, filtered wind noise, boost whoosh, pickup
 two-note chime, delivery three-note chime, discovery triangle arpeggio. Output
 runs through a compressor.
+
+## ShockBot CD player
+
+Cockpit music player streams `/music/*.mp3` listed in `/music/tracks.json`.
+
+- M toggles music
+- `,` / `.` previous / next track
+- Music volume is separate from engine sound (pause menu)
+
+To add songs: drop `track-NN.mp3` in `public/music/` and append an entry to `tracks.json`.
+

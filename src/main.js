@@ -1,5 +1,6 @@
 import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
+import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { decodeHeightPng } from './height-png.js';
@@ -281,7 +282,7 @@ const soundButton = $('soundBtn');
 const volumeSlider = $('volumeSlider');
 function updateSoundButton() {
   const on = gameAudio.isEnabled();
-  soundButton.textContent = `Sound: ${on ? 'on' : 'off'}`;
+  soundButton.textContent = `Engine sound: ${on ? 'on' : 'off'}`;
   soundButton.setAttribute('aria-pressed', String(on));
   volumeSlider.disabled = !on;
   volumeSlider.value = String(Math.round(gameAudio.getVolume() * 100));
@@ -307,6 +308,87 @@ for (const id of ['startBtn', 'selGo', 'resumeBtn']) {
 addEventListener('keydown', (e) => {
   if (e.code === 'Enter' || e.code === 'Space') unlockAudio();
 }, { once: false });
+
+// ---------- ShockBot CD player ----------
+const musicAudio = new Audio();
+musicAudio.preload = 'metadata';
+const cdEls = {
+  root: $('cdPlayer'),
+  disc: $('cdDisc'),
+  title: $('cdTitle'),
+  play: $('cdPlay'),
+  prev: $('cdPrev'),
+  next: $('cdNext'),
+  vol: $('cdVol'),
+  volLabel: $('cdVolLabel'),
+};
+let syncCdUi = (s = {}) => {};
+const cdPlayer = createCdPlayer({
+  audio: musicAudio,
+  tracks: [],
+  enabled: musicPreference.enabled(localStorage.getItem('fh_music')),
+  volume: musicPreference.volume(localStorage.getItem('fh_music_vol')),
+  onChange: (s) => syncCdUi(s),
+});
+syncCdUi = (s = {}) => {
+  const track = s.track || cdPlayer.getTrack();
+  const playing = s.playing ?? cdPlayer.isPlaying();
+  const enabled = s.enabled ?? cdPlayer.isEnabled();
+  const volume = s.volume ?? cdPlayer.getVolume();
+  if (cdEls.title) cdEls.title.textContent = track?.title || 'ShockBot';
+  if (cdEls.play) {
+    cdEls.play.textContent = playing ? 'II' : '\u25B6';
+    cdEls.play.setAttribute('aria-pressed', String(!!playing));
+    cdEls.play.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
+  }
+  if (cdEls.disc) cdEls.disc.classList.toggle('spin', !!playing);
+  if (cdEls.vol) {
+    cdEls.vol.value = String(Math.round(volume * 100));
+    cdEls.vol.disabled = !enabled;
+  }
+  if (cdEls.volLabel) cdEls.volLabel.textContent = enabled ? `Music ${Math.round(volume * 100)}%` : 'Music off';
+  if (cdEls.root) cdEls.root.hidden = !(s.count ?? cdPlayer.getTracks().length);
+}
+syncCdUi();
+cdEls.play?.addEventListener('click', () => {
+  if (!cdPlayer.isEnabled()) {
+    cdPlayer.setEnabled(true);
+    localStorage.setItem('fh_music', 'on');
+  }
+  cdPlayer.toggle();
+  unlockAudio();
+  cdPlayer.unlock();
+});
+cdEls.prev?.addEventListener('click', () => { cdPlayer.prev(); cdPlayer.unlock(); unlockAudio(); });
+cdEls.next?.addEventListener('click', () => { cdPlayer.next(); cdPlayer.unlock(); unlockAudio(); });
+cdEls.vol?.addEventListener('input', () => {
+  const v = Number(cdEls.vol.value) / 100;
+  localStorage.setItem('fh_music_vol', String(v));
+  if (v <= 0) {
+    localStorage.setItem('fh_music', 'off');
+    cdPlayer.setEnabled(false);
+  } else {
+    localStorage.setItem('fh_music', 'on');
+    if (!cdPlayer.isEnabled()) cdPlayer.setEnabled(true);
+    cdPlayer.setVolume(v);
+  }
+  syncCdUi();
+});
+async function loadAlbum() {
+  try {
+    const res = await fetch('/music/tracks.json');
+    if (!res.ok) return;
+    const data = await res.json();
+    cdPlayer.setTracks(normalizeTracks(data));
+    syncCdUi();
+  } catch { /* Music is optional. */ }
+}
+loadAlbum();
+const unlockMusic = () => { unlockAudio(); cdPlayer.unlock(); };
+for (const id of ['startBtn', 'selGo', 'resumeBtn']) {
+  $(id).addEventListener('click', unlockMusic);
+  $(id).addEventListener('pointerdown', unlockMusic);
+}
 function deliveryReward(amount, bonus) {
   const el = $('deliveryReward');
   el.textContent = `Delivered  +${amount} KDU${bonus ? ` (${bonus} speed bonus)` : ''}`;
@@ -343,7 +425,20 @@ function addTokens(n) {
 }
 
 // ---------- input ----------
-addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); });
+addEventListener('keydown', (e) => {
+  keys.add(e.code);
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+  if (e.code === 'KeyM') {
+    const on = !cdPlayer.isEnabled();
+    localStorage.setItem('fh_music', on ? 'on' : 'off');
+    cdPlayer.setEnabled(on);
+    if (on) { unlockAudio(); cdPlayer.unlock(); cdPlayer.play(); }
+    syncCdUi();
+  }
+  if (e.code === 'Comma') { cdPlayer.prev(); cdPlayer.unlock(); unlockAudio(); }
+  if (e.code === 'Period') { cdPlayer.next(); cdPlayer.unlock(); unlockAudio(); }
+});
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 // Floating stick: the base anchors wherever the left thumb first lands, anywhere in the left zone
@@ -401,6 +496,7 @@ function togglePause(force) {
   state.paused = force !== undefined ? force : !state.paused;
   $('pause').classList.toggle('hidden', !state.paused);
   gameAudio.setMuted(state.paused || document.hidden);
+  cdPlayer.setGamePaused(state.paused || document.hidden);
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('resumeBtn').addEventListener('click', () => togglePause(false));
@@ -408,6 +504,7 @@ $('newJobBtn').addEventListener('click', () => { newJob(); togglePause(false); }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) togglePause(true);
   gameAudio.setMuted(state.paused || document.hidden);
+  cdPlayer.setGamePaused(state.paused || document.hidden);
 });
 
 // ---------- minimap ----------

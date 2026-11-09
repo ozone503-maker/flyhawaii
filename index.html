@@ -27,6 +27,20 @@
     <div id="toast" role="status"></div>
     <div id="deliveryReward" role="status" aria-live="polite"></div>
     <div id="discover" aria-live="polite"></div>
+    <div id="cdPlayer" class="cd-player" aria-label="ShockBot CD player" hidden>
+      <div class="cd-disc" id="cdDisc" aria-hidden="true"></div>
+      <div class="cd-controls">
+        <button type="button" id="cdPrev" class="cd-btn" aria-label="Previous track">&#9664;&#9664;</button>
+        <button type="button" id="cdPlay" class="cd-btn cd-play" aria-label="Play or pause music" aria-pressed="false">&#9654;</button>
+        <button type="button" id="cdNext" class="cd-btn" aria-label="Next track">&#9654;&#9654;</button>
+      </div>
+      <div class="cd-meta">
+        <div id="cdTitle" class="cd-title">ShockBot</div>
+        <label class="cd-vol" for="cdVol"><span id="cdVolLabel">Music 40%</span>
+          <input id="cdVol" type="range" min="0" max="100" value="40" step="1" aria-label="Music volume" />
+        </label>
+      </div>
+    </div>
     <button id="pauseBtn" class="small-btn" aria-label="Pause">II</button>
     <img id="pilotBadge" src="/pilots/drone-badge.webp" alt="" width="44" height="44" />
   </div>
@@ -47,7 +61,7 @@
       <button id="startBtn" class="metal-btn copper">Start flying</button>
       <div id="loading">Loading Big Island terrain</div>
       <div class="controls">
-        <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, C to descend, Shift to boost</div>
+        <div><b>Keyboard</b> W / S or arrows to fly, A / D to turn, Space to climb, C to descend, Shift to boost, M for music, , / . for previous and next track</div>
         <div><b>Touch</b> put your left thumb down anywhere on the left side and slide to fly and turn, right buttons for Up, Down and Boost</div>
         <div><b>Deliver</b> hover low inside a beacon to beam packages up or down</div>
       </div>
@@ -75,7 +89,8 @@
   <div id="pause" class="overlay hidden">
     <div class="panel">
       <h2>Paused</h2>
-      <button id="soundBtn" class="metal-btn pewter" aria-pressed="true">Sound: on</button>
+      <button id="soundBtn" class="metal-btn pewter" aria-pressed="true">Engine sound: on</button>
+      <p class="fine music-note">ShockBot music uses the cockpit CD player (M)</p>
       <label id="volumeRow" class="volume-row" for="volumeSlider"><span id="volumeLabel">Volume 55%</span>
         <input id="volumeSlider" type="range" min="0" max="100" value="55" step="1" aria-label="Master volume" />
       </label>
