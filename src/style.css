@@ -896,7 +896,8 @@ body.jobboard[data-cam="chase"] #mission { opacity: 0; }
   .jb-card { padding: 11px 12px 11px 10px; gap: 4px 10px; }
   .jb-key { width: 28px; min-height: 46px; font-size: 16px; }
   .jb-pay b { font-size: 22px; }
-  .jb-stop b { font-size: 14px; }
+  .jb-stop { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
+  .jb-stop b { font-size: 14px; white-space: normal; }
   .jb-meta, .jb-pkg { font-size: 12px; }
 }
 @media (max-width: 640px) and (orientation: portrait) {
