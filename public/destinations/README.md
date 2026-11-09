@@ -6,7 +6,7 @@ Every job uses two places from `destinations.json` in this folder: one where you
 
 | Place | Town | Kind | Coordinates | Local | |
 | --- | --- | --- | --- | --- | --- |
-| FlashTown HQ | Mountain View | hq | `19.4849, -155.0927` |  | close, not exact
+| FlashTown HQ | Mountain View | hq | `19.48148, -155.098468` |  |
 | Kona Farmers Market | Kailua-Kona | market | `19.637213, -155.991901` | Uncle Keola |
 | Kona Commons | Kailua-Kona | mall | `19.650076, -156.004391` |  |
 | Keauhou Shopping Center | Keauhou | mall | `19.571372, -155.961814` |  |
@@ -31,7 +31,6 @@ Every job uses two places from `destinations.json` in this folder: one where you
 
 On Jessie's list but still need coordinates (long-press the building in Google Maps and copy the numbers):
 
-- FlashTown HQ (on Punahele St now, within a few hundred meters; an exact pin would finish it)
 - Irie Hawaii (all locations)
 - Dolphin Spit Tavern
 - Hilo Lanes (bowling)

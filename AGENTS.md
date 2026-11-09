@@ -112,7 +112,7 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
   - Monkey Jockey: light electric blue
 - Pilots show only the backs of their heads. No helmets, no hats
 - KDU (Kudoken) is always electric blue (`--kdu: #1ec8ff`), shown with the hexagon coin glyph
-- FlashTown is the HQ (a real place). Its entry in the destinations list is a placeholder flagged `"approx": true`. Do not invent its coordinates; ask Jessie for the pin
+- FlashTown is the HQ (a real place in Mountain View). Its pin in the destinations list comes from Jessie. Do not move it without asking him
 - The cockpit is alien tech:
   - No English words on buttons. Use glyphs from the SVG sprite in `index.html` (add new `<symbol id="g-...">` entries) and keep English in `aria-label` and `title` for accessibility
   - No round buttons. Use shards, hexagons, chevrons and clipped-corner panels with scanlines and a glow in the pilot's color

@@ -18,11 +18,12 @@ test('shipped destinations file loads cleanly with no warnings', () => {
   }
 });
 
-test('FlashTown HQ is present and flagged approximate until Jessie gives a pin', () => {
+test('FlashTown HQ is on Jessie\'s exact pin in Mountain View', () => {
   const hq = normalizeDestinations(shipped).find((d) => d.kind === 'hq');
   assert.ok(hq);
   assert.equal(hq.id, 'flashtown-hq');
-  assert.equal(hq.approx, true);
+  assert.equal(hq.approx, false);
+  assert.deepEqual([hq.lat, hq.lon], [19.48148, -155.098468]);
 });
 
 test('accepts a bare array and fills id from name', () => {
