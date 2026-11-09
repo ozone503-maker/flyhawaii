@@ -75,7 +75,10 @@
   <div id="pause" class="overlay hidden">
     <div class="panel">
       <h2>Paused</h2>
-      <button id="soundBtn" class="metal-btn pewter" aria-pressed="false">Delivery sound: off</button>
+      <button id="soundBtn" class="metal-btn pewter" aria-pressed="true">Sound: on</button>
+      <label id="volumeRow" class="volume-row" for="volumeSlider"><span id="volumeLabel">Volume 55%</span>
+        <input id="volumeSlider" type="range" min="0" max="100" value="55" step="1" aria-label="Master volume" />
+      </label>
       <button id="resumeBtn" class="metal-btn copper">Resume</button>
       <button id="newJobBtn" class="metal-btn pewter">Skip this job</button>
       <button id="changePilotBtn" class="metal-btn pewter">Change pilot</button>

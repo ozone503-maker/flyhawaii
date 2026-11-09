@@ -76,3 +76,13 @@ remains gentle. Tests compare actual release stopping distance against the old
 model at 30, 60 and 120 fps, for both cruise and boost.
 A 100 km straight leg at steady speed drops from 100 s to 40 s at cruise, or
 33.2 s to 13.3 s at boost, before acceleration, turning and landing.
+
+## Synthesized flight sound
+
+WebAudio only, no sample packs. Sound defaults on unless `fh_sound=off`.
+Master volume defaults to 55% (`fh_volume`). Unlock happens on Start / Fly /
+Resume click, pointerdown, Enter or Space. Pause menu toggles sound and volume.
+Pause or a hidden tab mutes the engine bed. Layers: dual-oscillator UFO hum
+that rises with speed/throttle, filtered wind noise, boost whoosh, pickup
+two-note chime, delivery three-note chime, discovery triangle arpeggio. Output
+runs through a compressor.

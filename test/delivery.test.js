@@ -32,18 +32,26 @@ test('pilot heads have no face textures, sprites, helmets or hats', () => {
 });
 test('sound stays silent until enabled and unlocked, then plays only while running', () => {
   let constructed = 0, starts = 0, context;
+  class Param { constructor(v=0){this.value=v;} setValueAtTime(v){this.value=v;} linearRampToValueAtTime(){} exponentialRampToValueAtTime(){} setTargetAtTime(v){this.value=v;} cancelScheduledValues(){} }
+  const node = () => ({ gain: new Param(), frequency: new Param(), Q: new Param(), threshold: new Param(), knee: new Param(), ratio: new Param(), attack: new Param(), release: new Param(), type: 'sine', buffer: null, loop: false, connect(){return this;}, disconnect(){}, start(){ starts++; }, stop(){} });
   class AudioContext {
-    constructor() { constructed++; context = this; this.state = 'suspended'; this.currentTime = 0; }
+    constructor() { constructed++; context = this; this.state = 'suspended'; this.currentTime = 0; this.sampleRate = 44100; this.destination = node(); }
     resume() { this.state = 'running'; return Promise.resolve(); }
-    createGain() { return { gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
-    createOscillator() { return { frequency: {}, connect() {}, disconnect() {}, start() { starts++; }, stop() {} }; }
+    createGain() { return node(); }
+    createOscillator() { return node(); }
+    createBiquadFilter() { return node(); }
+    createDynamicsCompressor() { return node(); }
+    createBuffer(c,l,r){ return { getChannelData: () => new Float32Array(l) }; }
+    createBufferSource() { return node(); }
   }
-  const audio = createDeliveryAudio({ AudioContext });
+  const audio = createDeliveryAudio({ AudioContext, enabled: false });
   audio.complete(); audio.unlock(); assert.equal(constructed, 0);
   audio.setEnabled(true); assert.equal(constructed, 1);
-  audio.complete(); assert.equal(starts, 3);
-  audio.setEnabled(false); audio.complete(); assert.equal(starts, 3);
-  audio.setEnabled(true); context.state = 'suspended'; audio.complete(); assert.equal(starts, 3);
+  // Graph spins continuous oscillators at unlock; chime adds three more.
+  const before = starts;
+  audio.complete(); assert.equal(starts, before + 3);
+  audio.setEnabled(false); audio.complete(); assert.equal(starts, before + 3);
+  audio.setEnabled(true); context.state = 'suspended'; audio.complete(); assert.equal(starts, before + 3);
 });
 test('audio unavailable or blocked never breaks rewards', () => {
   const unsupported = createDeliveryAudio({ enabled: true });

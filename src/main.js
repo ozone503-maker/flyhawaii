@@ -1,5 +1,5 @@
 import { BOOST, ease, advanceSpeed } from './flight-speed.js';
-import { formatDistance, approachHint, createDeliveryAudio } from './delivery-feedback.js';
+import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { decodeHeightPng } from './height-png.js';
@@ -272,33 +272,48 @@ function placeBeacon(b, label, t, text, color) {
 }
 function target() { return state.phase === 'pickup' ? state.job.from : state.job.to; }
 const $ = (id) => document.getElementById(id);
-const deliveryAudio = createDeliveryAudio({
+const gameAudio = createGameAudio({
   AudioContext: window.AudioContext || window.webkitAudioContext,
-  enabled: localStorage.getItem('fh_sound') === 'on',
+  enabled: soundPreference.enabled(localStorage.getItem('fh_sound')),
+  volume: soundPreference.volume(localStorage.getItem('fh_volume')),
 });
 const soundButton = $('soundBtn');
+const volumeSlider = $('volumeSlider');
 function updateSoundButton() {
-  const on = localStorage.getItem('fh_sound') === 'on';
-  soundButton.textContent = `Delivery sound: ${on ? 'on' : 'off'}`;
+  const on = gameAudio.isEnabled();
+  soundButton.textContent = `Sound: ${on ? 'on' : 'off'}`;
   soundButton.setAttribute('aria-pressed', String(on));
+  volumeSlider.disabled = !on;
+  volumeSlider.value = String(Math.round(gameAudio.getVolume() * 100));
+  $('volumeLabel').textContent = `Volume ${Math.round(gameAudio.getVolume() * 100)}%`;
 }
 updateSoundButton();
 soundButton.addEventListener('click', () => {
-  const on = localStorage.getItem('fh_sound') !== 'on';
+  const on = !gameAudio.isEnabled();
   localStorage.setItem('fh_sound', on ? 'on' : 'off');
-  deliveryAudio.setEnabled(on); updateSoundButton();
+  gameAudio.setEnabled(on); updateSoundButton();
 });
-// Unlock only on deliberate play/resume clicks, never from a timer.
+volumeSlider.addEventListener('input', () => {
+  const v = Number(volumeSlider.value) / 100;
+  localStorage.setItem('fh_volume', String(v));
+  gameAudio.setVolume(v); updateSoundButton();
+});
+// Unlock only on deliberate play/resume gestures, never from a timer.
+const unlockAudio = () => gameAudio.unlock();
 for (const id of ['startBtn', 'selGo', 'resumeBtn']) {
-  $(id).addEventListener('click', () => deliveryAudio.unlock());
+  $(id).addEventListener('click', unlockAudio);
+  $(id).addEventListener('pointerdown', unlockAudio);
 }
+addEventListener('keydown', (e) => {
+  if (e.code === 'Enter' || e.code === 'Space') unlockAudio();
+}, { once: false });
 function deliveryReward(amount, bonus) {
   const el = $('deliveryReward');
   el.textContent = `Delivered  +${amount} KDU${bonus ? ` (${bonus} speed bonus)` : ''}`;
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   clearTimeout(deliveryReward.timer);
   deliveryReward.timer = setTimeout(() => el.classList.remove('on'), 3000);
-  deliveryAudio.complete();
+  gameAudio.complete();
 }
 function updateMissionText() {
   const j = state.job, m = $('mission');
@@ -319,6 +334,7 @@ function discoverNote(a, bonus) {
   const b = document.createElement('b'); b.textContent = a.name;
   el.append('New discovery ', b, ` +${bonus} KDU`); el.classList.add('on');
   clearTimeout(discoverNote._t); discoverNote._t = setTimeout(() => el.classList.remove('on'), 3200);
+  gameAudio.discover();
 }
 function addTokens(n) {
   state.tokens += n; localStorage.setItem('fh_kdu', state.tokens);
@@ -384,11 +400,15 @@ function togglePause(force) {
   if (!state.running || !$('select').classList.contains('hidden')) return;
   state.paused = force !== undefined ? force : !state.paused;
   $('pause').classList.toggle('hidden', !state.paused);
+  gameAudio.setMuted(state.paused || document.hidden);
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('resumeBtn').addEventListener('click', () => togglePause(false));
 $('newJobBtn').addEventListener('click', () => { newJob(); togglePause(false); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) togglePause(true); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) togglePause(true);
+  gameAudio.setMuted(state.paused || document.hidden);
+});
 
 // ---------- minimap ----------
 const mm = $('minimap'), mctx = mm.getContext('2d');
@@ -466,6 +486,7 @@ function step(dt, t) {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
       toast(`Package on board\nFly to ${state.job.to.town}`);
+      gameAudio.pickup();
       updateMissionText();
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
@@ -498,6 +519,13 @@ function step(dt, t) {
   $('missionHint').textContent = approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   $('altVal').textContent = Math.round(Math.max(0, state.pos.y) / VEXAG * UNIT_M).toLocaleString();
   $('spdVal').textContent = Math.round(state.vel.length() * GAME_MPH);
+  gameAudio.update({
+    speed: state.speed || 0,
+    throttle: state.inF || 0,
+    boostMix: state.boostMix || 0,
+    paused: state.paused,
+    hidden: document.hidden,
+  });
   if ((step.f = (step.f || 0) + 1) % 3 === 0) drawMinimap();
 }
 

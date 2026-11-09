@@ -138,3 +138,6 @@ h2 { font-size: 34px; margin: 0 0 16px; }
   #tokens.bump, #deliveryReward.on { animation: none; }
   #toast { transition: none; }
 }
+
+.volume-row { display: flex; flex-direction: column; gap: 8px; align-items: center; margin: 12px auto 4px; max-width: 260px; color: #eaf6ff; font-size: 15px; font-weight: 700; }
+#volumeSlider { width: 100%; accent-color: #b8733f; }
