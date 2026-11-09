@@ -40,9 +40,10 @@ export function createCdPlayer({
     return tracks[index] || null;
   }
 
+  let duckFactor = 1, pausedByDuck = false;
   function applyVolume() {
     if (!audio) return;
-    try { audio.volume = enabled ? Math.max(0, Math.min(1, volume)) : 0; } catch { /* ignore */ }
+    try { audio.volume = enabled ? Math.max(0, Math.min(1, volume * duckFactor)) : 0; } catch { /* ignore */ }
   }
 
   function notify() {
@@ -60,7 +61,7 @@ export function createCdPlayer({
   }
 
   function tryPlay() {
-    if (!audio || !enabled || !wantPlay || pausedByGame || !tracks.length) return;
+    if (!audio || !enabled || !wantPlay || pausedByGame || pausedByDuck || !tracks.length) return;
     const p = audio.play?.();
     if (p && typeof p.then === 'function') p.catch(() => {});
   }
@@ -173,6 +174,20 @@ export function createCdPlayer({
       }
       notify();
     },
+    /** Lower the music under a clip. Where volume is read-only (iOS) it pauses instead. */
+    duck(on, factor = 0.18) {
+      if (on) {
+        duckFactor = factor; applyVolume();
+        const want = enabled ? volume * factor : 0;
+        const volumeStuck = audio && Math.abs((Number(audio.volume) || 0) - want) > 0.05;
+        if (volumeStuck && !audio.paused) { pausedByDuck = true; try { audio.pause(); } catch { /* ignore */ } }
+      } else {
+        duckFactor = 1; applyVolume();
+        if (pausedByDuck) { pausedByDuck = false; if (enabled && wantPlay && unlocked && !pausedByGame) tryPlay(); }
+      }
+      notify();
+    },
+    isDucked() { return duckFactor < 1 || pausedByDuck; },
     isEnabled() { return enabled; },
     getVolume() { return volume; },
     getIndex() { return index; },

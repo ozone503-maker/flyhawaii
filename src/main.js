@@ -2,8 +2,9 @@ import { BOOST, ease, advanceSpeed } from './flight-speed.js';
 import { formatDistance, approachHint, createGameAudio, soundPreference } from './delivery-feedback.js';
 import { createCdPlayer, musicPreference, normalizeTracks } from './cd-player.js';
 import { glyph, gaugeFraction, trackSeed, waveBars } from './alien-ui.js';
-import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath } from './cutscene.js';
+import { cutscenePreference, cutsceneBeats, orbitOffset, countUp, createCutsceneClock, coinPath, CLIP_DURATION } from './cutscene.js';
 import { createArrivalFx } from './arrival-fx.js';
+import { normalizeClips, pickClip, shouldPlayClip, CLIP_HOLD_AT, CLIP_START_TIMEOUT, CLIP_MAX_SECONDS } from './clips.js';
 import { CAM_CHASE, CAM_COCKPIT, cameraPreference, nextCameraMode, camBlendStep, cockpitEyeLocal } from './camera-mode.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -523,14 +524,90 @@ function resetHeldControls() {
   stickEl.classList.remove('live'); stickEl.style.left = stickEl.style.top = stickEl.style.bottom = '';
 }
 /** Plays after a pickup or delivery. Returns false when scenes are off. */
+// ---------- thank-you clips (live action, shown in the delivery scene) ----------
+const clipEls = { root: $('clipFx'), video: $('clipVideo'), sound: $('clipSound') };
+const clipLib = { list: [], lastId: localStorage.getItem('fh_last_clip') || '' };
+let clipPlaying = false; // mutes the engine hum while a clip is on screen
+async function loadClips() {
+  // ?debug&clips=/path/clips.json points at a test-only manifest
+  const url = (params.has('debug') && params.get('clips')) || '/clips/clips.json';
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (res.ok) clipLib.list = normalizeClips(await res.json());
+  } catch { /* clips are optional */ }
+}
+loadClips();
+function prepareClip(c) {
+  const v = clipEls.video; if (!v) return;
+  v.muted = false; v.preload = 'metadata';
+  v.src = c.clip.clip.src; // lazy: the file is only requested once a delivery picks it
+  try { v.load(); } catch { /* ignore */ }
+  v.onended = () => finishClip(c, 'ended');
+  v.onerror = () => finishClip(c, 'error');
+}
+function showClip(c) {
+  const v = clipEls.video, k = c.clip;
+  k.phase = 'starting'; k.wait = 0;
+  clipEls.root.hidden = false; clipEls.root.classList.remove('closing'); clipEls.sound.hidden = true;
+  document.body.classList.add('clip-on');
+  cdPlayer.duck(true); clipPlaying = true; gameAudio.setMuted(true);
+  clipLib.lastId = k.clip.id; localStorage.setItem('fh_last_clip', k.clip.id);
+  const playing = () => { if (k.phase === 'starting') { k.phase = 'playing'; k.elapsed = 0; } };
+  const attempt = v.play?.();
+  if (!attempt?.then) { playing(); return; }
+  attempt.then(playing).catch((err) => {
+    if (k.phase !== 'starting') return;
+    if (err?.name === 'NotAllowedError') {
+      // sound blocked: play muted and offer a tap-for-sound glyph
+      v.muted = true; clipEls.sound.hidden = false;
+      v.play().then(playing).catch(() => finishClip(c, 'blocked'));
+    } else finishClip(c, 'error');
+  });
+}
+function finishClip(c, why) {
+  const k = c?.clip; if (!k || k.phase === 'done') return;
+  const wasShown = k.phase !== 'loading';
+  k.phase = 'done'; k.why = why;
+  const v = clipEls.video;
+  v.onended = v.onerror = null;
+  try { v.pause(); } catch { /* ignore */ }
+  if (wasShown) {
+    clipEls.root.classList.add('closing');
+    setTimeout(() => { if (clipEls.root.classList.contains('closing')) { clipEls.root.hidden = true; clipEls.root.classList.remove('closing'); } }, 260);
+  }
+  setTimeout(() => { if (!state.cut?.clip || state.cut.clip.phase === 'done') { v.removeAttribute('src'); try { v.load(); } catch { /* ignore */ } } }, 300);
+  clipEls.sound.hidden = true;
+  document.body.classList.remove('clip-on');
+  if (clipPlaying) { clipPlaying = false; cdPlayer.duck(false); gameAudio.setMuted(state.paused || document.hidden); }
+  c.clock.release();
+}
+function tickClip(c, dt) {
+  const k = c.clip; if (!k || k.phase === 'done') return;
+  if (k.phase === 'loading' && c.clock.holding) showClip(c);
+  else if (k.phase === 'starting') { k.wait += dt; if (k.wait > CLIP_START_TIMEOUT) finishClip(c, 'timeout'); }
+  else if (k.phase === 'playing') { k.elapsed += dt; if (k.elapsed > CLIP_MAX_SECONDS) finishClip(c, 'cap'); }
+}
+clipEls.sound?.addEventListener('click', () => {
+  clipEls.video.muted = false; clipEls.sound.hidden = true;
+  clipEls.video.play?.()?.catch?.(() => {});
+});
+
 function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd } = {}) {
   if (!cutscenesOn || !arrivalFx) return false;
   if (state.cut) endCutscene();
   const az = Math.atan2(camera.position.x - state.pos.x, camera.position.z - state.pos.z);
+  const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list });
+  const clock = createCutsceneClock(kind, withClip ? CLIP_DURATION : undefined);
   state.cut = {
-    kind, clock: createCutsceneClock(kind), fromTokens, toTokens, onEnd,
+    kind, clock, fromTokens, toTokens, onEnd, beatOpts: { clip: withClip },
     startAngle: az, sweep: (Math.random() < 0.5 ? -1 : 1) * 1.9, coins: [],
+    clip: null,
   };
+  if (withClip) {
+    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId), phase: 'loading', wait: 0, elapsed: 0 };
+    clock.holdAt(CLIP_HOLD_AT);
+    prepareClip(state.cut);
+  }
   resetHeldControls();
   arrivalFx.start(kind, pilot.id);
   document.body.classList.add('cutscene');
@@ -545,6 +622,7 @@ function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.token
 }
 function endCutscene() {
   const c = state.cut; if (!c) return;
+  finishClip(c, 'end');
   state.cut = null;
   arrivalFx?.stop();
   c.coins.forEach((el) => el.remove());
@@ -553,12 +631,19 @@ function endCutscene() {
   resetHeldControls();
   c.onEnd?.();
 }
-function skipCutscene() { if (state.cut && !state.paused) state.cut.clock.skip(); }
+function skipCutscene() {
+  const c = state.cut; if (!c || state.paused) return;
+  // First skip during a clip ends the clip so the tip coins still fly; next skip ends the scene
+  if (c.clip && c.clip.phase !== 'done' && c.clip.phase !== 'loading') { finishClip(c, 'skip'); return; }
+  finishClip(c, 'skip');
+  c.clock.skip();
+}
 const _proj = new THREE.Vector3();
 function tickCutscene(dt, t) {
   const c = state.cut; if (!c) return;
   const done = c.clock.tick(dt);
-  const b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur);
+  tickClip(c, dt);
+  const b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur, c.beatOpts);
   arrivalFx.update(b, ufo.group.position, groundY(state.pos.x, state.pos.z), t);
   if (c.kind === 'delivery') {
     // KDU coins arc from the disc into the counter while it counts up
@@ -600,7 +685,7 @@ addEventListener('keyup', (e) => keys.delete(e.code));
 // Tap or click anywhere skips an arrival scene (but not the pause rail or menus)
 addEventListener('pointerdown', (e) => {
   if (!state.cut || state.paused) return;
-  if (e.target.closest?.('#hudRail, .overlay')) return;
+  if (e.target.closest?.('#hudRail, .overlay, #clipSound')) return;
   e.preventDefault(); skipCutscene();
 }, { capture: true });
 addEventListener('blur', () => keys.clear());
@@ -658,7 +743,12 @@ function togglePause(force) {
   if (!state.running || !$('select').classList.contains('hidden')) return;
   state.paused = force !== undefined ? force : !state.paused;
   $('pause').classList.toggle('hidden', !state.paused);
-  gameAudio.setMuted(state.paused || document.hidden);
+  const k = state.cut?.clip;
+  if (k && (k.phase === 'playing' || k.phase === 'starting')) {
+    if (state.paused) { try { clipEls.video.pause(); } catch { /* ignore */ } }
+    else clipEls.video.play?.()?.catch?.(() => {});
+  }
+  gameAudio.setMuted(state.paused || document.hidden || clipPlaying);
   cdPlayer.setGamePaused(state.paused || document.hidden);
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
@@ -802,7 +892,7 @@ function step(dt, t) {
     speed: state.speed || 0,
     throttle: state.inF || 0,
     boostMix: state.boostMix || 0,
-    paused: state.paused,
+    paused: state.paused || clipPlaying,
     hidden: document.hidden,
   });
   drawMinimap();
@@ -913,7 +1003,7 @@ function updateCamera(dt) {
   let cineW = 0;
   if (state.cut) {
     // cinematic orbit around the hovering disc, blended over the normal camera
-    const c = state.cut, b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur);
+    const c = state.cut, b = cutsceneBeats(c.kind, c.clock.t, c.clock.dur, c.beatOpts);
     const gy = groundY(state.pos.x, state.pos.z), agl = Math.max(0.5, state.pos.y - gy);
     const radius = (4.6 + Math.min(agl, 8) * 0.35) * (portrait ? 1.3 : 1);
     const o = orbitOffset(b.orbit, { startAngle: c.startAngle, sweep: c.sweep, radius, height: 0.3 + Math.min(agl, 8) * 0.1 });
@@ -998,7 +1088,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   newJob();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; } };
+  if (params.has('debug')) window.__fh = { state, target, TOWNS, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

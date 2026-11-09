@@ -24,9 +24,10 @@ export function createArrivalFx(scene) {
 
   // beam: open cone, narrow at the disc, wide on the ground; unit height, scaled per frame
   const beamGeo = new THREE.CylinderGeometry(0.32, 1.0, 1, 6, 1, true); beamGeo.translate(0, -0.5, 0);
-  const beamMat = new THREE.MeshBasicMaterial({ ...add, color: 0xffffff, opacity: 0, side: THREE.DoubleSide });
+  // normal blending so the beam keeps the pilot color over bright ground instead of blowing out to white
+  const beamMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, color: 0xffffff, opacity: 0, side: THREE.DoubleSide });
   const beam = new THREE.Mesh(beamGeo, beamMat); root.add(beam);
-  const coreMat = new THREE.MeshBasicMaterial({ ...add, color: 0xffffff, opacity: 0, side: THREE.DoubleSide });
+  const coreMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, color: 0xffffff, opacity: 0, side: THREE.DoubleSide });
   const core = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.22, 1, 6, 1, true).translate(0, -0.5, 0), coreMat); root.add(core);
 
   // hexagon rings sliding along the beam
@@ -77,7 +78,7 @@ export function createArrivalFx(scene) {
       kind = k; burstAt = null;
       tint.setHex(PILOT_GLOW[pilotId] ?? PILOT_GLOW.drone);
       for (const m of [beamMat, coreMat, waveMat, wave2.material, ...rings.map((r) => r.material)]) m.color.copy(tint);
-      coreMat.color.lerp(new THREE.Color(0xffffff), 0.3);
+      coreMat.color.lerp(new THREE.Color(0xffffff), 0.15);
       edgeMat.color.copy(tint); strap.material.color.copy(tint).lerp(new THREE.Color(0xffffff), 0.3);
       reseed(tint);
       pkg.visible = true; root.visible = true;
@@ -90,7 +91,7 @@ export function createArrivalFx(scene) {
       const len = Math.max(0.6, base.y - gy);
       beam.position.copy(base); beam.scale.set(1, len, 1); beam.rotation.y = time * 0.6;
       core.position.copy(base); core.scale.set(1, len, 1);
-      beamMat.opacity = 0.17 * b.beam; coreMat.opacity = 0.11 * b.beam;
+      beamMat.opacity = 0.26 * b.beam; coreMat.opacity = 0.32 * b.beam;
       const dir = kind === 'delivery' ? 1 : -1; // rings travel with the package
       rings.forEach((r, i) => {
         let f = ((time * 0.55 + i / rings.length) % 1);

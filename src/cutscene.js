@@ -13,9 +13,13 @@ const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t
 const easeOut = (t) => 1 - Math.pow(1 - clamp01(t), 3);
 
 /** Beat weights 0..1 for a cutscene of `kind` at time `t` seconds. */
-export function cutsceneBeats(kind, t, dur = CUTSCENE_DURATION[kind] || 3.5) {
+export const CLIP_COIN_START = 3.35; // with a thank-you clip, coins fly after it
+export const CLIP_DURATION = 5.35;
+
+export function cutsceneBeats(kind, t, dur = CUTSCENE_DURATION[kind] || 3.5, { clip = false } = {}) {
   const d = Math.max(0.5, dur);
   const deliver = kind === 'delivery';
+  const coinStart = clip ? CLIP_COIN_START : 2.55;
   // camera: ease in over 0.6s, hold, ease back over the last 0.55s
   const cam = smooth(0, 0.6, t) * (1 - smooth(d - 0.55, d, t));
   const orbit = clamp01(t / d);
@@ -24,7 +28,7 @@ export function cutsceneBeats(kind, t, dur = CUTSCENE_DURATION[kind] || 3.5) {
   const cargo = smooth(0.7, 2.2, t); // 0 = start of travel, 1 = arrived
   const burstT = deliver ? 2.15 : 2.25;
   const burst = t < burstT ? 0 : clamp01((t - burstT) / 1.1);
-  const coins = deliver ? clamp01((t - 2.55) / 1.45) : 0;
+  const coins = deliver ? clamp01((t - coinStart) / 1.45) : 0;
   return { cam, orbit, beam: beamOn, cargo, burst, coins, done: t >= d };
 }
 
@@ -42,13 +46,23 @@ export function countUp(from, to, p) {
 
 /** Pure clock: advances only while running and not paused; skip jumps to the outro. */
 export function createCutsceneClock(kind, dur = CUTSCENE_DURATION[kind] || 3.5) {
-  let t = 0, skipped = false;
+  let t = 0, skipped = false, holdAt = null;
   return {
     kind, dur,
     get t() { return t; },
     get skipped() { return skipped; },
-    tick(dt, paused = false) { if (!paused) t = Math.min(dur, t + Math.max(0, dt)); return t >= dur; },
-    skip() { if (t < dur - SKIP_OUTRO) { t = dur - SKIP_OUTRO; skipped = true; } },
+    /** Stop the clock at `at` seconds until release(), e.g. while a clip plays. */
+    holdAt(at) { holdAt = at; },
+    release() { holdAt = null; },
+    get holding() { return holdAt != null && t >= holdAt; },
+    tick(dt, paused = false) {
+      if (!paused) {
+        const cap = holdAt != null && t <= holdAt ? holdAt : dur;
+        t = Math.min(cap, t + Math.max(0, dt));
+      }
+      return t >= dur;
+    },
+    skip() { holdAt = null; if (t < dur - SKIP_OUTRO) { t = dur - SKIP_OUTRO; skipped = true; } },
     get done() { return t >= dur; },
   };
 }

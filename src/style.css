@@ -773,3 +773,58 @@ body.cutscene.cine-wide[data-cam="cockpit"] #skipBtn { bottom: calc(min(30vh, 25
   body.cutscene.cine-wide[data-cam="cockpit"] #skipBtn { bottom: calc(min(22vh, 175px) * .48 + 12px); }
 }
 body.cutscene #hudRail { z-index: 11; }
+
+/* ---------- Thank-you transmission clip ---------- */
+.clip-fx { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; pointer-events: none;
+  filter: drop-shadow(0 0 16px var(--glow-soft)) drop-shadow(0 0 2px var(--glow)); }
+.clip-fx[hidden] { display: none !important; }
+.clip-frame {
+  --c: 18px;
+  position: relative; height: min(76vh, 720px); aspect-ratio: 9 / 16; max-width: 92vw; padding: 5px;
+  clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+  background: linear-gradient(160deg, var(--glow), rgba(4,10,18,.9) 30%, rgba(4,10,18,.9) 70%, var(--glow));
+  animation: holo-in .42s cubic-bezier(.2,.9,.3,1.2) both;
+}
+.clip-frame video {
+  display: block; width: 100%; height: 100%; object-fit: cover; background: #02060c;
+  clip-path: polygon(calc(var(--c) - 4px) 0, calc(100% - var(--c) + 4px) 0, 100% calc(var(--c) - 4px), 100% calc(100% - var(--c) + 4px), calc(100% - var(--c) + 4px) 100%, calc(var(--c) - 4px) 100%, 0 calc(100% - var(--c) + 4px), 0 calc(var(--c) - 4px));
+}
+.clip-scan { position: absolute; inset: 5px; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, var(--glow-faint), transparent 18%, transparent 82%, var(--glow-faint));
+  mix-blend-mode: screen; animation: holo-flicker 3.2s steps(1) infinite; }
+.clip-scan::after { content: ""; position: absolute; left: 0; right: 0; height: 18%; top: -18%;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.07), transparent); animation: holo-sweep 2.6s linear infinite; }
+.clip-head { position: absolute; top: 12px; left: 22px; right: 22px; display: flex; justify-content: space-between; align-items: center; color: var(--glow); pointer-events: none; }
+.clip-head .glyph { width: 20px; height: 20px; color: var(--kdu); }
+.clip-sig { display: flex; align-items: flex-end; gap: 3px; height: 14px; }
+.clip-sig b { width: 4px; background: var(--glow); box-shadow: 0 0 6px var(--glow); animation: sig 1.1s ease-in-out infinite; }
+.clip-sig b:nth-child(1) { height: 30%; } .clip-sig b:nth-child(2) { height: 55%; animation-delay: .15s; }
+.clip-sig b:nth-child(3) { height: 80%; animation-delay: .3s; } .clip-sig b:nth-child(4) { height: 100%; animation-delay: .45s; }
+.clip-sound {
+  position: absolute; right: 18px; bottom: 18px; width: 64px; height: 54px; border: 0; padding: 0; cursor: pointer; pointer-events: auto;
+  display: grid; place-items: center; color: #1b1008;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: linear-gradient(170deg, #fbd3a8 0%, #c98149 30%, #8f4f22 55%, #c07a43 78%, #f0b47c 100%);
+  animation: skip-blink 1.2s ease-in-out infinite;
+}
+.clip-sound[hidden] { display: none; }
+.clip-sound .glyph { width: 28px; height: 28px; filter: none; }
+.clip-fx.closing .clip-frame { animation: holo-out .25s ease-in both; }
+@keyframes holo-in { 0% { transform: scale(1.08, .02); opacity: 0; } 35% { transform: scale(1.02, .03); opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes holo-out { to { transform: scale(1.06, .02); opacity: 0; } }
+@keyframes holo-flicker { 0%, 100% { opacity: 1; } 47% { opacity: .75; } 48% { opacity: 1; } 83% { opacity: .85; } }
+@keyframes holo-sweep { to { top: 118%; } }
+@keyframes sig { 50% { opacity: .35; } }
+@media (max-width: 640px) {
+  .clip-frame { --c: 16px; height: auto; width: min(90vw, calc(74vh * 9 / 16)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clip-frame, .clip-fx.closing .clip-frame, .clip-scan, .clip-scan::after, .clip-sig b, .clip-sound { animation: none; }
+}
+@media (max-width: 640px) {
+  /* keep the pause rail clear of the transmission frame */
+  body.clip-on #hudRail { top: calc(10px + env(safe-area-inset-top)) !important; flex-direction: row !important; gap: 8px; }
+  body.clip-on #hudRail #pilotBadge { width: 32px; height: 32px; }
+}
