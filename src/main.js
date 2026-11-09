@@ -605,11 +605,11 @@ clipEls.sound?.addEventListener('click', () => {
   clipEls.video.play?.()?.catch?.(() => {});
 });
 
-function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd } = {}) {
+function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.tokens, onEnd, bizId = '' } = {}) {
   if (!cutscenesOn || !arrivalFx) return false;
   if (state.cut) endCutscene();
   const az = Math.atan2(camera.position.x - state.pos.x, camera.position.z - state.pos.z);
-  const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list });
+  const withClip = shouldPlayClip({ kind, scenesOn: cutscenesOn, clips: clipLib.list, bizId });
   const clock = createCutsceneClock(kind, withClip ? (kind === 'delivery' ? CLIP_DURATION : CLIP_DURATION_PICKUP) : undefined);
   state.cut = {
     kind, clock, fromTokens, toTokens, onEnd, beatOpts: { clip: withClip },
@@ -617,7 +617,7 @@ function startCutscene(kind, { fromTokens = state.tokens, toTokens = state.token
     clip: null,
   };
   if (withClip) {
-    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId, Math.random, kind), phase: 'loading', wait: 0, elapsed: 0 };
+    state.cut.clip = { clip: pickClip(clipLib.list, clipLib.lastId, Math.random, kind, bizId), phase: 'loading', wait: 0, elapsed: 0 };
     clock.holdAt(CLIP_HOLD_AT);
     prepareClip(state.cut);
   }
@@ -863,7 +863,7 @@ function step(dt, t) {
       const town = state.job.to.town || state.job.to.name;
       gameAudio.pickup();
       updateMissionText();
-      if (!startCutscene('pickup', { onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
+      if (!startCutscene('pickup', { bizId: state.job.from.id, onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
       const par = state.job.km * 1000 / UNIT_M / 12; // seconds at a relaxed pace
@@ -873,8 +873,9 @@ function step(dt, t) {
       addTokens(gain, { quiet: cine });
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
       deliveryReward(gain, bonus);
+      const dropId = state.job.to.id; // newJob() replaces the job, the clip belongs to this drop-off
       newJob();
-      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens });
+      if (cine) startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropId });
     }
   }
   // coins

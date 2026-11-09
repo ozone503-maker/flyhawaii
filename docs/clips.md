@@ -37,6 +37,8 @@ Live-action clips (Jessie's thank-you clips and Claude's cutaway scenes) play in
 
 An empty list is valid and means no clips.
 
+`biz` is optional: set it to a business id from `public/businesses/businesses.json` and the clip plays only at that business, and that business plays only its own clips. See [businesses.md](businesses.md).
+
 ## Spec
 
 - Vertical 9:16, 720x1280 recommended, 4 to 8 s

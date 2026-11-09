@@ -6,6 +6,10 @@ Live: https://flyhawaii.vercel.app
 
 Helping out with an AI assistant? Read [AGENTS.md](AGENTS.md) first. It has the code map, the game and style rules, and how to add songs, cutaway clips and businesses.
 
+## Pickup and drop-off places
+
+Every job runs between two real Big Island businesses. See [public/destinations/README.md](public/destinations/README.md) for the list, the ones waiting on a pin, and how to add one.
+
 ## Run it locally
 
 Needs Node.js 24 (20 or newer works) and npm.
@@ -55,4 +59,4 @@ Every push to `master` deploys to production on Vercel (project `flyhawaii`). Pu
 
 Terrain details: `public/terrain/base-h.png` (16-bit heights, meters + 6000) and `base-sat.jpg` cover the whole island; `public/chunks/` holds 6.4 km high detail chunks streamed around the UFO. `npm run bake` refetches bathymetry and waterways; `scripts/bake-copernicus.mjs` re-chunks the source tiles.
 
-Businesses in the game are fictional. Pilot portraits are original art made for Fly Hawaii.
+Pickup and drop-off businesses are real Big Island places; coordinates and their sources are in `public/destinations/destinations.json`. Pilot and local portraits are original art made for Fly Hawaii.

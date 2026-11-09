@@ -11,7 +11,7 @@ node scripts/add-destination.mjs "Name" "street address, town, HI"
 node scripts/add-destination.mjs "Name" "19.637213,-155.991901"
 ```
 
-Options: `--kind market|restaurant|mall|shop|own|hq`, `--town Volcano`, `--id custom-id`, `--website URL`, `--hours "Sundays 6am to 10am"`, `--package "a box of ..."`, `--dry-run`.
+Options: `--kind market|restaurant|mall|shop|hotel|own|hq`, `--town Volcano`, `--id custom-id`, `--website URL`, `--hours "Sundays 6am to 10am"`, `--package "a box of ..."`, `--dry-run`.
 
 What it does:
 1. Geocodes the address with [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/), limited to the Big Island
@@ -29,11 +29,13 @@ Nominatim usage policy: at most one request per second, an identifying User-Agen
 | --- | --- | --- |
 | `name` | yes | Shown on the beacon label and the mission card |
 | `lat`, `lon` | yes | WGS84 decimal degrees of the business itself, 5 or 6 decimals. Not a town center |
-| `kind` | yes | `hq`, `own` (Jessie's brands), `market`, `restaurant`, `mall`, `shop`. Unknown kinds become `shop` with a warning |
+| `kind` | yes | `hq`, `own` (Jessie's brands), `market`, `restaurant`, `mall`, `shop`, `hotel`. Unknown kinds become `shop` with a warning |
 | `id` | no | Lowercase slug, unique. Made from `name` if missing |
 | `town` | no | Shown after the name, for example "Kona Commons, Kailua-Kona" |
 | `address`, `website`, `hours` | no | For people checking the data |
 | `sponsor` | no | `false` for now. Reserved for sponsored placements later |
+| `packages` | no | A list of things picked up here. One is chosen per job. Wins over `packageHint` |
+| `local` | no | The person who greets the pilot: `name`, `portrait` (a file in `public/locals/`) and `lines` (what they say). Gives each business its own character |
 | `packageHint` | no | What you pick up there, for example "a crate of fresh produce". Otherwise the game picks one by `kind` |
 | `photo` | no | Reserved for a future storefront photo |
 | `source` | no, but please | Where the coordinates came from (OSM link or official site) |
@@ -64,3 +66,11 @@ At load the game skips, with a `[destinations]` console warning:
 ## FlashTown HQ
 
 The `flashtown-hq` entry is a placeholder at the Eden Roc place point with `"approx": true`. Replace `lat` and `lon` with the real pin from Jessie and remove `approx`.
+
+## A clip for one business
+
+Add `"biz": "<destination id>"` to a clip in `public/clips/clips.json`. It then plays only at that business, and that business plays its own clips instead of the shared ones. See [clips.md](clips.md).
+
+## Local portraits
+
+`public/locals/` holds 29 cut-out characters (transparent WebP, about 360 px) for `local.portrait`.

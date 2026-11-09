@@ -2,7 +2,7 @@
 // Data lives in public/destinations/destinations.json so anyone can edit it
 // without touching code. These helpers are pure so they can be unit tested.
 
-export const DEST_KINDS = ['hq', 'own', 'market', 'restaurant', 'mall', 'shop'];
+export const DEST_KINDS = ['hq', 'own', 'market', 'restaurant', 'mall', 'shop', 'hotel'];
 
 // Island of Hawaiʻi with a small margin. Anything outside is a typo.
 export const BIG_ISLAND_BBOX = { latMin: 18.85, latMax: 20.30, lonMin: -156.10, lonMax: -154.75 };
@@ -17,6 +17,7 @@ const PACKAGES_BY_KIND = {
   restaurant: ['a hot takeout order', 'a catering tray', 'a dessert box (keep it level)'],
   mall: ['shopping bags', 'a gift-wrapped box', 'a returns parcel'],
   shop: ['a small parcel', 'a gift box', 'a special order'],
+  hotel: ['a stack of fresh towels', 'a box of leis', 'a guest delivery'],
 };
 
 export function slugify(s) {
@@ -57,6 +58,12 @@ export function normalizeDestinations(data, warn = () => {}) {
     for (const k of ['address', 'website', 'hours', 'packageHint', 'photo', 'source', 'note']) {
       if (typeof d[k] === 'string' && d[k].trim()) e[k] = d[k].trim();
     }
+    const clean = (v) => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean) : []);
+    if (clean(d.packages).length) e.packages = clean(d.packages);
+    // The local who greets the pilot here: name, a portrait in public/locals/, and their lines
+    if (d.local && typeof d.local === 'object' && String(d.local.name || '').trim()) {
+      e.local = { name: String(d.local.name).trim(), portrait: String(d.local.portrait || '').trim(), lines: clean(d.local.lines) };
+    }
     out.push(e);
   });
   return out;
@@ -68,8 +75,9 @@ export function distanceKm(a, b) {
   return 2 * 6371.0088 * Math.asin(Math.sqrt(h));
 }
 
-/** What the player carries, from the pickup's packageHint or its kind. */
+/** What the player carries: one of the pickup's packages, its packageHint, or a pick by kind. */
 export function packageFor(from, rand = Math.random) {
+  if (from?.packages?.length) return from.packages[Math.floor(rand() * from.packages.length) % from.packages.length];
   if (from?.packageHint) return from.packageHint;
   const list = PACKAGES_BY_KIND[from?.kind] || PACKAGES_BY_KIND.shop;
   return list[Math.floor(rand() * list.length) % list.length];
