@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -69,6 +69,7 @@ function loadBest() { try { return Number(localStorage.getItem(BEST_KEY)) || 0; 
 /** ctx: { scene, toWorld(lat, lon) -> Vector2, fromWorld(x, z), groundY(x, z), isTouch } */
 export function createCombat(ctx) {
   const { scene, toWorld, fromWorld, groundY, isTouch } = ctx;
+  const bounds = ctx.bounds || 800;
   const group = new THREE.Group(); group.visible = false; scene.add(group);
   const bodyGeo = mantisBodyGeo(), wGeo = wingGeo();
   const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.45, roughness: 0.42 });
@@ -78,6 +79,7 @@ export function createCombat(ctx) {
   const eyeGlowMat = new THREE.SpriteMaterial({ map: flashTexture('#38ffd2'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
   const SIZE = 3.4; // about 340 m: bigger than the saucer, menacing and easy to spot
   const markMat = new THREE.SpriteMaterial({ map: flashTexture('#38ffd2'), color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false, fog: false });
+  const runMat = new THREE.SpriteMaterial({ map: flashTexture('#ffd24d'), color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false, fog: false });
   const pool = [];
   function makeMantis() {
     const g = new THREE.Group(); g.rotation.order = 'YXZ';
@@ -109,14 +111,15 @@ export function createCombat(ctx) {
   }
 
   const towns = RAID_TOWNS.map((t) => { const w = toWorld(t.lat, t.lon); return { ...t, x: w.x, z: w.y, y: groundY(w.x, w.y) }; });
-  const S = { on: false, wave: 0, town: null, townHP: TOWN_HP, shield: PLAYER.shield, sinceHit: 99, fireCool: 0, kills: 0, score: 0, best: loadBest(), invuln: 0, between: 0, over: 0 };
+  const S = { runner: null, escT: 0, escaped: false, on: false, wave: 0, town: null, townHP: TOWN_HP, shield: PLAYER.shield, sinceHit: 99, fireCool: 0, kills: 0, score: 0, best: loadBest(), invuln: 0, between: 0, over: 0 };
   const events = [];
 
   function startWave(n) {
-    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0;
+    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0; S.escaped = false;
     const spec = waveSpec(n), spots = spawnRing(S.town, spec.count);
     spots.forEach((p, i) => {
       const m = pool[i] || (pool[i] = makeMantis());
+      m.runner = false; m.mark.material = markMat; m.mark.scale.set(0.035, 0.035, 1); m.dodgeCool = 0;
       Object.assign(m, { x: p.x, y: S.town.y + 8 + Math.random() * 6, z: p.z, hp: MANTIS.hp, dead: false, speed: spec.speed * (0.9 + Math.random() * 0.2), fireEvery: spec.fireEvery, cool: Math.random() * spec.fireEvery, seed: Math.random() });
       m.v = { x: (S.town.x - p.x) * 0.01, y: 0, z: (S.town.z - p.z) * 0.01 }; m.g.visible = true;
     });
@@ -135,7 +138,7 @@ export function createCombat(ctx) {
     start() { group.visible = true; S.on = true; S.kills = 0; S.score = 0; S.shield = PLAYER.shield; S.over = 0; startWave(1); },
     stop() { group.visible = false; S.on = false; },
     /** firing: true while the fire control is held. aim: unit vector the saucer points along */
-    update(dt, t, pos, aim, firing) {
+    update(dt, t, pos, aim, firing, playerSpeed = 0) {
       events.length = 0;
       if (!S.on) return events;
       const tt = reduceMotion ? 0 : t;
@@ -149,11 +152,42 @@ export function createCombat(ctx) {
         bolt(from, aim, PLAYER.boltSpeed, PLAYER.boltLife, true, home >= 0 ? pool.indexOf(list[home]) : -1);
         events.push({ type: 'shot' });
       }
+      // the last craft of a wave makes a run for it
+      const living = alive();
+      if (!S.runner && living.length === 1 && !S.over) {
+        S.runner = living[0]; S.runner.runner = true; S.escT = 0; S.runner.mark.material = runMat; S.runner.mark.scale.set(0.05, 0.05, 1);
+        events.push({ type: 'runner', wave: S.wave });
+      }
+      const esc = escapeSpec(S.wave);
       // mantises
       for (const m of pool) {
         if (m.dead) continue;
-        const { goal, mode } = mantisGoal(m, S.town, pos, tt, aim);
-        m.v = steer(m.v, m, goal, m.speed * (mode === 'fight' ? 0.9 : 1), MANTIS.turn, dt);
+        const dPlayer = Math.hypot(pos.x - m.x, pos.y - m.y, pos.z - m.z);
+        let mode;
+        if (m.runner) {
+          mode = 'run'; S.escT += dt;
+          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), esc.speed, esc.turn, dt);
+          // sidestep a shot that is about to land
+          m.dodgeCool = Math.max(0, (m.dodgeCool || 0) - dt);
+          if (m.dodgeCool <= 0) for (const b of bolts) {
+            if (!b.live || !b.mine) continue;
+            const dx = m.x - b.x, dy = m.y - b.y, dz = m.z - b.z, d = Math.hypot(dx, dy, dz);
+            if (d < 9 && (dx * b.vx + dy * b.vy + dz * b.vz) > 0) {
+              m.dodgeCool = 0.5;
+              if (Math.random() < esc.dodge) { const sx = -b.vz, sz = b.vx, sl = Math.hypot(sx, sz) || 1, side = Math.random() < 0.5 ? -1 : 1;
+                m.x += sx / sl * side * 2.2; m.z += sz / sl * side * 2.2; m.y += (Math.random() - 0.5) * 1.5; b.home = -1; }
+              break;
+            }
+          }
+          if (dPlayer > esc.escapeDist || S.escT > esc.escapeTime) {
+            m.dead = true; m.g.visible = false; m.mark.visible = false; S.escaped = true;
+            events.push({ type: 'escaped', wave: S.wave });
+            continue;
+          }
+        } else {
+          const g = mantisGoal(m, S.town, pos, tt, aim, playerSpeed); mode = g.mode;
+          m.v = steer(m.v, m, g.goal, swarmSpeed(m.speed, playerSpeed, dPlayer), MANTIS.turn * 1.8, dt);
+        }
         m.x += m.v.x * dt; m.y += m.v.y * dt; m.z += m.v.z * dt;
         m.y = Math.max(m.y, groundY(m.x, m.z) + 2.5);
         m.g.position.set(m.x, m.y, m.z); m.mark.position.set(m.x, m.y + SIZE * 0.5, m.z); m.mark.visible = true;
@@ -191,8 +225,9 @@ export function createCombat(ctx) {
             if (m.dead || segPointDist(a, b, m) > MANTIS.radius) continue;
             b.life = 0; m.hp -= 1;
             if (m.hp <= 0) {
-              m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, 1.4);
+              m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, m.runner ? 2.2 : 1.4);
               events.push({ type: 'kill', bounty: MANTIS.bounty });
+              if (m.runner) { const bonus = caughtBonus(S.wave); S.score += bonus; events.push({ type: 'caught', wave: S.wave, bonus }); }
             } else { boom(b.x, b.y, b.z, 0.4); events.push({ type: 'hit' }); }
             break;
           }
@@ -217,14 +252,15 @@ export function createCombat(ctx) {
       } else if (S.over) {
         S.over -= dt; if (S.over <= 0) { S.over = 0; S.kills = 0; S.score = 0; startWave(1); }
       } else if (!alive().length) {
-        if (!S.between) { S.between = 3; const bonus = waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus });
+        if (!S.between) { S.between = 3; const bonus = S.escaped ? Math.round(waveBonus(S.wave) / 2) : waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus, escaped: S.escaped });
           if (S.wave > S.best) { S.best = S.wave; try { localStorage.setItem(BEST_KEY, String(S.best)); } catch { /* private */ } } }
         else { S.between -= dt; if (S.between <= 0.001) startWave(S.wave + 1); }
       }
       return events;
     },
-    /** nearest mantis (or the town under attack) for the arrow and minimap */
+    /** nearest mantis (or the town under attack) for the arrow and minimap; the runner when one is running */
     target(pos) {
+      if (S.runner && !S.runner.dead) { const ll = fromWorld(S.runner.x, S.runner.z); return { w: new THREE.Vector2(S.runner.x, S.runner.z), lat: ll.lat, lon: ll.lon, name: 'Runner' }; }
       let best = null, bd = Infinity;
       for (const m of alive()) { const d = (m.x - pos.x) ** 2 + (m.z - pos.z) ** 2; if (d < bd) { bd = d; best = m; } }
       const p = best || S.town; if (!p) return null;
