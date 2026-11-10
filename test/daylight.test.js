@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hawaiiHour, sunTimes, sunPosition, skyLook, hourFor } from '../src/daylight.js';
+import { hawaiiHour, hawaiiDay, sunTimes, sunPosition, skyLook, hourFor } from '../src/daylight.js';
 
 test('Hawaiʻi time is UTC-10 all year', () => {
   assert.equal(hawaiiHour(new Date('2026-11-10T08:30:00Z')), 22.5);
@@ -8,11 +8,12 @@ test('Hawaiʻi time is UTC-10 all year', () => {
 });
 
 test('the sun is up by day and down at night, south at noon', () => {
-  const { rise, set } = sunTimes(314);
-  assert.ok(rise > 6.2 && rise < 7.2 && set > 17.3 && set < 18.3, `${rise} ${set}`);
+  const { rise, set, noon } = sunTimes(314); // Nov 10: about 6:34 and 17:49 in Hilo
+  assert.ok(rise > 6.3 && rise < 6.8 && set > 17.5 && set < 18.0, `${rise} ${set}`);
   assert.ok(sunPosition(12.4).el > 0.8);
   assert.ok(sunPosition(22).el < -0.3);
-  assert.ok(Math.abs(sunPosition(12.45).az - Math.PI) < 0.1);
+  assert.ok(Math.abs(sunPosition(noon).az - Math.PI) < 0.01);
+  assert.equal(hawaiiDay(new Date('2026-01-01T09:00:00Z')), 365); // still Dec 31 in Hawaiʻi
   assert.ok(sunPosition(8).az < Math.PI && sunPosition(16).az > Math.PI); // east in the morning, west after
 });
 

@@ -1,7 +1,7 @@
 // Applies the time of day to the scene: sun or moon light, sky colors, fog, exposure, stars,
 // and the shared tint the custom shaders use. Pure sun math lives in daylight.js.
 import * as THREE from 'three';
-import { sunPosition, skyLook, hourFor, TIME_MODES } from './daylight.js';
+import { sunPosition, skyLook, hourFor, hawaiiDay, TIME_MODES } from './daylight.js';
 import { WORLD_TINT, SUN_COLOR } from './world-light.js';
 
 const MOON_DIR = new THREE.Vector3(-0.45, 0.75, 0.35).normalize();
@@ -27,7 +27,7 @@ export function createDaylight(ctx) {
   const dir = new THREE.Vector3(), col = new THREE.Color();
 
   function apply(hour) {
-    const { el, az } = sunPosition(hour);
+    const { el, az } = sunPosition(hour, hawaiiDay());
     const L = skyLook(el);
     dir.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)); // north is -z, east is +x
     const light = L.night ? MOON_DIR : dir;
