@@ -40,10 +40,18 @@ test('the swarm keeps up with you and the runner gets harder each wave', async (
   const { swarmSpeed, escapeSpec, escapeGoal, caughtBonus } = await import('../src/combat.js');
   assert.ok(swarmSpeed(14, 80, 10) > 80); // never slower than the saucer
   assert.ok(swarmSpeed(14, 0, 120) > swarmSpeed(14, 0, 10)); // catches up when left behind
+  const { runnerSpeed, streakMult } = await import('../src/combat.js');
   const a = escapeSpec(1), b = escapeSpec(6);
-  assert.ok(b.speed > a.speed && b.jink > a.jink && b.dodge > a.dodge);
-  assert.ok(escapeSpec(99).speed < 80, 'still catchable at full boost');
+  assert.ok(b.jink > a.jink && b.dodge > a.dodge);
+  assert.ok(escapeSpec(99).dodge <= 0.3, 'dodges are flair, not a wall');
+  for (const w of [1, 5, 20]) for (const sp of [25, 80]) {
+    assert.ok(runnerSpeed(escapeSpec(w), 50, sp) < sp, 'you always close in from far away');
+    assert.ok(runnerSpeed(escapeSpec(w), 20, sp) < sp, 'and from mid range');
+  }
+  assert.ok(runnerSpeed(a, 5, 80) > runnerSpeed(a, 20, 80), 'kicks when you are right on it');
   const g = escapeGoal({ x: 10, y: 5, z: 0, seed: 0.2 }, { x: 0, y: 5, z: 0 }, 0, a, 800);
   assert.ok(g.x > 10, 'runs away from you');
   assert.ok(caughtBonus(3) > caughtBonus(1));
+  assert.ok(caughtBonus(1, 5) > caughtBonus(1, 25), 'quick catches pay more');
+  assert.ok(caughtBonus(1, 5, 3) > caughtBonus(1, 5, 0) && streakMult(99) === 2);
 });

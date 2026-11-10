@@ -100,15 +100,34 @@ export function swarmSpeed(base, playerSpeed, dist) {
  */
 export function escapeSpec(wave) {
   return {
-    speed: Math.min(74, 42 + wave * 4),
-    jink: Math.min(14, 2 + wave * 1.5),     // sideways weave amplitude, units
-    jinkHz: Math.min(1.4, 0.35 + wave * 0.1),
-    dodge: Math.min(0.75, 0.1 + wave * 0.08), // chance to sidestep a shot that is about to hit
+    jink: Math.min(12, 2 + wave * 1.2),     // sideways weave amplitude, units: showier each wave
+    jinkHz: Math.min(1.2, 0.35 + wave * 0.08),
+    dodge: Math.min(0.3, 0.08 + wave * 0.03), // a few flashy sidesteps, never a wall
     turn: Math.min(4, 1.8 + wave * 0.2),
-    escapeDist: 280, escapeTime: 55,
+    burst: Math.min(1.2, 1.0 + wave * 0.02), // how hard it kicks when you are right on it
   };
 }
-export const caughtBonus = (wave) => 40 + 20 * wave;
+
+/**
+ * Runner speed: rubber-banded to the saucer so the chase always feels close and always ends
+ * well. Far away it eases off and lets you close; right behind it, it kicks to stay just ahead
+ * for a moment. Never stops: there is always a floor so it keeps moving.
+ */
+export function runnerSpeed(spec, dist, playerSpeed) {
+  const p = Math.max(25, playerSpeed);
+  if (dist > 30) return p * 0.55;
+  if (dist < 8) return p * 0.95 * spec.burst;
+  return p * (0.55 + (30 - dist) / 22 * 0.35);
+}
+
+/** Catch bonus: 40 + 20 x wave, up to double for a catch inside 20 s, times the catch streak. */
+export function caughtBonus(wave, secs = 20, streak = 0) {
+  const base = 40 + 20 * wave, quick = 1 + Math.max(0, 1 - secs / 20);
+  return Math.round(base * quick * streakMult(streak) / 5) * 5;
+}
+/** Every quick catch in a row adds 25%, up to double. */
+export const streakMult = (streak) => 1 + Math.min(4, Math.max(0, streak)) * 0.25;
+export const QUICK_CATCH_S = 15;
 
 /**
  * Where the runner heads: away from the saucer, weaving, kept inside the map. bounds: half

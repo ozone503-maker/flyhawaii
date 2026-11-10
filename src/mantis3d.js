@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -111,11 +111,11 @@ export function createCombat(ctx) {
   }
 
   const towns = RAID_TOWNS.map((t) => { const w = toWorld(t.lat, t.lon); return { ...t, x: w.x, z: w.y, y: groundY(w.x, w.y) }; });
-  const S = { runner: null, escT: 0, escaped: false, on: false, wave: 0, town: null, townHP: TOWN_HP, shield: PLAYER.shield, sinceHit: 99, fireCool: 0, kills: 0, score: 0, best: loadBest(), invuln: 0, between: 0, over: 0 };
+  const S = { runner: null, escT: 0, streak: 0, on: false, wave: 0, town: null, townHP: TOWN_HP, shield: PLAYER.shield, sinceHit: 99, fireCool: 0, kills: 0, score: 0, best: loadBest(), invuln: 0, between: 0, over: 0 };
   const events = [];
 
   function startWave(n) {
-    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0; S.escaped = false;
+    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0;
     const spec = waveSpec(n), spots = spawnRing(S.town, spec.count);
     spots.forEach((p, i) => {
       const m = pool[i] || (pool[i] = makeMantis());
@@ -156,6 +156,7 @@ export function createCombat(ctx) {
       const living = alive();
       if (!S.runner && living.length === 1 && !S.over) {
         S.runner = living[0]; S.runner.runner = true; S.escT = 0; S.runner.mark.material = runMat; S.runner.mark.scale.set(0.05, 0.05, 1);
+        S.runner.hp += 2; S.breakT = 1.3; for (const b of bolts) b.home = -1; // a dramatic breakaway: shots in flight lose it
         events.push({ type: 'runner', wave: S.wave });
       }
       const esc = escapeSpec(S.wave);
@@ -166,7 +167,8 @@ export function createCombat(ctx) {
         let mode;
         if (m.runner) {
           mode = 'run'; S.escT += dt;
-          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), esc.speed, esc.turn, dt);
+          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), S.breakT > 0 ? Math.max(40, playerSpeed) * 1.3 : runnerSpeed(esc, dPlayer, playerSpeed), esc.turn, dt);
+          S.breakT = Math.max(0, (S.breakT || 0) - dt);
           // sidestep a shot that is about to land
           m.dodgeCool = Math.max(0, (m.dodgeCool || 0) - dt);
           if (m.dodgeCool <= 0) for (const b of bolts) {
@@ -178,11 +180,6 @@ export function createCombat(ctx) {
                 m.x += sx / sl * side * 2.2; m.z += sz / sl * side * 2.2; m.y += (Math.random() - 0.5) * 1.5; b.home = -1; }
               break;
             }
-          }
-          if (dPlayer > esc.escapeDist || S.escT > esc.escapeTime) {
-            m.dead = true; m.g.visible = false; m.mark.visible = false; S.escaped = true;
-            events.push({ type: 'escaped', wave: S.wave });
-            continue;
           }
         } else {
           const g = mantisGoal(m, S.town, pos, tt, aim, playerSpeed); mode = g.mode;
@@ -214,7 +211,7 @@ export function createCombat(ctx) {
         if (!b.live) continue;
         if (b.home >= 0 && !pool[b.home]?.dead) { // gentle homing toward the assist target
           const m = pool[b.home], dx = m.x - b.x, dy = m.y - b.y, dz = m.z - b.z, d = Math.hypot(dx, dy, dz) || 1;
-          const k = Math.min(1, 6 * dt);
+          const k = Math.min(1, (m.runner ? 16 : 6) * dt); // the runner is the payoff: shots at it track hard
           b.vx += (dx / d * b.speed - b.vx) * k; b.vy += (dy / d * b.speed - b.vy) * k; b.vz += (dz / d * b.speed - b.vz) * k;
         }
         const a = { x: b.x, y: b.y, z: b.z };
@@ -222,12 +219,12 @@ export function createCombat(ctx) {
         b.m.position.set(b.x, b.y, b.z); b.m.lookAt(b.x + b.vx, b.y + b.vy, b.z + b.vz);
         if (b.mine) {
           for (const m of pool) {
-            if (m.dead || segPointDist(a, b, m) > MANTIS.radius) continue;
+            if (m.dead || segPointDist(a, b, m) > MANTIS.radius * (m.runner ? 1.7 : 1)) continue;
             b.life = 0; m.hp -= 1;
             if (m.hp <= 0) {
               m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, m.runner ? 2.2 : 1.4);
               events.push({ type: 'kill', bounty: MANTIS.bounty });
-              if (m.runner) { const bonus = caughtBonus(S.wave); S.score += bonus; events.push({ type: 'caught', wave: S.wave, bonus }); }
+              if (m.runner) { const secs = S.escT, quick = secs < QUICK_CATCH_S; const bonus = caughtBonus(S.wave, secs, S.streak); S.streak = quick ? S.streak + 1 : 0; S.score += bonus; events.push({ type: 'caught', wave: S.wave, bonus, secs, quick, streak: S.streak }); }
             } else { boom(b.x, b.y, b.z, 0.4); events.push({ type: 'hit' }); }
             break;
           }
@@ -250,9 +247,9 @@ export function createCombat(ctx) {
         S.over = 4; if (S.wave > S.best) { S.best = S.wave; try { localStorage.setItem(BEST_KEY, String(S.best)); } catch { /* private */ } }
         events.push({ type: 'lost', town: S.town.name, wave: S.wave, best: S.best });
       } else if (S.over) {
-        S.over -= dt; if (S.over <= 0) { S.over = 0; S.kills = 0; S.score = 0; startWave(1); }
+        S.over -= dt; if (S.over <= 0) { S.over = 0; S.kills = 0; S.score = 0; S.streak = 0; startWave(1); }
       } else if (!alive().length) {
-        if (!S.between) { S.between = 3; const bonus = S.escaped ? Math.round(waveBonus(S.wave) / 2) : waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus, escaped: S.escaped });
+        if (!S.between) { S.between = 2.5; const bonus = waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus });
           if (S.wave > S.best) { S.best = S.wave; try { localStorage.setItem(BEST_KEY, String(S.best)); } catch { /* private */ } } }
         else { S.between -= dt; if (S.between <= 0.001) startWave(S.wave + 1); }
       }
