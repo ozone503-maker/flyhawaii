@@ -115,19 +115,23 @@ export function escapeSpec(wave) {
  */
 export function runnerSpeed(spec, dist, playerSpeed) {
   const p = Math.max(25, playerSpeed);
-  if (dist > 30) return p * 0.55;
+  if (dist > 30) return p * 0.5;
   if (dist < 8) return p * 0.95 * spec.burst;
-  return p * (0.55 + (30 - dist) / 22 * 0.35);
+  return p * (0.5 + (30 - dist) / 22 * 0.4);
 }
 
-/** Catch bonus: 40 + 20 x wave, up to double for a catch inside 20 s, times the catch streak. */
-export function caughtBonus(wave, secs = 20, streak = 0) {
-  const base = 40 + 20 * wave, quick = 1 + Math.max(0, 1 - secs / 20);
+/** The runner's shield holds for this long: every chase lasts at least this many seconds. */
+export const CHASE_MIN_S = 20;
+/** A quick catch is one within this long of the shield dropping. */
+export const QUICK_CATCH_S = CHASE_MIN_S + 10;
+
+/** Catch bonus: 40 + 20 x wave, up to double for finishing it right as its shield drops, times the catch streak. */
+export function caughtBonus(wave, secs = QUICK_CATCH_S, streak = 0) {
+  const base = 40 + 20 * wave, quick = 1 + Math.max(0, Math.min(1, 1 - (secs - CHASE_MIN_S) / (QUICK_CATCH_S - CHASE_MIN_S)));
   return Math.round(base * quick * streakMult(streak) / 5) * 5;
 }
 /** Every quick catch in a row adds 25%, up to double. */
 export const streakMult = (streak) => 1 + Math.min(4, Math.max(0, streak)) * 0.25;
-export const QUICK_CATCH_S = 15;
 
 /**
  * Where the runner heads: away from the saucer, weaving, kept inside the map. bounds: half

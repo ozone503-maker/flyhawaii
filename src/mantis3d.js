@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, CHASE_MIN_S } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -135,7 +135,7 @@ export function createCombat(ctx) {
   return {
     get state() { return S; },
     get mantises() { return alive(); },
-    start() { group.visible = true; S.on = true; S.kills = 0; S.score = 0; S.shield = PLAYER.shield; S.over = 0; startWave(1); },
+    start() { group.visible = true; S.on = true; S.kills = 0; S.score = 0; S.streak = 0; S.shield = PLAYER.shield; S.over = 0; startWave(1); },
     stop() { group.visible = false; S.on = false; },
     /** firing: true while the fire control is held. aim: unit vector the saucer points along */
     update(dt, t, pos, aim, firing, playerSpeed = 0) {
@@ -156,7 +156,7 @@ export function createCombat(ctx) {
       const living = alive();
       if (!S.runner && living.length === 1 && !S.over) {
         S.runner = living[0]; S.runner.runner = true; S.escT = 0; S.runner.mark.material = runMat; S.runner.mark.scale.set(0.05, 0.05, 1);
-        S.runner.hp += 2; S.breakT = 1.3; for (const b of bolts) b.home = -1; // a dramatic breakaway: shots in flight lose it
+        S.runner.hp += 2; S.breakT = 0.7; for (const b of bolts) b.home = -1; // a dramatic breakaway: shots in flight lose it
         events.push({ type: 'runner', wave: S.wave });
       }
       const esc = escapeSpec(S.wave);
@@ -167,7 +167,7 @@ export function createCombat(ctx) {
         let mode;
         if (m.runner) {
           mode = 'run'; S.escT += dt;
-          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), S.breakT > 0 ? Math.max(40, playerSpeed) * 1.3 : runnerSpeed(esc, dPlayer, playerSpeed), esc.turn, dt);
+          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), S.breakT > 0 ? Math.max(30, playerSpeed) * 1.1 : runnerSpeed(esc, dPlayer, playerSpeed), esc.turn, dt);
           S.breakT = Math.max(0, (S.breakT || 0) - dt);
           // sidestep a shot that is about to land
           m.dodgeCool = Math.max(0, (m.dodgeCool || 0) - dt);
@@ -220,7 +220,9 @@ export function createCombat(ctx) {
         if (b.mine) {
           for (const m of pool) {
             if (m.dead || segPointDist(a, b, m) > MANTIS.radius * (m.runner ? 1.7 : 1)) continue;
-            b.life = 0; m.hp -= 1;
+            b.life = 0;
+            if (m.runner && S.escT < CHASE_MIN_S) { boom(b.x, b.y, b.z, 0.5); events.push({ type: 'shielded' }); break; } // shield holds: sparks only
+            m.hp -= 1;
             if (m.hp <= 0) {
               m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, m.runner ? 2.2 : 1.4);
               events.push({ type: 'kill', bounty: MANTIS.bounty });
