@@ -10,6 +10,24 @@ export const BIG_ISLAND_BBOX = { latMin: 18.85, latMax: 20.30, lonMin: -156.10, 
 // Jobs shorter than this feel like a hop across the parking lot.
 export const MIN_JOB_KM = 1;
 
+// Used when the FlashTown HQ pin is missing from the destinations list.
+export const FALLBACK_START = { lat: 19.72, lon: -155.05 };
+
+export function hqDestination(list) {
+  if (!Array.isArray(list)) return null;
+  return list.find((d) => d.id === 'flashtown-hq') || list.find((d) => d.kind === 'hq') || null;
+}
+
+/** Takeoff pad for a new shift: FlashTown HQ, or the Hilo fallback. */
+export function startCoords(list, fallback = FALLBACK_START) {
+  const hq = hqDestination(list);
+  if (hq && Number.isFinite(hq.lat) && Number.isFinite(hq.lon)) {
+    return { lat: hq.lat, lon: hq.lon, id: hq.id, fromHq: true };
+  }
+  const fb = fallback && Number.isFinite(fallback.lat) && Number.isFinite(fallback.lon) ? fallback : FALLBACK_START;
+  return { lat: fb.lat, lon: fb.lon, id: null, fromHq: false };
+}
+
 const PACKAGES_BY_KIND = {
   hq: ['a crate of KDU tokens', 'a box of FlashTown fruit'],
   own: ['a box of merch', 'a sealed order'],
@@ -63,6 +81,14 @@ export function normalizeDestinations(data, warn = () => {}) {
     // The local who greets the pilot here: name, a portrait in public/locals/, and their lines
     if (d.local && typeof d.local === 'object' && String(d.local.name || '').trim()) {
       e.local = { name: String(d.local.name).trim(), portrait: String(d.local.portrait || '').trim(), lines: clean(d.local.lines) };
+      if (d.local.tierLines && typeof d.local.tierLines === 'object') {
+        const tl = {};
+        for (const k of ['stranger', 'familiar', 'regular', 'ohana']) {
+          const lines = clean(d.local.tierLines[k]);
+          if (lines.length) tl[k] = lines;
+        }
+        if (Object.keys(tl).length) e.local.tierLines = tl;
+      }
     }
     out.push(e);
   });

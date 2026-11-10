@@ -35,12 +35,25 @@ Nominatim usage policy: at most one request per second, an identifying User-Agen
 | `address`, `website`, `hours` | no | For people checking the data |
 | `sponsor` | no | `false` for now. Reserved for sponsored placements later |
 | `packages` | no | A list of things picked up here. One is chosen per job. Wins over `packageHint` |
-| `local` | no | The person who greets the pilot: `name`, `portrait` (a file in `public/locals/`) and `lines` (what they say). Gives each business its own character |
+| `local` | no | The person who greets the pilot: `name`, `portrait` (a file in `public/locals/`), `lines` (generic greets), and optional `tierLines` |
 | `packageHint` | no | What you pick up there, for example "a crate of fresh produce". Otherwise the game picks one by `kind` |
 | `photo` | no | Reserved for a future storefront photo |
 | `source` | no, but please | Where the coordinates came from (OSM link or official site) |
 | `approx` | no | `true` when the coordinates are a placeholder |
 | `enabled` | no | `false` hides the place without deleting it |
+
+## Regulars and greeter lines
+
+Each business remembers the player. Delivery counts (pickup and dropoff of a finished job) live in `localStorage` under `fh_regulars_v1`. Tiers: Stranger (0), Familiar (3), Regular (8), Ohana (15). Tips at dropoff are +0 / +10 / +20 / +35 percent of the job pay. Ohana businesses can appear on the job board as a higher-paying special marked with the business name.
+
+The greeter pop-up uses the local's name, portrait and a line that changes with the tier:
+
+1. `local.tierLines.stranger` / `familiar` / `regular` / `ohana` on that business, if present
+2. Top-level `greeterLines` in this file (same four keys)
+3. That local's generic `lines`
+4. Built-in fallbacks in `src/regulars.js`
+
+Add or replace lines in `greeterLines` or on a business's `local.tierLines` without touching code. A short example lives on FlashTown HQ.
 
 ## Validation
 
@@ -65,7 +78,7 @@ At load the game skips, with a `[destinations]` console warning:
 
 ## FlashTown HQ
 
-The `flashtown-hq` entry is a placeholder at the Eden Roc place point with `"approx": true`. Replace `lat` and `lon` with the real pin from Jessie and remove `approx`.
+`flashtown-hq` is Jessie's exact pin in Mountain View. Every new shift takes off from there (if the pin is missing, the game falls back to the old Hilo start). After at least one delivery, the job board offers an optional flight home for a short shift summary and a small homecoming payout. Returning is never required.
 
 ## A clip for one business
 

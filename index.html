@@ -29,6 +29,7 @@
       <symbol id="g-scene" viewBox="0 0 24 24"><path d="M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v8M9 11l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 17.5h8" stroke="currentColor" stroke-width="1.6"/></symbol>
       <symbol id="g-arrow" viewBox="0 0 24 24"><path d="M12 2l8 19-8-5-8 5Z" fill="currentColor"/></symbol>
       <symbol id="g-reroll" viewBox="0 0 24 24"><path d="M4 9l4-5h9l3 4M20 15l-4 5H7l-3-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="bevel"/><path d="M21 3v6h-6zM3 21v-6h6z" fill="currentColor"/></symbol>
+      <symbol id="g-heart" viewBox="0 0 24 24"><path d="M12 21 2.5 11.2 7 4h10l4.5 7.2Z" fill="currentColor"/></symbol>
     </defs>
   </svg>
   <canvas id="game"></canvas>
@@ -148,6 +149,28 @@
         <button id="jbReroll" class="jb-reroll" aria-label="New offers" title="New offers (R)"><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#g-reroll"></use></svg><span id="jbCool" class="jb-cool"></span></button>
       </div>
       <div id="jbCards" class="jb-cards"></div>
+      <button id="jbHome" class="jb-home hidden" type="button">Fly to FlashTown</button>
+    </div>
+  </div>
+
+  <div id="greeter" class="hidden" role="dialog" aria-modal="true" aria-labelledby="grName">
+    <div class="gr-panel">
+      <img id="grPortrait" alt="">
+      <div class="gr-copy">
+        <p id="grTier"></p>
+        <h2 id="grName"></h2>
+        <p id="grLine"></p>
+      </div>
+      <p class="gr-hint">Tap to continue</p>
+    </div>
+  </div>
+
+  <div id="shiftSummary" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
+    <div class="ss-panel">
+      <h2 id="ssTitle">Shift complete</h2>
+      <ul id="ssStats" class="ss-stats"></ul>
+      <p id="ssPay" class="ss-pay"></p>
+      <button id="ssNew" class="metal-btn copper">New shift</button>
     </div>
   </div>
 

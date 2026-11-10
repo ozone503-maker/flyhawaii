@@ -29,7 +29,9 @@ Phone testing on your network: `npm run dev -- --host 0.0.0.0`, then open the sh
 - Keyboard: W / S or arrows fly, A / D turn, Space climbs, Q / F / Ctrl descends, Shift boosts, C switches chase and cockpit view, P or Esc pauses
 - Music: M toggles, `,` and `.` change track
 - Touch: left thumb anywhere on the left half is the flight pad, right side has climb, descend and boost pads
-- Jobs: pick one of four offers on the job board with 1 to 4 (or tap a card); R or the hex button rerolls the offers after a short cooldown
+- Start: every new shift takes off from FlashTown HQ in Mountain View
+- Jobs: pick one of four offers on the job board with 1 to 4 (or tap a card); R or the hex button rerolls the offers after a short cooldown. After a delivery you can fly home for an optional shift summary
+- Regulars: businesses remember you. Tips grow as you become Familiar, Regular, then Ohana, and Ohana shops can post a special higher-paying job
 - KDU: earn it from deliveries and discoveries. Fly-through rings are parked for now (set `RINGS_ENABLED` in `src/rings.js` to bring them back). The old floating 1 KDU tokens stay gone
 - Deliveries: hover low and slow inside the amber beacon to beam a package up, then inside the green beacon to drop it off. Arrival scenes play after each pickup and delivery; any key or tap skips them
 

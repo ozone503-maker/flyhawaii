@@ -1,5 +1,27 @@
 {
-  "about": "Places jobs pick up from and deliver to. One entry per business with its own exact lat/lon (WGS84). See docs/destinations.md. Add one with: node scripts/add-destination.mjs \"Name\" \"address or lat,lon\"",
+  "about": "Places jobs pick up from and deliver to. One entry per business with its own exact lat/lon (WGS84). See docs/destinations.md for fields, including greeterLines and local.tierLines. Add one with: node scripts/add-destination.mjs \"Name\" \"address or lat,lon\"",
+  "greeterLines": {
+    "stranger": [
+      "Ho, first time at this stop? Mahalo for coming",
+      "Appreciate you flying out. Here is your drop",
+      "New face! Welcome. We been waiting on this"
+    ],
+    "familiar": [
+      "Eh, good to see you again. Mahalo plenty",
+      "You getting the hang of these hills",
+      "Back already? We like that"
+    ],
+    "regular": [
+      "Our regular! We set this aside for you",
+      "Knew you would make it. Kudokens coming your way",
+      "You one of us now. Mahalo for always showing up"
+    ],
+    "ohana": [
+      "Family! Whatever you need, you got it",
+      "Ohana rate today. Come back anytime, yeah?",
+      "You family now. Come eat after you land the next one"
+    ]
+  },
   "destinations": [
     {
       "id": "flashtown-hq",
@@ -18,7 +40,25 @@
           "Ho, the cats been waiting on this!",
           "Mahalo, you made it up the hill.",
           "Here, Kudokens for you."
-        ]
+        ],
+        "tierLines": {
+          "stranger": [
+            "Ho, the cats been waiting on this!",
+            "First run of the shift? Land easy, the driveway is short."
+          ],
+          "familiar": [
+            "Welcome back up the hill. The cats missed you.",
+            "Mahalo, you made it home."
+          ],
+          "regular": [
+            "Our pilot! Come in, I have fruit set aside.",
+            "Good to have you back at FlashTown."
+          ],
+          "ohana": [
+            "Family is home. Whatever you need, we got you.",
+            "Stay as long as you like. This is your pad now."
+          ]
+        }
       },
       "packages": [
         "a crate of fresh lilikoʻi",

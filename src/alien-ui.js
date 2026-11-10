@@ -3,7 +3,7 @@
 
 export const GLYPHS = [
   'view-in', 'view-out', 'pause', 'play', 'prev', 'next', 'up', 'down', 'boost',
-  'sound', 'scene', 'find', 'alt', 'speed', 'kdu', 'arrow', 'reroll',
+  'sound', 'scene', 'find', 'alt', 'speed', 'kdu', 'arrow', 'reroll', 'heart',
 ];
 
 export function glyph(id, extra = '') {

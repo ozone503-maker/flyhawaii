@@ -24,7 +24,9 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/cutscene.js` | Arrival scene timeline (pure math): beats, camera orbit, coin path, count-up, pausable and skippable clock |
 | `src/arrival-fx.js` | Procedural 3D effects for arrival scenes: tractor beam, package, hex rings, sparkle burst |
 | `src/destinations.js` | Destination list validation, packages by kind |
-| `src/job-offers.js` | The job board: four offers, pay formula, ETA, reroll avoidance |
+| `src/job-offers.js` | The job board: four offers, pay formula, ETA, reroll avoidance, optional Ohana specials |
+| `src/regulars.js` | Relationship tiers, tip bonuses, greeter line picks, versioned `fh_regulars_v1` storage |
+| `src/shift.js` | FlashTown takeoff pad, near-HQ test, homecoming payout |
 | `src/rings.js` | KDU ring tiers and values, fly-through test, streaks, chains, placement math. `RINGS_ENABLED` (currently false) parks the feature |
 | `src/ring-field.js` | KDU rings in the 3D world: pooled instanced meshes, spawning, respawns, bursts. No-op when `RINGS_ENABLED` is false |
 | `src/sky-ocean.js` | Sky dome with horizon haze, ocean colored by real depth with surf, instanced trade-wind clouds and the fly-through white-out |
@@ -43,7 +45,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/chunks.js`, `src/height-png.js` | Terrain streaming and 16-bit height decoding |
 | `test/*.test.js` | Unit tests for the pure modules (`node --test`) |
 | `test/fixtures/clips/` | Test-only placeholder clips. Never ship them |
-| `scripts/*.py` | Headless screenshot checks (Python Playwright + Chrome): `alien-shots.py`, `cutscene-shots.py`, `clip-shots.py`, `destination-shots.py`, `rings-jobs-shots.py` |
+| `scripts/*.py` | Headless screenshot checks (Python Playwright + Chrome): `alien-shots.py`, `cutscene-shots.py`, `clip-shots.py`, `destination-shots.py`, `rings-jobs-shots.py`, `regulars-shots.py` |
 | `scripts/clip-cards/` | Makes the 6 second thank-you clip for each business (see its README) |
 | `scripts/add-destination.mjs` | Geocodes a business with OpenStreetMap and appends it to the destinations list |
 | `scripts/bake-*.mjs` | One-off data baking for terrain and water. Rarely needed |
@@ -115,7 +117,9 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
 
 ## Game rules (do not change without Jessie)
 
+- Every new shift takes off from the FlashTown HQ pin in Mountain View. If that pin is missing, it falls back to the old Hilo start. After at least one delivery the player can optionally fly home for a shift summary and a small homecoming payout
 - Jobs come from a gig-style board: after the start and after every delivery the player picks one of four offers (keys 1 to 4 or tap). `R` or the hex button rerolls, with a cooldown. Pay = 15 + 1.6 KDU per km of delivery leg + 0.6 per km to reach the pickup, times Rush (1.3) or Fragile (1.15), plus or minus up to 8%, rounded to 5. A speed bonus is still added on delivery
+- Each business remembers the player (regulars). Counts are stored in `fh_regulars_v1`. Tiers: Stranger (0 deliveries), Familiar (3, +10% tip), Regular (8, +20%), Ohana (15, +35%). The tip is paid at dropoff based on that business. Greeters use `local` data (see docs/destinations.md). Ohana businesses can occasionally offer a 1.5x special job marked with the business name, and heart pips on the board show relationship progress
 - KDU fly-through rings are parked (`RINGS_ENABLED = false` in `src/rings.js`) until collection feels right. Do not bring back the old floating 1 KDU tokens. When the flag is on: fly through the middle (crossing the ring plane inside its radius). Tiers: blue 5 (biggest, common), green 10, gold 25, prismatic 50 (smallest, rare). Rings in a quick streak add +2 each (max +20); clearing a whole chain adds 10 per ring
 
 - True scale: 1 world unit = 100 m on every axis. Real coordinates, real elevation data

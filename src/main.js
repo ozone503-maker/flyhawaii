@@ -15,8 +15,10 @@ import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
 import { createSky, createOcean, createClouds } from './sky-ocean.js';
 import { createLandmarks, addSnow, SNOW_LINE_M } from './landmarks3d.js';
 import { createTreeField } from './tree-field.js';
-import { normalizeDestinations } from './destinations.js';
+import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
 import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
+import { loadRegulars, saveRegulars, recordJob, getCount, tierFor, tipBonus, pickGreeting, mergeGreeterLines, REGULARS_KEY } from './regulars.js';
+import { homecomingBonus, isNearHq, emptyShift } from './shift.js';
 import { createRingField } from './ring-field.js';
 import { RING_TIERS, RINGS_ENABLED } from './rings.js';
 import bundledDestinations from '../public/destinations/destinations.json';
@@ -59,7 +61,13 @@ const TOWNS = [
 ];
 // Job pickups and dropoffs come from public/destinations/destinations.json (see docs/destinations.md).
 // The bundled copy is a fallback if the runtime file can't load.
-const destLib = { list: normalizeDestinations(bundledDestinations, (m) => console.warn('[destinations]', m)), lastJob: null };
+const destLib = { list: normalizeDestinations(bundledDestinations, (m) => console.warn('[destinations]', m)), greeterLines: mergeGreeterLines(bundledDestinations), lastJob: null };
+let regulars = loadRegulars(localStorage.getItem(REGULARS_KEY));
+const shift = emptyShift();
+const ui = { greeter: null, summary: false };
+function persistRegulars() { localStorage.setItem(REGULARS_KEY, saveRegulars(regulars)); }
+function resetShift() { Object.assign(shift, emptyShift()); }
+function flightLocked() { return !!(state.cut || board.open || ui.greeter || ui.summary); }
 
 // ---------- renderer / scene ----------
 const canvas = document.getElementById('game');
@@ -280,7 +288,7 @@ function clearJob() {
 function openJobBoard({ reroll = false } = {}) {
   if (!state.running) return;
   const here = fromWorld(state.pos.x, state.pos.z);
-  board.offers = makeOffers(destLib.list, here, Math.random, { avoid: reroll ? board.lastKeys : new Set() });
+  board.offers = makeOffers(destLib.list, here, Math.random, { avoid: reroll ? board.lastKeys : new Set(), regulars });
   board.lastKeys = new Set(board.offers.map((o) => o.key));
   board.open = true; resetHeldControls();
   renderJobBoard();
@@ -298,32 +306,97 @@ function renderJobBoard() {
   for (const o of board.offers) {
     const b = document.createElement('button'); b.className = 'jb-card'; b.dataset.slot = o.slot;
     if (o.tags.length) b.classList.add(`tag-${o.tags[0]}`);
-    const tag = o.tags.map((t) => `<span class="jb-tag ${t}">${TAGS[t].label} +${Math.round((TAGS[t].mult - 1) * 100)}%</span>`).join('');
+    const tag = o.special
+      ? `<span class="jb-tag special"></span>`
+      : o.tags.map((t) => `<span class="jb-tag ${t}">${TAGS[t].label} +${Math.round((TAGS[t].mult - 1) * 100)}%</span>`).join('');
     b.innerHTML = `<span class="jb-key">${o.slot}</span>
       <span class="jb-pay">${glyph('kdu')}<b></b><small>KDU</small></span>
       <span class="jb-route"><span class="jb-stop pick"><b></b><i></i></span>${glyph('next', 'jb-to')}<span class="jb-stop drop"><b></b><i></i></span></span>
       <span class="jb-meta"><span class="jb-km"></span><span class="jb-eta"></span><span class="jb-dead"></span></span>
       <span class="jb-pkg"></span>${tag}`;
+    if (o.special) { b.classList.add('special'); }
     b.querySelector('.jb-pay b').textContent = o.pay.toLocaleString();
     const [p, d] = b.querySelectorAll('.jb-stop');
     p.querySelector('b').textContent = o.from.name; p.querySelector('i').textContent = o.from.town || '';
     d.querySelector('b').textContent = o.to.name; d.querySelector('i').textContent = o.to.town || '';
+    if (o.fromTier?.pips) p.insertAdjacentHTML('beforeend', pipsHtml(o.fromTier));
+    if (o.toTier?.pips) d.insertAdjacentHTML('beforeend', pipsHtml(o.toTier));
     b.querySelector('.jb-km').textContent = formatKm(o.totalKm);
     b.querySelector('.jb-eta').textContent = formatEta(o.etaSec);
     b.querySelector('.jb-dead').textContent = `${formatKm(o.deadheadKm)} to pickup`;
     b.querySelector('.jb-pkg').textContent = o.pkg;
-    b.setAttribute('aria-label', `Job ${o.slot}: ${o.pkg} from ${o.from.name} to ${o.to.name}, ${formatKm(o.totalKm)}, ${o.pay} KDU${o.tags.length ? `, ${o.tags.join(', ')}` : ''}`);
-    b.addEventListener('click', () => { if (!state.paused) { unlockAudio(); acceptOffer(o); } });
+    if (o.special) {
+      const tagEl = b.querySelector('.jb-tag.special');
+      if (tagEl) tagEl.textContent = o.specialName || 'Ohana run';
+    }
+    const extra = o.special ? `, ${o.specialName}` : (o.tags.length ? `, ${o.tags.join(', ')}` : '');
+    b.setAttribute('aria-label', `Job ${o.slot}: ${o.pkg} from ${o.from.name} to ${o.to.name}, ${formatKm(o.totalKm)}, ${o.pay} KDU${extra}`);
+    b.addEventListener('click', () => { if (!state.paused && !ui.greeter && !ui.summary) { unlockAudio(); acceptOffer(o); } });
     wrap.append(b);
   }
+  updateHomeButton();
+}
+function pipsHtml(tier) {
+  if (!tier?.pips) return '';
+  const hearts = [0, 1, 2].map((i) => glyph('heart', i < tier.pips ? 'pip on' : 'pip')).join('');
+  return `<span class="jb-pips" title="${tier.label}" aria-label="${tier.label}">${hearts}</span>`;
+}
+function updateHomeButton() {
+  const b = $('jbHome'); if (!b) return;
+  const hq = hqDestination(destLib.list);
+  const show = shift.jobs >= 1 && !!hq && !ui.summary;
+  b.classList.toggle('hidden', !show);
+  if (!show) return;
+  const here = fromWorld(state.pos.x, state.pos.z);
+  b.textContent = isNearHq(here, hq) ? 'End shift' : 'Fly to FlashTown';
+}
+function startHomeLeg() {
+  if (ui.greeter || ui.summary) return;
+  const hq = hqDestination(destLib.list); if (!hq) return;
+  const here = fromWorld(state.pos.x, state.pos.z);
+  closeJobBoard();
+  if (isNearHq(here, hq)) { openShiftSummary(); return; }
+  const to = { ...hq, w: toWorld(hq.lat, hq.lon) };
+  state.job = { from: to, to, pkg: '', km: 0, reward: 0, tags: [], home: true };
+  state.phase = 'dropoff'; state.hover = 0;
+  placeBeacon(beaconDrop, labelDrop, to, `Home: ${to.name}`, '#1ec8ff');
+  if (beaconPick) beaconPick.visible = labelPick.visible = false;
+  beaconDrop.visible = labelDrop.visible = true;
+  updateMissionText();
+}
+function openShiftSummary() {
+  if (ui.summary) return;
+  closeJobBoard(); clearJob();
+  const bonus = homecomingBonus(shift.jobs, shift.kdu);
+  if (bonus) addTokens(bonus);
+  ui.summary = true;
+  const rows = [
+    ['Jobs finished', String(shift.jobs)],
+    ['KDU earned', shift.kdu.toLocaleString()],
+    ['Regular tips', shift.tips.toLocaleString()],
+    ['Homecoming', bonus.toLocaleString()],
+  ];
+  const ul = $('ssStats'); ul.innerHTML = '';
+  for (const [label, val] of rows) {
+    const li = document.createElement('li'); li.append(label);
+    const b = document.createElement('b'); b.textContent = val; li.append(b); ul.append(li);
+  }
+  $('ssPay').textContent = `Payout  ${(shift.kdu + bonus).toLocaleString()} KDU`;
+  $('shiftSummary').classList.remove('hidden'); document.body.classList.add('shift-summary');
+}
+function closeShiftSummary() {
+  if (!ui.summary) return;
+  $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary');
+  ui.summary = false; resetShift(); openJobBoard();
 }
 async function loadDestinations() {
   const url = (params.has('debug') && params.get('dest')) || '/destinations/destinations.json';
   try {
     const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const list = normalizeDestinations(await res.json(), (m) => console.warn('[destinations]', m));
-    if (list.length >= 2) destLib.list = list;
+    const json = await res.json();
+    const list = normalizeDestinations(json, (m) => console.warn('[destinations]', m));
+    if (list.length >= 2) { destLib.list = list; destLib.greeterLines = mergeGreeterLines(json); }
     else console.warn('[destinations] fewer than two valid entries in', url, '- using the bundled list');
   } catch (e) { console.warn('[destinations] could not load', url, '- using the bundled list', e); }
 }
@@ -512,9 +585,10 @@ for (const id of ['startBtn', 'selGo', 'resumeBtn']) {
   $(id).addEventListener('click', unlockMusic);
   $(id).addEventListener('pointerdown', unlockMusic);
 }
-function deliveryReward(amount, bonus) {
+function deliveryReward(amount, bonus, tip = 0) {
   const el = $('deliveryReward');
-  el.textContent = `Delivered  +${amount} KDU${bonus ? ` (${bonus} speed bonus)` : ''}`;
+  const bits = [bonus ? `${bonus} speed bonus` : '', tip ? `${tip} regular tip` : ''].filter(Boolean);
+  el.textContent = `Delivered  +${amount} KDU${bits.length ? ` (${bits.join(', ')})` : ''}`;
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   clearTimeout(deliveryReward.timer);
   deliveryReward.timer = setTimeout(() => el.classList.remove('on'), 3000);
@@ -522,6 +596,13 @@ function deliveryReward(amount, bonus) {
 }
 function updateMissionText() {
   const j = state.job, m = $('mission');
+  if (j?.home) {
+    m.className = 'home';
+    $('missionStep').textContent = 'Head home when you are ready';
+    $('missionTarget').textContent = `${j.to.name}${j.to.town ? `, ${j.to.town}` : ''}`;
+    $('cargo').textContent = 'Shift summary at HQ';
+    return;
+  }
   if (!j) {
     m.className = 'idle';
     $('missionStep').textContent = 'No job yet';
@@ -577,6 +658,35 @@ function addTokens(n, { quiet = false } = {}) {
   bumpTokens();
 }
 function bumpTokens() { const el = $('tokens'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+function showGreeter(biz, phase, onEnd) {
+  if (!cutscenesOn || !biz?.local || !$('greeter')) return false;
+  const tier = tierFor(getCount(regulars, biz.id));
+  const line = pickGreeting({ local: biz.local, tier, linesByTier: destLib.greeterLines, rand: Math.random });
+  const img = $('grPortrait');
+  const src = biz.local.portrait ? `/locals/${biz.local.portrait}` : '';
+  if (src) { img.src = src; img.alt = biz.local.name; img.classList.remove('blank'); }
+  else { img.removeAttribute('src'); img.alt = ''; img.classList.add('blank'); }
+  $('grName').textContent = biz.local.name;
+  $('grTier').innerHTML = '';
+  const label = document.createElement('span'); label.textContent = tier.label;
+  $('grTier').append(label);
+  if (tier.pips) $('grTier').insertAdjacentHTML('beforeend', pipsHtml(tier));
+  $('grLine').textContent = line;
+  ui.greeter = { onEnd, phase };
+  $('greeter').classList.remove('hidden'); document.body.classList.add('greeter');
+  return true;
+}
+function dismissGreeter() {
+  if (!ui.greeter || state.paused) return;
+  $('greeter').classList.add('hidden'); document.body.classList.remove('greeter');
+  const end = ui.greeter.onEnd; ui.greeter = null;
+  end?.();
+}
+function afterArrival(biz, phase, onEnd) {
+  if (showGreeter(biz, phase, onEnd)) return;
+  onEnd?.();
+}
 
 // ---------- arrival cutscenes ----------
 let arrivalFx = null;
@@ -746,8 +856,10 @@ function tickCutscene(dt, t) {
 
 // ---------- input ----------
 addEventListener('keydown', (e) => {
+  if (ui.greeter && !state.paused && e.code !== 'KeyP' && e.code !== 'Escape') { e.preventDefault(); dismissGreeter(); return; }
+  if (ui.summary && !state.paused && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); closeShiftSummary(); return; }
   if (state.cut && !state.paused && e.code !== 'KeyP' && e.code !== 'Escape') { skipCutscene(); return; }
-  if (board.open && !state.paused) {
+  if (board.open && !state.paused && !ui.greeter && !ui.summary) {
     const n = /^(Digit|Numpad)([1-4])$/.exec(e.code);
     if (n) { e.preventDefault(); unlockAudio(); acceptOffer(board.offers[Number(n[2]) - 1]); return; }
     if (e.code === 'KeyR') { e.preventDefault(); rerollJobs(); return; }
@@ -769,7 +881,13 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 // Tap or click anywhere skips an arrival scene (but not the pause rail or menus)
 addEventListener('pointerdown', (e) => {
-  if (!state.cut || state.paused) return;
+  if (state.paused) return;
+  if (ui.greeter) {
+    if (e.target.closest?.('#hudRail, #pause, #select')) return;
+    e.preventDefault(); dismissGreeter(); return;
+  }
+  if (ui.summary) return;
+  if (!state.cut) return;
   if (e.target.closest?.('#hudRail, .overlay, #clipSound')) return;
   e.preventDefault(); skipCutscene();
 }, { capture: true });
@@ -839,7 +957,9 @@ function togglePause(force) {
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('camBtn')?.addEventListener('click', () => toggleCamera());
 $('resumeBtn').addEventListener('click', () => togglePause(false));
-$('newJobBtn').addEventListener('click', () => { if (state.cut) endCutscene(); clearJob(); togglePause(false); openJobBoard(); });
+$('newJobBtn').addEventListener('click', () => { if (state.cut) endCutscene(); if (ui.greeter) { ui.greeter = null; $('greeter').classList.add('hidden'); document.body.classList.remove('greeter'); } if (ui.summary) { $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary'); ui.summary = false; } clearJob(); togglePause(false); openJobBoard(); });
+$('jbHome')?.addEventListener('click', () => { if (!state.paused) { unlockAudio(); startHomeLeg(); } });
+$('ssNew')?.addEventListener('click', () => { if (!state.paused) closeShiftSummary(); });
 $('jbReroll').addEventListener('click', () => rerollJobs());
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) togglePause(true);
@@ -891,7 +1011,7 @@ function step(dt, t) {
   readInput();
   prevPos.copy(state.pos);
   if (board.cool > 0) { board.cool = Math.max(0, board.cool - dt); updateRerollUi(); }
-  if (state.cut || board.open) { input.fwd = input.turn = input.up = 0; input.boost = false; }
+  if (flightLocked()) { input.fwd = input.turn = input.up = 0; input.boost = false; }
   // Gentle throttle opening, faster release/braking, unchanged low-stick control.
   const S = pilot.stats;
   advanceSpeed(state, input, S, dt);
@@ -904,7 +1024,7 @@ function step(dt, t) {
   const fwdDir = tmp.set(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
   state.vel.copy(fwdDir).multiplyScalar(state.speed);
   state.vy = ease(state.vy, input.up * lerp(7, 12, state.boostMix) * S.climb, 4, dt);
-  if (state.cut || board.open) { state.speed = ease(state.speed, 0, 7, dt); state.vy = ease(state.vy, 0, 7, dt); state.vel.copy(fwdDir).multiplyScalar(state.speed); }
+  if (flightLocked()) { state.speed = ease(state.speed, 0, 7, dt); state.vy = ease(state.vy, 0, 7, dt); state.vel.copy(fwdDir).multiplyScalar(state.speed); }
   state.pos.addScaledVector(state.vel, dt); state.pos.y += state.vy * dt;
   const lim = SIZE * 0.62; state.pos.x = Math.max(-lim, Math.min(lim, state.pos.x)); state.pos.z = Math.max(-lim, Math.min(lim, state.pos.z));
   const gy = groundY(state.pos.x, state.pos.z);
@@ -919,6 +1039,10 @@ function step(dt, t) {
   ufo.group.position.y += Math.sin(t * 2.2) * 0.06;
   ufo.group.rotation.set(0, 0, 0); ufo.group.rotateY(state.yaw); ufo.group.rotateZ(state.bank); ufo.group.rotateX(pitch);
   ufo.lights.forEach((l, i) => { l.material.color.setHSL(ufo.hue, 1, 0.5 + 0.2 * Math.sin(t * 6 + i)); });
+
+  // mark that this shift has left the FlashTown pad
+  const hq = hqDestination(destLib.list);
+  if (hq && !shift.leftHome && !isNearHq(fromWorld(state.pos.x, state.pos.z), hq, 0.8)) shift.leftHome = true;
 
   // mission
   let tg = target();
@@ -935,25 +1059,33 @@ function step(dt, t) {
   ufo.beam.scale.set(1, bh, 1); ufo.beam.position.y = -bh / 2 - 0.6;
   if (state.hover >= need) {
     state.hover = 0;
-    if (state.phase === 'pickup') {
+    if (state.job?.home) { openShiftSummary(); }
+    else if (state.phase === 'pickup') {
       state.phase = 'dropoff'; state.jobStart = performance.now();
       beaconPick.visible = labelPick.visible = false; beaconDrop.visible = labelDrop.visible = true;
       const town = state.job.to.town || state.job.to.name;
+      const fromBiz = state.job.from;
       gameAudio.pickup();
       updateMissionText();
-      if (!startCutscene('pickup', { bizId: state.job.from.id, onEnd: () => toast(`Package on board\nFly to ${town}`) })) toast(`Package on board\nFly to ${town}`);
+      const after = () => toast(`Package on board\nFly to ${town}`);
+      if (!startCutscene('pickup', { bizId: fromBiz.id, onEnd: () => afterArrival(fromBiz, 'pickup', after) })) afterArrival(fromBiz, 'pickup', after);
     } else {
       const secs = (performance.now() - state.jobStart) / 1000;
       const par = state.job.km * 1000 / UNIT_M / 12; // seconds at a relaxed pace
       const bonus = Math.max(0, Math.round((par - secs) / par * state.job.reward * 0.6));
-      const before = state.tokens, gain = state.job.reward + bonus;
+      const dropBiz = state.job.to, pickBiz = state.job.from;
+      const tip = tipBonus(state.job.reward, getCount(regulars, dropBiz.id));
+      const before = state.tokens, gain = state.job.reward + bonus + tip;
       const cine = cutscenesOn && !!arrivalFx;
       addTokens(gain, { quiet: cine });
+      shift.jobs += 1; shift.kdu += gain; shift.tips += tip;
+      regulars = recordJob(regulars, pickBiz.id, dropBiz.id); persistRegulars();
       state.delivered++; localStorage.setItem('fh_jobs', state.delivered);
-      deliveryReward(gain, bonus);
-      const dropId = state.job.to.id; // clearJob() drops the job, the clip belongs to this drop-off
+      deliveryReward(gain, bonus, tip);
+      const dropId = dropBiz.id; // clearJob() drops the job, the clip belongs to this drop-off
       clearJob();
-      if (!(cine && startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropId, onEnd: () => openJobBoard() }))) openJobBoard();
+      const after = () => openJobBoard();
+      if (!(cine && startCutscene('delivery', { fromTokens: before, toTokens: state.tokens, bizId: dropId, onEnd: () => afterArrival(dropBiz, 'delivery', after) }))) afterArrival(dropBiz, 'delivery', after);
     }
   }
   // KDU rings: fly through the middle
@@ -1199,14 +1331,11 @@ async function boot() {
       maxAniso: renderer.capabilities.getMaxAnisotropy(), onLoad: () => { reseat(); landmarks3d?.reseat(); trees?.reseat(); },
       patchMaterial: (m) => addSnow(m, SNOW_LINE_M / UNIT_M * VEXAG) });
   }
-  // start near Hilo airport, facing west toward Mauna Kea
-  const start = toWorld(19.72, -155.05);
-  state.pos.set(start.x, groundY(start.x, start.y) + 3, start.y);
-  state.yaw = Math.PI / 2; // face west toward Mauna Kea
+  spawnAtStart();
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
@@ -1273,12 +1402,20 @@ $('selBack').addEventListener('click', () => {
   if (fromPause) $('pause').classList.remove('hidden'); else $('menu').classList.remove('hidden');
 });
 $('changePilotBtn').addEventListener('click', () => openSelect(true));
+function spawnAtStart() {
+  const pad = startCoords(destLib.list);
+  const w = toWorld(pad.lat, pad.lon);
+  state.pos.set(w.x, groundY(w.x, w.y) + 3, w.y);
+  state.yaw = Math.PI / 2; // face west toward Mauna Kea
+  state.speed = 0; state.vy = 0; if (state.vel) state.vel.set(0, 0, 0);
+}
 function startGame() {
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
   if (isTouch || params.has('touch')) $('touch').classList.remove('hidden');
+  spawnAtStart(); resetShift(); clearJob(); closeJobBoard();
   state.running = true; clock.getDelta();
   applyCamHud();
-  if (!state.job && !board.open) openJobBoard();
+  openJobBoard();
   try { drawMinimap(); } catch { /* terrain may still be wiring */ }
 }
 $('startBtn').addEventListener('click', () => openSelect(false));
