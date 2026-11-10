@@ -12,6 +12,7 @@ import { decodeHeightPng } from './height-png.js';
 import { ChunkStreamer } from './chunks.js';
 import { Attractions } from './attractions.js';
 import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
+import { createSky, createOcean, createClouds } from './sky-ocean.js';
 import { normalizeDestinations } from './destinations.js';
 import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { createRingField } from './ring-field.js';
@@ -78,18 +79,9 @@ sun.position.set(-600, 900, 300);
 scene.add(sun);
 scene.add(new THREE.HemisphereLight(0xdcefff, 0x4a5a40, 1.5));
 
-// sky dome gradient
-{
-  const g = new THREE.SphereGeometry(3500, 32, 16);
-  const m = new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(0x2f7fd0) }, bottom: { value: SKY } },
-    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y*2.2, 0.0, 1.0); gl_FragColor = vec4(mix(bottom, top, h),1.0);}',
-  });
-  const sky = new THREE.Mesh(g, m); sky.renderOrder = -1; scene.add(sky);
-  window.__sky = sky;
-}
+// sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
+window.__sky = createSky(scene, sun.position);
+let ocean = null, clouds = null, cloudVeil = null;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -200,13 +192,7 @@ function buildTerrain(water, satImg) {
   };
   const mesh = new THREE.Mesh(geo, mat); scene.add(mesh);
 
-  // far ocean
-  const far = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshLambertMaterial({ color: 0x0a3a78 }));
-  far.rotation.x = -Math.PI / 2; far.position.y = -0.8; scene.add(far);
-  // water sheen
-  const waterMat = new THREE.MeshPhongMaterial({ color: 0x2a8fd0, transparent: true, opacity: 0.38, shininess: 90, specular: 0x99ddff, depthWrite: false });
-  const sheen = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), waterMat);
-  sheen.rotation.x = -Math.PI / 2; sheen.position.y = 0.02; scene.add(sheen);
+  // the ocean surface and clouds are built in boot() from src/sky-ocean.js
   return colorCanvas;
 }
 
@@ -849,7 +835,6 @@ function togglePause(force) {
 }
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('camBtn')?.addEventListener('click', () => toggleCamera());
-applyCamHud();
 $('resumeBtn').addEventListener('click', () => togglePause(false));
 $('newJobBtn').addEventListener('click', () => { if (state.cut) endCutscene(); clearJob(); togglePause(false); openJobBoard(); });
 $('jbReroll').addEventListener('click', () => rerollJobs());
@@ -898,6 +883,7 @@ const GAME_MPH = 15;
 // All disc skins share flight stats
 let shipEnv = null;
 let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
+applyCamHud(); // after pilot exists (calling it earlier hits the let before it is set in dev builds)
 function step(dt, t) {
   readInput();
   prevPos.copy(state.pos);
@@ -1148,6 +1134,8 @@ function frame() {
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
   }
   if (state.running) drawWave(t);
+  ocean?.update(t);
+  if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
   renderer.render(scene, camera);
 }
 
@@ -1175,6 +1163,10 @@ async function boot() {
   fixInlandSea();
   for (const t of TOWNS) t.w = toWorld(t.lat, t.lon);
   colorCanvas = buildTerrain(water, satImg);
+  ocean = createOcean(scene, { H, N, SIZE, sunDir: sun.position });
+  clouds = createClouds(scene, { bounds: { x0: -SIZE / 2, x1: SIZE / 2, z0: -SIZE / 2, z1: SIZE / 2 },
+    sample: (x, z) => ({ ...fromWorld(x, z), groundM: elevM(x, z) }), unitM: UNIT_M / VEXAG, isTouch });
+  cloudVeil = document.createElement('div'); cloudVeil.className = 'cloud-veil'; canvas.after(cloudVeil);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
   try { drawMinimap(); } catch { /* HUD may not be mounted yet */ }
   shipEnv = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;

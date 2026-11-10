@@ -931,3 +931,7 @@ body.jobboard[data-cam="chase"] #mission { opacity: 0; }
   @keyframes ringPopCalm { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   .jb-card:hover { transform: none; }
 }
+
+/* White-out when the saucer flies through a cloud (opacity set from main.js) */
+.cloud-veil{position:fixed;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at 50% 55%,rgba(245,249,252,.75),rgba(230,240,248,.95));transition:opacity .15s linear}
