@@ -120,16 +120,19 @@ export function runnerSpeed(spec, dist, playerSpeed) {
   return p * (0.5 + (30 - dist) / 22 * 0.4);
 }
 
-/** The runner's shield holds for this long: every chase lasts at least this many seconds. */
+/** The runner can never get away before this many seconds, so every chase gets a real run. */
 export const CHASE_MIN_S = 20;
-/** A quick catch is one within this long of the shield dropping. */
-export const QUICK_CATCH_S = CHASE_MIN_S + 10;
+/** After that it gets away if you lose it this far behind, or after this long. */
+export const ESCAPE_DIST_U = 200, ESCAPE_MAX_S = 60;
+export const QUICK_CATCH_S = 15;
 
-/** Catch bonus: 40 + 20 x wave, up to double for finishing it right as its shield drops, times the catch streak. */
-export function caughtBonus(wave, secs = QUICK_CATCH_S, streak = 0) {
-  const base = 40 + 20 * wave, quick = 1 + Math.max(0, Math.min(1, 1 - (secs - CHASE_MIN_S) / (QUICK_CATCH_S - CHASE_MIN_S)));
+/** Catch bonus: 40 + 20 x wave, up to double for a quick catch, times the catch streak. */
+export function caughtBonus(wave, secs = 20, streak = 0) {
+  const base = 40 + 20 * wave, quick = 1 + Math.max(0, Math.min(1, 1 - secs / 20));
   return Math.round(base * quick * streakMult(streak) / 5) * 5;
 }
+/** Can the runner get away now? Never before CHASE_MIN_S. */
+export const runnerEscapes = (secs, dist) => secs >= CHASE_MIN_S && (dist > ESCAPE_DIST_U || secs > ESCAPE_MAX_S);
 /** Every quick catch in a row adds 25%, up to double. */
 export const streakMult = (streak) => 1 + Math.min(4, Math.max(0, streak)) * 0.25;
 

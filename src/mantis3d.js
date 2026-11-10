@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, CHASE_MIN_S } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, runnerEscapes } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -115,7 +115,7 @@ export function createCombat(ctx) {
   const events = [];
 
   function startWave(n) {
-    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0;
+    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0; S.escaped = false;
     const spec = waveSpec(n), spots = spawnRing(S.town, spec.count);
     spots.forEach((p, i) => {
       const m = pool[i] || (pool[i] = makeMantis());
@@ -181,6 +181,10 @@ export function createCombat(ctx) {
               break;
             }
           }
+          if (runnerEscapes(S.escT, dPlayer)) {
+            m.dead = true; m.g.visible = false; m.mark.visible = false; S.escaped = true; S.streak = 0;
+            events.push({ type: 'escaped', wave: S.wave }); continue;
+          }
         } else {
           const g = mantisGoal(m, S.town, pos, tt, aim, playerSpeed); mode = g.mode;
           m.v = steer(m.v, m, g.goal, swarmSpeed(m.speed, playerSpeed, dPlayer), MANTIS.turn * 1.8, dt);
@@ -221,7 +225,6 @@ export function createCombat(ctx) {
           for (const m of pool) {
             if (m.dead || segPointDist(a, b, m) > MANTIS.radius * (m.runner ? 1.7 : 1)) continue;
             b.life = 0;
-            if (m.runner && S.escT < CHASE_MIN_S) { boom(b.x, b.y, b.z, 0.5); events.push({ type: 'shielded' }); break; } // shield holds: sparks only
             m.hp -= 1;
             if (m.hp <= 0) {
               m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, m.runner ? 2.2 : 1.4);
@@ -251,7 +254,7 @@ export function createCombat(ctx) {
       } else if (S.over) {
         S.over -= dt; if (S.over <= 0) { S.over = 0; S.kills = 0; S.score = 0; S.streak = 0; startWave(1); }
       } else if (!alive().length) {
-        if (!S.between) { S.between = 2.5; const bonus = waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus });
+        if (!S.between) { S.between = 2.5; const bonus = waveBonus(S.wave); S.score += bonus; events.push({ type: 'cleared', wave: S.wave, bonus, escaped: S.escaped });
           if (S.wave > S.best) { S.best = S.wave; try { localStorage.setItem(BEST_KEY, String(S.best)); } catch { /* private */ } } }
         else { S.between -= dt; if (S.between <= 0.001) startWave(S.wave + 1); }
       }
