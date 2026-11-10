@@ -13,6 +13,7 @@ export const PAY = { base: 15, perLegKm: 1.6, perDeadheadKm: 0.6, round: 5 };
 export const TAGS = {
   rush: { id: 'rush', label: 'Rush', mult: 1.3, chance: 0.22 },
   fragile: { id: 'fragile', label: 'Fragile', mult: 1.15, chance: 0.18 },
+  moving: { id: 'moving', label: 'Moving', mult: 1.25, chance: 0 }, // set by moving-jobs.js, never rolled
 };
 const UNIT_M = 100;
 const HOVER_S = 6; // two beam-ups plus lining up

@@ -25,6 +25,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/arrival-fx.js` | Procedural 3D effects for arrival scenes: tractor beam, package, hex rings, sparkle burst |
 | `src/destinations.js` | Destination list validation, packages by kind |
 | `src/job-offers.js` | The job board: four offers, pay formula, ETA, reroll avoidance, optional Ohana specials |
+| `src/moving-jobs.js` | Deliveries to a cruise ship, fishing boat or snorkel catamaran: vessel greeters and the Moving offer. Pure |
 | `src/regulars.js` | Relationship tiers, tip bonuses, greeter line picks, versioned `fh_regulars_v1` storage |
 | `src/shift.js` | FlashTown takeoff pad, near-HQ test, homecoming payout |
 | `src/rings.js` | KDU ring tiers and values, fly-through test, streaks, chains, placement math. `RINGS_ENABLED` (currently false) parks the feature |

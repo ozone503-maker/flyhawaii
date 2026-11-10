@@ -23,6 +23,13 @@ C={
 'mauna-kea-beach-hotel':("Smooth landing! Kudokens from one captain to another!",'papakolea',0.5,-1,120),
 'four-seasons-resort-hualalai':("Easy over the honu! Mahalo, here's Kudokens!",'punaluu',0.7,-1,300),
 }
+# moving drop-offs (src/moving-jobs.js): not in destinations.json
+D['cruise-ship']={'name':'Cruise ship','local':{'name':'Bosun Kale','portrait':'rope-uncle.webp'}}
+D['fishing-boat']={'name':'Fishing boat','local':{'name':'Uncle Sonny','portrait':'hook-uncle.webp'}}
+D['snorkel-cat']={'name':'Snorkel catamaran','local':{'name':'Kanoe','portrait':'lei-maker.webp'}}
+C['cruise-ship']=("Ho, you caught us under way! Kudokens for you, sailor!",'hilo',0.5,-1,125)
+C['fishing-boat']=("Eh, right on the bite! Kudokens, fresh off the boat!",'kona',0.6,1,115)
+C['snorkel-cat']=("Aloha from the deck! Mahalo, here's Kudokens!",'puuhonua',0.4,1,260)
 out=[]
 for k,(cap,bg,px,pd,pitch) in C.items():
     d=D[k]; l=d['local']

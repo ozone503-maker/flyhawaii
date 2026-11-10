@@ -5,12 +5,13 @@ import { normalizeClips, pickClip, shouldPlayClip } from '../src/clips.js';
 import { createCutsceneClock, cutsceneBeats, CLIP_COIN_START, CLIP_DURATION } from '../src/cutscene.js';
 import { createCdPlayer } from '../src/cd-player.js';
 
-test('shipped clips: every business has its own delivery clip and every file exists', () => {
+test('shipped clips: every business has its own delivery clip and every file exists', async () => {
   const data = JSON.parse(readFileSync(new URL('../public/clips/clips.json', import.meta.url)));
   const clips = normalizeClips(data);
   assert.equal(clips.length, data.clips.length);
   const dest = JSON.parse(readFileSync(new URL('../public/destinations/destinations.json', import.meta.url))).destinations;
-  const ids = new Set(dest.map((d) => d.id));
+  const { VESSEL_STOPS } = await import('../src/moving-jobs.js');
+  const ids = new Set([...dest.map((d) => d.id), ...VESSEL_STOPS.map((v) => v.id)]);
   for (const c of clips) {
     assert.ok(ids.has(c.biz), `${c.id}: unknown business ${c.biz}`);
     assert.ok(existsSync(new URL(`../public${c.src}`, import.meta.url)), c.src);
