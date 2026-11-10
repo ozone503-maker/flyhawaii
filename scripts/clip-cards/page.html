@@ -49,8 +49,8 @@ window.setup=async(spec,timing)=>{
 window.render=t=>{
   const T=S.t;
   // background pan
-  const bg=$('bg');const bw=bg.naturalWidth*1280/bg.naturalHeight, z=1.06+0.04*(t/4);
-  const room=bw*z-720;const p=clamp(S.px+S.pd*0.12*(t/4));bg.style.transform=`translateX(${-room*p}px) scale(${z})`;bg.style.width=bw+'px';
+  const bg=$('bg');const bw=bg.naturalWidth*1280/bg.naturalHeight, z=1.06+0.04*(t/6);
+  const room=bw*z-720;const p=clamp(S.px+S.pd*0.12*(t/6));bg.style.transform=`translateX(${-room*p}px) scale(${z})`;bg.style.width=bw+'px';
   // character entrance and talk bob
   const e=spring((t-0.05)/0.55);let talk=0;
   T.words.forEach(([a,b])=>{if(t>=a&&t<b){talk=Math.sin(Math.PI*(t-a)/(b-a))}});
@@ -67,7 +67,7 @@ window.render=t=>{
   // coins
   const tb=T.burst,ox=360,oy=1280-250-320;
   coins.forEach(c=>{const u=t-tb-c.d;if(u<0){c.e.style.opacity=0;return}
-    const k=u/1.0;const x=ox+Math.cos(c.a)*c.sp*ease(k*1.4),y=oy+Math.sin(c.a)*c.sp*0.85*ease(k*1.4)+ (k>0.6? -Math.pow(k-0.6,2)*900:0);
+    const k=u/1.5;const x=ox+Math.cos(c.a)*c.sp*ease(k*1.4),y=oy+Math.sin(c.a)*c.sp*0.85*ease(k*1.4)+ (k>0.6? -Math.pow(k-0.6,2)*900:0);
     const tx=660,ty=60,m=clamp((k-0.75)/0.6);const X=x+(tx-x)*ease(m),Y=y+(ty-y)*ease(m);
     c.e.style.opacity=(1-clamp((k-1.15)/0.25));
     c.e.style.transform=`translate(${X}px,${Y}px) scale(${c.s*(0.3+0.7*ease(k*3))*(1-0.5*m)}) rotateY(${u*c.spin*180}deg)`});

@@ -1,5 +1,5 @@
 import json,re,sys,numpy as np,wave
-spec=json.load(open('spec.json')); SR=48000; DUR=4.0
+spec=json.load(open('spec.json')); SR=48000; DUR=6.0
 def syl(w): return max(1,len(re.findall(r'[aeiouy]+',w.lower())))
 def env(n,a,r):
     e=np.ones(n);ai=int(a*SR);ri=int(r*SR)
@@ -7,7 +7,7 @@ def env(n,a,r):
 out={}
 for s in spec:
     words=s['cap'].split(); sy=[syl(w)+ (0.6 if re.search(r'[,.!?]$',w) else 0) for w in words]
-    a0,a1=0.45,2.75; tot=sum(sy); t=a0; W=[]
+    a0,a1=0.55,3.9; tot=sum(sy); t=a0; W=[]
     for w,k in zip(words,sy):
         d=(a1-a0)*k/tot; W.append((round(t,3),round(t+d*0.86,3))); t+=d
     ki=[i for i,w in enumerate(words) if re.search('kudoken',w,re.I)][0]

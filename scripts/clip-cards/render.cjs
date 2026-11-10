@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');const {spawn}=require('child_process');const fs=require('fs');
 const spec=JSON.parse(fs.readFileSync('spec.json')),tim=JSON.parse(fs.readFileSync('timing.json'));
-const only=process.argv[2];const FPS=30,N=120;
+const only=process.argv[2];const FPS=30,N=180;
 (async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:720,height:1280}});
 await p.goto('file://'+process.cwd()+'/page.html');
 for(const s of spec){if(only&&!only.split(',').includes(s.id))continue;

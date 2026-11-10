@@ -62,4 +62,4 @@ python3 scripts/clip-shots.py http://localhost:4174
 
 ## Thank-you clip cards
 
-Every business has its own 4 second delivery clip (`public/clips/<business id>.mp4`, `"biz"` set in `clips.json`): its local on a painted backdrop, their line word by word, a blip voice and a KDU coin burst. They are made by `scripts/clip-cards/` (see its README). A live-action clip with the same `biz` can sit beside or replace one.
+Every business has its own 6 second delivery clip (`public/clips/<business id>.mp4`, `"biz"` set in `clips.json`): its local on a painted backdrop, their line word by word, a blip voice and a KDU coin burst. They are made by `scripts/clip-cards/` (see its README). A live-action clip with the same `biz` can sit beside or replace one.
