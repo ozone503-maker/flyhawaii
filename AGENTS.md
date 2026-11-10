@@ -29,6 +29,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/shift.js` | FlashTown takeoff pad, near-HQ test, homecoming payout |
 | `src/rings.js` | KDU ring tiers and values, fly-through test, streaks, chains, placement math. `RINGS_ENABLED` (currently false) parks the feature |
 | `src/ring-field.js` | KDU rings in the 3D world: pooled instanced meshes, spawning, respawns, bursts. No-op when `RINGS_ENABLED` is false |
+| `src/daylight.js` | Time of day: Hawaiʻi hour, sun position, sky, light and fog colors by sun height. Pure |
+| `src/daylight3d.js` | Applies the time of day: sun or moon light, sky, fog, stars, moon, the shared shader tint (`src/world-light.js`) |
 | `src/sky-ocean.js` | Sky dome with horizon haze, ocean colored by real depth with surf, instanced trade-wind clouds and the fly-through white-out |
 | `src/clouds.js` | Where clouds go (windward band, Kona afternoon clouds, Kohala cap, sea cumulus) and cloud density at a point. Pure |
 | `src/landmarks3d.js` | Kīlauea lava glow and vog plume, Mauna Kea snow and observatories, waterfall ribbons, town buildings (instanced) |
@@ -138,6 +140,7 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
   - No English words on buttons. Use glyphs from the SVG sprite in `index.html` (add new `<symbol id="g-...">` entries) and keep English in `aria-label` and `title` for accessibility
   - No round buttons. Use shards, hexagons, chevrons and clipped-corner panels with scanlines and a glow in the pilot's color
   - Numbers on readouts are fine
+- Time of day follows the real clock in Hawaiʻi by default. `T` or the sun glyph in the pause menu cycles Live, Day, Sunset and Night (saved in `fh_time`); `?time=21` forces an hour for testing
 - Every keyboard shortcut must keep working; touch must keep working on phones
 
 ## Style rules

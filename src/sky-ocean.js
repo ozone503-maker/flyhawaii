@@ -3,6 +3,7 @@
 // real bathymetry, surf along the shore, and trade-wind clouds you can fly through.
 import * as THREE from 'three';
 import { placeClouds, cloudDensityAt } from './clouds.js';
+import { WORLD_TINT, SUN_COLOR } from './world-light.js';
 
 export const HORIZON = new THREE.Color(0xb9dcf2);
 const ZENITH = new THREE.Color(0x1f6fc4);
@@ -12,13 +13,16 @@ const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-re
 export function createSky(scene, sunDir) {
   const m = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { zenith: { value: ZENITH }, horizon: { value: HORIZON }, sunDir: { value: sunDir.clone().normalize() } },
+    uniforms: { zenith: { value: ZENITH }, horizon: { value: HORIZON }, sunDir: { value: sunDir.clone().normalize() }, uSunCol: SUN_COLOR,
+      moonDir: { value: new THREE.Vector3(-0.45, 0.75, 0.35).normalize() }, uMoon: { value: 0 } },
     vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: `uniform vec3 zenith; uniform vec3 horizon; uniform vec3 sunDir; varying vec3 vP;
+    fragmentShader: `uniform vec3 zenith; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 uSunCol; uniform vec3 moonDir; uniform float uMoon; varying vec3 vP;
       void main(){ vec3 d = normalize(vP); float h = max(d.y, 0.0);
         vec3 c = mix(horizon, zenith, pow(smoothstep(0.0, 0.75, h), 0.65));
         float s = max(dot(d, sunDir), 0.0);
-        c += vec3(1.0, 0.93, 0.78) * (pow(s, 600.0) * 2.5 + pow(s, 12.0) * 0.18);
+        c += uSunCol * (pow(s, 1800.0) * 3.0 + pow(s, 40.0) * 0.25 + pow(s, 6.0) * 0.08);
+        float mo = max(dot(d, moonDir), 0.0);
+        c += vec3(0.85, 0.9, 1.0) * uMoon * (smoothstep(0.99955, 0.9997, mo) * 1.2 + pow(mo, 60.0) * 0.12);
         gl_FragColor = vec4(c, 1.0); }`,
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(3500, 32, 16), m);
@@ -42,7 +46,7 @@ export function createOcean(scene, { H, N, SIZE, sunDir }) {
     uDepth: { value: null }, uSize: { value: SIZE }, uTime: { value: 0 },
     uSun: { value: sunDir.clone().normalize() }, uHorizon: { value: HORIZON.clone() },
   }]);
-  uniforms.uDepth.value = depth;
+  uniforms.uDepth.value = depth; uniforms.uTint = WORLD_TINT; uniforms.uSunCol = SUN_COLOR;
   const mat = new THREE.ShaderMaterial({
     uniforms, fog: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2,
     vertexShader: `#include <fog_pars_vertex>
@@ -52,7 +56,7 @@ export function createOcean(scene, { H, N, SIZE, sunDir }) {
         #include <fog_vertex>
       }`,
     fragmentShader: `#include <fog_pars_fragment>
-      uniform sampler2D uDepth; uniform float uSize, uTime; uniform vec3 uSun, uHorizon; varying vec3 vW;
+      uniform sampler2D uDepth; uniform float uSize, uTime; uniform vec3 uSun, uHorizon, uTint, uSunCol; varying vec3 vW;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float vn(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
         return mix(mix(hash(i), hash(i+vec2(1,0)), u.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y); }
@@ -70,6 +74,7 @@ export function createOcean(scene, { H, N, SIZE, sunDir }) {
         float band = 0.5 + 0.5 * sin(dm * 1.6 - uTime * 1.4 + n * 5.0);
         float foam = smoothstep(3.5, 0.8, dm) * smoothstep(0.65, 0.95, band) * 0.35 + smoothstep(0.6, 0.1, dm) * 0.45;
         c = mix(c, vec3(0.95, 0.98, 1.0), clamp(foam, 0.0, 1.0));
+        c *= uTint;
         // ripples, sky reflection and sun glints
         float e = 0.15, w0 = waves(vW.xz), wx = waves(vW.xz + vec2(e, 0.0)), wz = waves(vW.xz + vec2(0.0, e));
         vec3 nrm = normalize(vec3((w0 - wx) * 0.9, 1.0, (w0 - wz) * 0.9));
@@ -77,7 +82,7 @@ export function createOcean(scene, { H, N, SIZE, sunDir }) {
         float fr = pow(1.0 - max(dot(nrm, V), 0.0), 4.0);
         c = mix(c, uHorizon, fr * 0.4);
         float sp = pow(max(dot(reflect(-uSun, nrm), V), 0.0), 140.0);
-        c += vec3(1.0, 0.95, 0.85) * sp * 0.9;
+        c += uSunCol * sp * 0.9 * step(0.0, uSun.y);
         gl_FragColor = vec4(c, 1.0);
         #include <fog_fragment>
       }`,
@@ -124,7 +129,7 @@ export function createClouds(scene, { bounds, sample, unitM, isTouch, seed = 1 }
   geo.setAttribute('aVar', new THREE.InstancedBufferAttribute(vari, 1));
   geo.instanceCount = n;
   const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTex: { value: null }, uDrift: { value: new THREE.Vector3() } }]);
-  uniforms.uTex.value = puffTexture();
+  uniforms.uTex.value = puffTexture(); uniforms.uTint = WORLD_TINT;
   const mat = new THREE.ShaderMaterial({
     uniforms, fog: true, transparent: true, depthWrite: false,
     vertexShader: `#include <fog_pars_vertex>
@@ -141,12 +146,12 @@ export function createClouds(scene, { bounds, sample, unitM, isTouch, seed = 1 }
         #include <fog_vertex>
       }`,
     fragmentShader: `#include <fog_pars_fragment>
-      uniform sampler2D uTex; varying vec2 vUv; varying float vShade, vFade;
+      uniform sampler2D uTex; uniform vec3 uTint; varying vec2 vUv; varying float vShade, vFade;
       void main(){
         float a = texture2D(uTex, vUv).r * vFade;
         if (a < 0.01) discard;
         vec3 c = mix(vec3(0.62, 0.68, 0.78), vec3(1.0, 0.99, 0.96), vShade);
-        gl_FragColor = vec4(c, min(1.0, a * 1.15));
+        gl_FragColor = vec4(c * uTint, min(1.0, a * 1.15));
         #include <fog_fragment>
       }`,
   });
