@@ -1325,7 +1325,7 @@ function startTimeTrial() {
   state.pos.set(sp.x, sp.y, sp.z); state.yaw = sp.yaw; state.speed = 0; state.vy = 0; state.vel.set(0, 0, 0);
   tt.start(); ttHud(clock.elapsedTime);
   $('newJobBtn').textContent = 'Restart lap';
-  toast(tt.best ? `Time trial\nBest lap ${formatLap(tt.best.time)}` : 'Time trial\nFly through the gold gate');
+  toast(tt.best ? `Time trial\nBest lap ${formatLap(tt.best.time)}` : 'Time trial\nTouch the gold gate');
 }
 function ttHud(t) {
   const h = tt.hud(t);

@@ -147,7 +147,7 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
   - No English words on buttons. Use glyphs from the SVG sprite in `index.html` (add new `<symbol id="g-...">` entries) and keep English in `aria-label` and `title` for accessibility
   - No round buttons. Use shards, hexagons, chevrons and clipped-corner panels with scanlines and a glow in the pilot's color
   - Numbers on readouts are fine
-- Two modes on the start screen (saved in `fh_mode`, `?mode=tt` for testing): Deliveries, and Time trial: one lap of the island through 73 hex gates about 1.4 km offshore, starting and finishing at the gold gate off Hilo Bay. Gates must be passed in order. A lap pays 40 KDU, a new best 100 KDU, and the best lap's ghost races you
+- Two modes on the start screen (saved in `fh_mode`, `?mode=tt` for testing): Deliveries, and Time trial: one lap of the island through 73 hex gates about 1.4 km offshore, starting and finishing at the gold gate off Hilo Bay. Gates must be touched in order (touching the ring counts, no need to thread the middle). A lap pays 40 KDU, a new best 100 KDU, and the best lap's ghost races you
 - Time of day follows the real clock in Hawaiʻi by default. `T` or the sun glyph in the pause menu cycles Live, Day, Sunset and Night (saved in `fh_time`); `?time=21` forces an hour for testing
 - Every keyboard shortcut must keep working; touch must keep working on phones
 

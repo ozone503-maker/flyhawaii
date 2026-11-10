@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { decodeHeightPng } from '../src/height-png.js';
-import { traceCourse, makeGates, nearestIndex, formatLap, encodeGhost, ghostAt, GATE_SPACING_U } from '../src/time-trial.js';
+import { traceCourse, makeGates, nearestIndex, formatLap, encodeGhost, ghostAt, touchesGate, GATE_SPACING_U } from '../src/time-trial.js';
 import { crossRing } from '../src/rings.js';
 
 const meta = JSON.parse(readFileSync(new URL('../public/terrain/meta.json', import.meta.url)));
@@ -37,6 +37,15 @@ test('gates face along the course and can be flown through', () => {
   const g = gates[3];
   const p0 = { x: g.c.x - g.n.x * 2, y: g.c.y, z: g.c.z - g.n.z * 2 }, p1 = { x: g.c.x + g.n.x * 2, y: g.c.y, z: g.c.z + g.n.z * 2 };
   assert.ok(crossRing(g, p0, p1) >= 0);
+  // touching counts: skim past the edge of the ring without going through the middle
+  const side = { x: -g.n.z, z: g.n.x }, edge = g.r + 0.8;
+  const q0 = { x: g.c.x + side.x * edge - g.n.x * 3, y: g.c.y, z: g.c.z + side.z * edge - g.n.z * 3 };
+  const q1 = { x: g.c.x + side.x * edge + g.n.x * 3, y: g.c.y, z: g.c.z + side.z * edge + g.n.z * 3 };
+  assert.equal(crossRing(g, q0, q1), -1);
+  assert.ok(touchesGate(g, q0, q1));
+  // well clear of it does not
+  const far = g.r + 5;
+  assert.ok(!touchesGate(g, { x: g.c.x + side.x * far, y: g.c.y, z: g.c.z + side.z * far }, { x: g.c.x + side.x * far + g.n.x, y: g.c.y, z: g.c.z + side.z * far + g.n.z }));
 });
 
 test('lap times and ghosts', () => {
