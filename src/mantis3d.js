@@ -76,7 +76,8 @@ export function createCombat(ctx) {
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x38ffd2, fog: false });
   const eyeGeo = new THREE.SphereGeometry(0.05, 10, 8);
   const eyeGlowMat = new THREE.SpriteMaterial({ map: flashTexture('#38ffd2'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
-  const SIZE = 2.6; // about 260 m: bigger than the saucer, menacing
+  const SIZE = 3.4; // about 340 m: bigger than the saucer, menacing and easy to spot
+  const markMat = new THREE.SpriteMaterial({ map: flashTexture('#38ffd2'), color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false, fog: false });
   const pool = [];
   function makeMantis() {
     const g = new THREE.Group(); g.rotation.order = 'YXZ';
@@ -85,7 +86,8 @@ export function createCombat(ctx) {
     for (const s of [1, -1]) { const e = new THREE.Mesh(eyeGeo, eyeMat); e.position.set(s * 0.075, 0.27, 0.37); e.scale.set(1, 1.2, 1); g.add(e);
       const h = new THREE.Sprite(eyeGlowMat); h.position.copy(e.position); h.scale.setScalar(0.2); g.add(h); }
     g.scale.setScalar(SIZE); group.add(g);
-    return { g, wings, x: 0, y: 0, z: 0, v: { x: 0, y: 0, z: 0 }, hp: 0, dead: true, seed: Math.random(), cool: 0, flash: 0 };
+    const mark = new THREE.Sprite(markMat); mark.scale.set(0.035, 0.035, 1); mark.renderOrder = 20; group.add(mark);
+    return { mark, g, wings, x: 0, y: 0, z: 0, v: { x: 0, y: 0, z: 0 }, hp: 0, dead: true, seed: Math.random(), cool: 0, flash: 0 };
   }
   // bolts
   const boltGeo = new THREE.CylinderGeometry(0.07, 0.07, 1.6, 6).rotateX(Math.PI / 2);
@@ -118,8 +120,11 @@ export function createCombat(ctx) {
       Object.assign(m, { x: p.x, y: S.town.y + 8 + Math.random() * 6, z: p.z, hp: MANTIS.hp, dead: false, speed: spec.speed * (0.9 + Math.random() * 0.2), fireEvery: spec.fireEvery, cool: Math.random() * spec.fireEvery, seed: Math.random() });
       m.v = { x: (S.town.x - p.x) * 0.01, y: 0, z: (S.town.z - p.z) * 0.01 }; m.g.visible = true;
     });
-    for (let i = spots.length; i < pool.length; i++) { pool[i].dead = true; pool[i].g.visible = false; }
-    events.push({ type: 'wave', wave: n, town: S.town.name, count: spec.count });
+    for (let i = spots.length; i < pool.length; i++) { pool[i].dead = true; pool[i].g.visible = false; pool[i].mark.visible = false; }
+    const ang = Math.atan2(-(spots[0].z - S.town.z), spots[0].x - S.town.x); // 0 = east, counterclockwise
+    const dirs = ['east', 'northeast', 'north', 'northwest', 'west', 'southwest', 'south', 'southeast'];
+    const from = dirs[((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8];
+    events.push({ type: 'wave', wave: n, town: S.town.name, count: spec.count, from });
   }
   const alive = () => pool.filter((m) => !m.dead);
   const tmpDir = new THREE.Vector3();
@@ -147,11 +152,11 @@ export function createCombat(ctx) {
       // mantises
       for (const m of pool) {
         if (m.dead) continue;
-        const { goal, mode } = mantisGoal(m, S.town, pos, tt);
+        const { goal, mode } = mantisGoal(m, S.town, pos, tt, aim);
         m.v = steer(m.v, m, goal, m.speed * (mode === 'fight' ? 0.9 : 1), MANTIS.turn, dt);
         m.x += m.v.x * dt; m.y += m.v.y * dt; m.z += m.v.z * dt;
         m.y = Math.max(m.y, groundY(m.x, m.z) + 2.5);
-        m.g.position.set(m.x, m.y, m.z);
+        m.g.position.set(m.x, m.y, m.z); m.mark.position.set(m.x, m.y + SIZE * 0.5, m.z); m.mark.visible = true;
         const h = Math.atan2(m.v.x, m.v.z), fl = Math.hypot(m.v.x, m.v.z);
         m.g.rotation.set(-Math.atan2(m.v.y, fl) * 0.6, h, Math.sin(tt * 2 + m.seed * 9) * 0.15);
         const flap = Math.sin(tt * 26 + m.seed * 20) * 0.5;
@@ -186,7 +191,7 @@ export function createCombat(ctx) {
             if (m.dead || segPointDist(a, b, m) > MANTIS.radius) continue;
             b.life = 0; m.hp -= 1;
             if (m.hp <= 0) {
-              m.dead = true; m.g.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, 1.4);
+              m.dead = true; m.g.visible = false; m.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(m.x, m.y, m.z, 1.4);
               events.push({ type: 'kill', bounty: MANTIS.bounty });
             } else { boom(b.x, b.y, b.z, 0.4); events.push({ type: 'hit' }); }
             break;
