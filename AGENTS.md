@@ -45,7 +45,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/trees.js` | Which tree grows where from the imagery, deterministic trees per cell. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
-| `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |
+| `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips, plus place sounds (surf, high wind, crater rumble, rain, birdsong, coquí). No sample files |
+| `src/ambience.js` | How loud each place sound is for where the saucer is. Pure |
 | `src/camera-mode.js` | Chase and cockpit camera positions |
 | `src/flight-speed.js` | Shared flight speeds and easing |
 | `src/ships.js`, `src/pilot-head.js` | The disc ship and the back-of-head pilot models |

@@ -23,7 +23,7 @@ function makeStars(isTouch) {
 export function createDaylight(ctx) {
   const { scene, renderer, sun, hemi, sky } = ctx;
   const stars = makeStars(ctx.isTouch); sky.add(stars);
-  let mode = TIME_MODES.includes(ctx.mode) ? ctx.mode : 'live', lastHour = -1, lastApply = -99;
+  let mode = TIME_MODES.includes(ctx.mode) ? ctx.mode : 'live', lastHour = -1, lastApply = -99, lastLook = null;
   const dir = new THREE.Vector3(), col = new THREE.Color();
 
   function apply(hour) {
@@ -43,13 +43,15 @@ export function createDaylight(ctx) {
     if (ou) { ou.uHorizon.value.setRGB(...L.horizon); ou.uSun.value.copy(L.night ? MOON_DIR : dir); }
     stars.material.opacity = L.stars; stars.visible = L.stars > 0.01; u.uMoon.value = L.stars; u.moonDir.value.copy(MOON_DIR);
     ctx.landmarks?.setNight(L.lights, WORLD_TINT.value);
-    lastHour = hour;
+    lastHour = hour; lastLook = L;
     return L;
   }
 
   return {
     get mode() { return mode; },
     get hour() { return lastHour; },
+    /** the last sky look: night, stars (0..1) and so on */
+    get look() { return lastLook; },
     setMode(m) { mode = TIME_MODES.includes(m) ? m : 'live'; apply(hourFor(mode)); return mode; },
     setHour(h) { mode = 'fixed'; apply(h); },
     /** live mode re-checks the clock every few seconds */
