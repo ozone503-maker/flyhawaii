@@ -10,7 +10,21 @@
       "lon": -155.098468,
       "sponsor": false,
       "packageHint": "a crate of KDU tokens",
-      "source": "Jessie's Google Maps pin, 2026-11-09"
+      "source": "Jessie's Google Maps pin, 2026-11-09",
+      "local": {
+        "name": "Noa",
+        "portrait": "farmhand.webp",
+        "lines": [
+          "Ho, the cats been waiting on this!",
+          "Mahalo, you made it up the hill.",
+          "Here, Kudokens for you."
+        ]
+      },
+      "packages": [
+        "a crate of fresh lilikoʻi",
+        "a box of FlashTown berries",
+        "a sack of cat food"
+      ]
     },
     {
       "id": "kona-farmers-market",
@@ -51,7 +65,16 @@
       "website": "https://www.konacommons.com/",
       "hours": "Store hours vary, about 8am to 10pm",
       "sponsor": false,
-      "source": "https://www.openstreetmap.org/way/198255842"
+      "source": "https://www.openstreetmap.org/way/198255842",
+      "local": {
+        "name": "DJ Koa",
+        "portrait": "dj.webp",
+        "lines": [
+          "Just in time for the drop!",
+          "Mahalo, the crowd going love this.",
+          "Kudokens for you, keep it moving."
+        ]
+      }
     },
     {
       "id": "keauhou-shopping-center",
@@ -64,7 +87,16 @@
       "website": "https://keauhoushoppingcenter.com/",
       "hours": "Keauhou Farmers Market here Saturdays 8am to noon",
       "sponsor": false,
-      "source": "https://www.openstreetmap.org/way/439439001"
+      "source": "https://www.openstreetmap.org/way/439439001",
+      "local": {
+        "name": "Keala",
+        "portrait": "shave-ice-kid.webp",
+        "lines": [
+          "Yay, more syrup!",
+          "Now everybody can get rainbow. Mahalo!",
+          "Here, Kudokens!"
+        ]
+      }
     },
     {
       "id": "volcano-farmers-market",
@@ -77,7 +109,16 @@
       "hours": "Sundays 6am to 10am",
       "sponsor": false,
       "packageHint": "a box of fresh-baked bread",
-      "source": "https://www.openstreetmap.org/node/5457818036"
+      "source": "https://www.openstreetmap.org/node/5457818036",
+      "local": {
+        "name": "Aunty Lehua",
+        "portrait": "beekeeper.webp",
+        "lines": [
+          "Oh, my ʻōhiʻa honey jars!",
+          "Not one cracked, mahalo dear.",
+          "Kudokens for you."
+        ]
+      }
     },
     {
       "id": "kilauea-lodge",
@@ -90,7 +131,16 @@
       "website": "https://www.kilauealodge.com/restaurant/",
       "hours": "Dinner daily 5pm to 8pm",
       "sponsor": false,
-      "source": "https://www.openstreetmap.org/way/591402607"
+      "source": "https://www.openstreetmap.org/way/591402607",
+      "local": {
+        "name": "Chef Ikaika",
+        "portrait": "shrimp-cook.webp",
+        "lines": [
+          "Kitchen saved, brah!",
+          "Dinner service starts in ten. Mahalo!",
+          "Take these Kudokens."
+        ]
+      }
     },
     {
       "id": "hilo-farmers-market",
@@ -234,7 +284,7 @@
         "a sack of pancake flour"
       ],
       "local": {
-        "name": "Auntie Rose",
+        "name": "Uncle Ray",
         "portrait": "baker.webp",
         "lines": [
           "Breakfast rush saved! Mahalo, sweetheart.",
@@ -309,7 +359,7 @@
         "a case of Kona coffee"
       ],
       "local": {
-        "name": "Kawika",
+        "name": "Kaila",
         "portrait": "surfer.webp",
         "lines": [
           "Right on time for sunset, braddah.",
