@@ -1367,7 +1367,7 @@ function defendHud() {
   const S = combat.state, left = combat.mantises.length;
   $('mission').className = 'defend';
   $('missionStep').textContent = `Wave ${S.wave}`;
-  $('missionTarget').textContent = S.between ? `Wave ${S.wave} done` : S.runner && !S.runner.dead ? 'Catch the runner!' : `Defend ${S.town?.name || ''}  ${left} left`;
+  $('missionTarget').textContent = S.between ? `Wave ${S.wave} done` : S.runner && !S.runner.dead ? `Catch the runner!  ${S.escT.toFixed(1)} s` : `Defend ${S.town?.name || ''}  ${left} left`;
   $('cargo').textContent = `Town ${Math.round(S.townHP)}%  Shield ${Math.round(S.shield)}%`;
 }
 const _aim = new THREE.Vector3();
@@ -1381,9 +1381,8 @@ function defendStep(dt, t) {
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
     else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
     else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nChase it down'); }
-    else if (e.type === 'caught') { addTokens(e.bonus); toast(`Caught the runner!\n+${e.bonus} KDU`); }
-    else if (e.type === 'escaped') toast('The runner got away');
-    else if (e.type === 'cleared') { if (!e.escaped) gameAudio.complete(); addTokens(e.bonus); setTimeout(() => toast(`Wave ${e.wave} ${e.escaped ? 'over' : 'cleared'}\n+${e.bonus} KDU`), 1900); }
+    else if (e.type === 'caught') { addTokens(e.bonus); toast(`Caught in ${e.secs.toFixed(1)} s!\n+${e.bonus} KDU${e.streak > 1 ? `  streak x${e.streak}` : ''}`); }
+    else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); setTimeout(() => toast(`Wave ${e.wave} cleared\n+${e.bonus} KDU`), 1900); }
     else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
   }
   defendHud();
