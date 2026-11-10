@@ -14,6 +14,7 @@ import { Attractions } from './attractions.js';
 import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
 import { createSky, createOcean, createClouds } from './sky-ocean.js';
 import { createLandmarks, addSnow, SNOW_LINE_M } from './landmarks3d.js';
+import { createTreeField } from './tree-field.js';
 import { normalizeDestinations } from './destinations.js';
 import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { createRingField } from './ring-field.js';
@@ -82,7 +83,7 @@ scene.add(new THREE.HemisphereLight(0xdcefff, 0x4a5a40, 1.5));
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -1136,7 +1137,7 @@ function frame() {
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
   }
   if (state.running) drawWave(t);
-  ocean?.update(t); landmarks3d?.update(t);
+  ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t);
   if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
   renderer.render(scene, camera);
 }
@@ -1168,8 +1169,11 @@ async function boot() {
   ocean = createOcean(scene, { H, N, SIZE, sunDir: sun.position });
   clouds = createClouds(scene, { bounds: { x0: -SIZE / 2, x1: SIZE / 2, z0: -SIZE / 2, z1: SIZE / 2 },
     sample: (x, z) => ({ ...fromWorld(x, z), groundM: elevM(x, z) }), unitM: UNIT_M / VEXAG, isTouch });
-  landmarks3d = createLandmarks({ scene, toWorld, groundY, elevM, unitM: UNIT_M, vex: VEXAG, isTouch, colorCanvas, size: SIZE,
+  const img = colorCanvas.getContext('2d').getImageData(0, 0, colorCanvas.width, colorCanvas.height).data, cw = colorCanvas.width;
+  const rgbAt = (x, z) => { const i = Math.max(0, Math.min(cw - 1, Math.floor((x / SIZE + 0.5) * cw))), j = Math.max(0, Math.min(cw - 1, Math.floor((z / SIZE + 0.5) * cw))), k = (j * cw + i) * 4; return [img[k], img[k + 1], img[k + 2]]; };
+  landmarks3d = createLandmarks({ scene, toWorld, groundY, elevM, unitM: UNIT_M, vex: VEXAG, isTouch, rgbAt, size: SIZE,
     falls: water?.falls || [], sunDir: sun.position });
+  trees = createTreeField({ scene, groundY, rgbAt, elevM, lonAt: (x) => fromWorld(x, 0).lon, unitM: UNIT_M, isTouch });
   cloudVeil = document.createElement('div'); cloudVeil.className = 'cloud-veil'; canvas.after(cloudVeil);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
   try { drawMinimap(); } catch { /* HUD may not be mounted yet */ }
@@ -1192,7 +1196,7 @@ async function boot() {
   if (manifest && !params.has('nochunks')) {
     const ring = Number(params.get('ring') || 2);
     streamer = new ChunkStreamer({ scene, manifest, world: { toWorld }, water, ring, unitM: UNIT_M / VEXAG,
-      maxAniso: renderer.capabilities.getMaxAnisotropy(), onLoad: () => { reseat(); landmarks3d?.reseat(); },
+      maxAniso: renderer.capabilities.getMaxAnisotropy(), onLoad: () => { reseat(); landmarks3d?.reseat(); trees?.reseat(); },
       patchMaterial: (m) => addSnow(m, SNOW_LINE_M / UNIT_M * VEXAG) });
   }
   // start near Hilo airport, facing west toward Mauna Kea
@@ -1202,7 +1206,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

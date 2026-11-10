@@ -31,6 +31,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/clouds.js` | Where clouds go (windward band, Kona afternoon clouds, Kohala cap, sea cumulus) and cloud density at a point. Pure |
 | `src/landmarks3d.js` | Kīlauea lava glow and vog plume, Mauna Kea snow and observatories, waterfall ribbons, town buildings (instanced) |
 | `src/landmarks.js` | Town areas, observatory and crater coordinates, waterfall heights, building placement. Pure |
+| `src/tree-field.js` | Forest, coconut palms and kiawe around the saucer (instanced, refilled as you fly) |
+| `src/trees.js` | Which tree grows where from the imagery, deterministic trees per cell. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |
