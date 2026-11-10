@@ -1,6 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RING_TIERS, pickTier, crossRing, ringReward, nextStreak, chainBonus, headingNormal, ringsAlong, chainSpots, COMBO_CAP } from '../src/rings.js';
+import { RINGS_ENABLED, RING_TIERS, pickTier, crossRing, ringReward, nextStreak, chainBonus, headingNormal, ringsAlong, chainSpots, COMBO_CAP } from '../src/rings.js';
+import { createRingField } from '../src/ring-field.js';
+
+test('fly-through rings are parked behind RINGS_ENABLED and cost nothing while off', () => {
+  assert.equal(RINGS_ENABLED, false, 'flip this test when bringing rings back');
+  const added = [];
+  const scene = { add(...objs) { added.push(...objs); } };
+  const field = createRingField(scene, { groundAt: () => 0, randomSpot: () => ({ x: 0, y: 5, z: 0 }), rand: () => 0.5 });
+  field.populate();
+  field.seedRoute([{ x: 0, z: 0 }, { x: 200, z: 0 }]);
+  const hits = field.update(0.016, 1, { x: 0, y: 5, z: 0 }, { x: 1, y: 5, z: 0 }, 0, { collect: true });
+  assert.equal(added.length, 0, 'no meshes added to the scene');
+  assert.equal(field.rings.length, 0);
+  assert.equal(field.streak, 0);
+  assert.deepEqual(hits, []);
+  field.clearRoute();
+});
+
 
 const ring = { c: { x: 0, y: 10, z: 0 }, n: { x: 0, y: 0, z: 1 }, r: 2 };
 const P = (x, y, z) => ({ x, y, z });

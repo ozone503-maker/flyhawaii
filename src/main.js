@@ -15,7 +15,7 @@ import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
 import { normalizeDestinations } from './destinations.js';
 import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { createRingField } from './ring-field.js';
-import { RING_TIERS } from './rings.js';
+import { RING_TIERS, RINGS_ENABLED } from './rings.js';
 import bundledDestinations from '../public/destinations/destinations.json';
 
 // ---------- constants ----------
@@ -1187,8 +1187,10 @@ async function boot() {
   // Landmark names live on the photo-sign captions and the discovery toast, not giant floating banners or white poles.
   for (const lm of LANDMARKS) snapPeak(lm);
   window.__landmarks = LANDMARKS;
-  ringField = createRingField(scene, { groundAt: groundY, randomSpot: randomRingSpot, maxY: 62 });
-  ringField.populate();
+  if (RINGS_ENABLED) {
+    ringField = createRingField(scene, { groundAt: groundY, randomSpot: randomRingSpot, maxY: 62 });
+    ringField.populate();
+  }
   attractions = new Attractions({ list: attrList, fromWorld, toWorld, haversineKm, groundY, scene, camera,
     onDiscover: (a, bonus) => { addTokens(bonus); discoverNote(a, bonus); } });
   if (manifest && !params.has('nochunks')) {

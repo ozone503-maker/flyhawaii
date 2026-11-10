@@ -25,8 +25,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/arrival-fx.js` | Procedural 3D effects for arrival scenes: tractor beam, package, hex rings, sparkle burst |
 | `src/destinations.js` | Destination list validation, packages by kind |
 | `src/job-offers.js` | The job board: four offers, pay formula, ETA, reroll avoidance |
-| `src/rings.js` | KDU ring tiers and values, fly-through (plane crossing) test, streaks, chains, ring placement math |
-| `src/ring-field.js` | KDU rings in the 3D world: pooled instanced meshes, spawning, respawns, bursts |
+| `src/rings.js` | KDU ring tiers and values, fly-through test, streaks, chains, placement math. `RINGS_ENABLED` (currently false) parks the feature |
+| `src/ring-field.js` | KDU rings in the 3D world: pooled instanced meshes, spawning, respawns, bursts. No-op when `RINGS_ENABLED` is false |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |
@@ -110,7 +110,7 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
 ## Game rules (do not change without Jessie)
 
 - Jobs come from a gig-style board: after the start and after every delivery the player picks one of four offers (keys 1 to 4 or tap). `R` or the hex button rerolls, with a cooldown. Pay = 15 + 1.6 KDU per km of delivery leg + 0.6 per km to reach the pickup, times Rush (1.3) or Fragile (1.15), plus or minus up to 8%, rounded to 5. A speed bonus is still added on delivery
-- KDU rings replace the old floating 1 KDU tokens. You must fly through the middle (crossing the ring plane inside its radius). Tiers: blue 5 (biggest, common), green 10, gold 25, prismatic 50 (smallest, rare). Rings in a quick streak add +2 each (max +20); clearing a whole chain adds 10 per ring
+- KDU fly-through rings are parked (`RINGS_ENABLED = false` in `src/rings.js`) until collection feels right. Do not bring back the old floating 1 KDU tokens. When the flag is on: fly through the middle (crossing the ring plane inside its radius). Tiers: blue 5 (biggest, common), green 10, gold 25, prismatic 50 (smallest, rare). Rings in a quick streak add +2 each (max +20); clearing a whole chain adds 10 per ring
 
 - True scale: 1 world unit = 100 m on every axis. Real coordinates, real elevation data
 - All three pilots fly the same classic disc ship with the same flight behavior. Only colors differ:

@@ -1,6 +1,10 @@
 // KDU fly-through rings. Pure helpers (no three.js) so they can be unit tested.
 // World units: 1 unit = 100 m. Radii are in world units.
 
+// Parked until collection feels right. Flip to true to bring rings back.
+// When false, nothing spawns, renders, or runs per-frame, and the old 1 KDU tokens stay gone.
+export const RINGS_ENABLED = false;
+
 // Big easy rings pay a little, small rare ones pay a lot.
 export const RING_TIERS = [
   { id: 'blue',  value: 5,  radius: 2.6, weight: 52, color: 0x1ec8ff, glow: 0x0a6cff, label: 'KDU' },

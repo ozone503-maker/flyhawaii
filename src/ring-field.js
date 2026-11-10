@@ -1,7 +1,7 @@
 // KDU fly-through rings in the 3D world: pooled instanced meshes per tier,
 // spin and bob, plane-crossing pickup, combos, chains, respawns and bursts.
 import * as THREE from 'three';
-import { RING_TIERS, pickTier, crossRing, ringReward, nextStreak, chainBonus, ringsAlong, chainSpots } from './rings.js';
+import { RINGS_ENABLED, RING_TIERS, pickTier, crossRing, ringReward, nextStreak, chainBonus, ringsAlong, chainSpots } from './rings.js';
 
 const SCATTER = 46;          // rings spread around the island
 const ROUTE_MAX = 22;        // rings along the current job legs
@@ -12,7 +12,18 @@ const RESPAWN = [22, 40];    // seconds before a collected ring comes back elsew
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const _c = new THREE.Color();
 
+const DISABLED_FIELD = {
+  get rings() { return []; },
+  get streak() { return 0; },
+  populate() {},
+  seedRoute() {},
+  clearRoute() {},
+  update() { return []; },
+};
+
 export function createRingField(scene, { groundAt, randomSpot, maxY = 60, rand = Math.random }) {
+  if (!RINGS_ENABLED) return DISABLED_FIELD;
+
   const tiers = RING_TIERS.map((tier) => {
     const core = new THREE.InstancedMesh(new THREE.TorusGeometry(1, 0.085, 4, 6),
       new THREE.MeshBasicMaterial({ color: tier.prismatic ? 0xffffff : tier.color, toneMapped: false }), PER_TIER);

@@ -30,7 +30,7 @@ Phone testing on your network: `npm run dev -- --host 0.0.0.0`, then open the sh
 - Music: M toggles, `,` and `.` change track
 - Touch: left thumb anywhere on the left half is the flight pad, right side has climb, descend and boost pads
 - Jobs: pick one of four offers on the job board with 1 to 4 (or tap a card); R or the hex button rerolls the offers after a short cooldown
-- KDU rings: fly through the middle of a ring to collect it. Blue 5, green 10, gold 25, prismatic 50. Quick streaks and full chains pay extra
+- KDU: earn it from deliveries and discoveries. Fly-through rings are parked for now (set `RINGS_ENABLED` in `src/rings.js` to bring them back). The old floating 1 KDU tokens stay gone
 - Deliveries: hover low and slow inside the amber beacon to beam a package up, then inside the green beacon to drop it off. Arrival scenes play after each pickup and delivery; any key or tap skips them
 
 ## Handy URL options
