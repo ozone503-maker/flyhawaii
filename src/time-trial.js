@@ -7,6 +7,14 @@ export const GATE_OFFSHORE_U = 14; // about 1.4 km off the coast
 export const GATE_ALT_U = 2.2;     // about 220 m above the sea
 export const GATE_RADIUS_U = 3.2;  // a 640 m wide hex ring: room for a 200 m saucer at speed
 export const GHOST_HZ = 4;
+export const TOUCH_PAD_U = 1.2;    // the saucer's own size: brushing the ring counts
+
+/** Did the saucer's move p0 -> p1 touch the gate (anywhere inside or on its ring)? */
+export function touchesGate(gate, p0, p1, pad = TOUCH_PAD_U) {
+  const a = p0, c = gate.c, vx = p1.x - a.x, vy = p1.y - a.y, vz = p1.z - a.z, L2 = vx * vx + vy * vy + vz * vz;
+  const u = L2 ? Math.max(0, Math.min(1, ((c.x - a.x) * vx + (c.y - a.y) * vy + (c.z - a.z) * vz) / L2)) : 0;
+  return Math.hypot(a.x + vx * u - c.x, a.y + vy * u - c.y, a.z + vz * u - c.z) <= gate.r + pad;
+}
 
 /**
  * Traces a closed loop around the island just offshore. elevM(x, z) gives meters (negative at

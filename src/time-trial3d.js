@@ -1,8 +1,7 @@
 // Time trial in the world: hex gates around the coast, lap timer, best lap and a ghost saucer
 // that replays your best run. Course math lives in time-trial.js.
 import * as THREE from 'three';
-import { crossRing } from './rings.js';
-import { traceCourse, makeGates, nearestIndex, formatLap, encodeGhost, ghostAt, GHOST_HZ } from './time-trial.js';
+import { traceCourse, makeGates, nearestIndex, formatLap, encodeGhost, ghostAt, touchesGate, GHOST_HZ } from './time-trial.js';
 
 const BEST_KEY = 'fh_tt_best_v1';
 const KDU = 0x1ec8ff, GOLD = 0xffc94d;
@@ -60,7 +59,7 @@ export function createTimeTrial(ctx) {
     update(dt, t, p0, p1) {
       if (!group.visible) return null;
       let ev = null;
-      if (crossRing(gates[next], p0, p1) >= 0) {
+      if (touchesGate(gates[next], p0, p1)) {
         if (next === 0) {
           if (lapStart !== null) { // finished a lap
             const time = t - lapStart; lastLap = time; laps++;
@@ -94,7 +93,7 @@ export function createTimeTrial(ctx) {
         step: running ? `Lap ${formatLap(t - lapStart)}` : 'Time trial',
         target: (next === 0 ? (running ? 'Finish gate' : 'Start gate off Hilo Bay') : `Gate ${next} of ${gates.length - 1}`) + (running ? `  ${formatLap(t - lapStart)}` : (best ? `  best ${formatLap(best.time)}` : '')),
         cargo: best ? `Best ${formatLap(best.time)}` : (lastLap ? `Last ${formatLap(lastLap)}` : 'No best yet'),
-        hint: running ? 'Fly through the glowing hex gates in order, all the way around the island' : 'Fly through the gold gate to start the clock',
+        hint: running ? 'Touch the glowing hex gates in order, all the way around the island' : 'Touch the gold gate to start the clock',
       };
     },
   };
