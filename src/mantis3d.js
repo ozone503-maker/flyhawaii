@@ -155,7 +155,9 @@ export function createCombat(ctx) {
       S.fireCool -= dt;
       const runnerUp = S.runner && !S.runner.dead;
       if (runnerUp && S.missiles > 0 && !M.live) S.lock = lockStep(S.lock, dt, pos, aim, S.runner); else if (!M.live) S.lock = 0;
-      if (firing && S.lock >= 1 && S.missiles > 0 && !M.live && runnerUp) { // locked: fire the missile
+      S.lockedT = S.lock >= 1 ? (S.lockedT || 0) + dt : 0;
+      // locked: the missile goes on fire, or by itself a moment later (on a phone your thumbs are busy steering and boosting)
+      if ((firing || S.lockedT >= LOCK.autoFire) && S.lock >= 1 && S.missiles > 0 && !M.live && runnerUp) {
         S.missiles--; S.fireCool = 0.4; S.lock = 0;
         Object.assign(M, { live: true, x: pos.x + aim.x * 1.5, y: pos.y - 0.3, z: pos.z + aim.z * 1.5, v: { x: aim.x * MISSILE.speed * 0.6, y: aim.y * MISSILE.speed * 0.6, z: aim.z * MISSILE.speed * 0.6 }, life: MISSILE.life });
         missile.visible = true; events.push({ type: 'missile' });
