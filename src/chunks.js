@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { decodeHeightPng } from './height-png.js';
 
 export class ChunkStreamer {
-  constructor({ scene, manifest, world, water, ring, maxAniso, onLoad, unitM }) {
-    this.scene = scene; this.m = manifest; this.world = world; this.ring = ring; this.onLoad = onLoad;
+  constructor({ scene, manifest, world, water, ring, maxAniso, onLoad, unitM, patchMaterial }) {
+    this.patchMaterial = patchMaterial; this.scene = scene; this.m = manifest; this.world = world; this.ring = ring; this.onLoad = onLoad;
     this.unitM = unitM; this.aniso = maxAniso;
     this.index = new Map(manifest.chunks.map(([cx, cy, nx, ny, max]) => [`${cx},${cy}`, { cx, cy, nx, ny, max }]));
     this.loaded = new Map(); this.pending = new Set(); this.failed = new Set();
@@ -118,7 +118,7 @@ export class ChunkStreamer {
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = this.aniso;
     tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    const mat = this.material.clone(); mat.map = tex;
+    const mat = this.material.clone(); mat.map = tex; this.patchMaterial?.(mat);
     const mesh = new THREE.Mesh(g, mat); mesh.name = `chunk ${c.cx},${c.cy}`;
     return mesh;
   }

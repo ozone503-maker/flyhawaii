@@ -29,6 +29,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/ring-field.js` | KDU rings in the 3D world: pooled instanced meshes, spawning, respawns, bursts. No-op when `RINGS_ENABLED` is false |
 | `src/sky-ocean.js` | Sky dome with horizon haze, ocean colored by real depth with surf, instanced trade-wind clouds and the fly-through white-out |
 | `src/clouds.js` | Where clouds go (windward band, Kona afternoon clouds, Kohala cap, sea cumulus) and cloud density at a point. Pure |
+| `src/landmarks3d.js` | Kīlauea lava glow and vog plume, Mauna Kea snow and observatories, waterfall ribbons, town buildings (instanced) |
+| `src/landmarks.js` | Town areas, observatory and crater coordinates, waterfall heights, building placement. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips. No sample files |

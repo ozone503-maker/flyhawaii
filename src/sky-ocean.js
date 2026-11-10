@@ -62,13 +62,13 @@ export function createOcean(scene, { H, N, SIZE, sunDir }) {
         float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
         float d = mix(1.0, texture2D(uDepth, clamp(uv, 0.0, 1.0)).r, inside);
         float dm = d * d * 1500.0; // depth in meters
-        vec3 c = mix(vec3(0.24, 0.74, 0.74), vec3(0.07, 0.50, 0.74), smoothstep(1.5, 14.0, dm));
+        vec3 c = mix(vec3(0.20, 0.64, 0.68), vec3(0.07, 0.48, 0.72), smoothstep(1.5, 14.0, dm));
         c = mix(c, vec3(0.04, 0.32, 0.62), smoothstep(10.0, 70.0, dm));
         c = mix(c, vec3(0.02, 0.17, 0.42), smoothstep(60.0, 700.0, dm));
         // surf: bands that roll toward the shore, strongest in the shallowest water
         float n = vn(vW.xz * 0.9);
         float band = 0.5 + 0.5 * sin(dm * 1.6 - uTime * 1.4 + n * 5.0);
-        float foam = smoothstep(9.0, 1.0, dm) * smoothstep(0.55, 0.95, band) * 0.75 + smoothstep(2.2, 0.4, dm) * 0.55;
+        float foam = smoothstep(3.5, 0.8, dm) * smoothstep(0.65, 0.95, band) * 0.35 + smoothstep(0.6, 0.1, dm) * 0.45;
         c = mix(c, vec3(0.95, 0.98, 1.0), clamp(foam, 0.0, 1.0));
         // ripples, sky reflection and sun glints
         float e = 0.15, w0 = waves(vW.xz), wx = waves(vW.xz + vec2(e, 0.0)), wz = waves(vW.xz + vec2(0.0, e));
