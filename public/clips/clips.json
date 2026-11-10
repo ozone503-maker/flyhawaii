@@ -1,3 +1,124 @@
 {
-  "clips": []
+  "clips": [
+    {
+      "id": "thanks-flashtown-hq",
+      "file": "flashtown-hq.mp4",
+      "biz": "flashtown-hq",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-kona-farmers-market",
+      "file": "kona-farmers-market.mp4",
+      "biz": "kona-farmers-market",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-kona-commons",
+      "file": "kona-commons.mp4",
+      "biz": "kona-commons",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-keauhou-shopping-center",
+      "file": "keauhou-shopping-center.mp4",
+      "biz": "keauhou-shopping-center",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-volcano-farmers-market",
+      "file": "volcano-farmers-market.mp4",
+      "biz": "volcano-farmers-market",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-kilauea-lodge",
+      "file": "kilauea-lodge.mp4",
+      "biz": "kilauea-lodge",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-hilo-farmers-market",
+      "file": "hilo-farmers-market.mp4",
+      "biz": "hilo-farmers-market",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-volcano-house",
+      "file": "volcano-house.mp4",
+      "biz": "volcano-house",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-makuu-farmers-market",
+      "file": "makuu-farmers-market.mp4",
+      "biz": "makuu-farmers-market",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-uncle-roberts-awa-club",
+      "file": "uncle-roberts-awa-club.mp4",
+      "biz": "uncle-roberts-awa-club",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-suisan-fish-market",
+      "file": "suisan-fish-market.mp4",
+      "biz": "suisan-fish-market",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-kens-house-of-pancakes",
+      "file": "kens-house-of-pancakes.mp4",
+      "biz": "kens-house-of-pancakes",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-hana-hou-restaurant",
+      "file": "hana-hou-restaurant.mp4",
+      "biz": "hana-hou-restaurant",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-bamboo-restaurant",
+      "file": "bamboo-restaurant.mp4",
+      "biz": "bamboo-restaurant",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-royal-kona-resort",
+      "file": "royal-kona-resort.mp4",
+      "biz": "royal-kona-resort",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-king-kamehamehas-kona-beach-hotel",
+      "file": "king-kamehamehas-kona-beach-hotel.mp4",
+      "biz": "king-kamehamehas-kona-beach-hotel",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-hilton-waikoloa-village",
+      "file": "hilton-waikoloa-village.mp4",
+      "biz": "hilton-waikoloa-village",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-mauna-lani",
+      "file": "mauna-lani.mp4",
+      "biz": "mauna-lani",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-mauna-kea-beach-hotel",
+      "file": "mauna-kea-beach-hotel.mp4",
+      "biz": "mauna-kea-beach-hotel",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-four-seasons-resort-hualalai",
+      "file": "four-seasons-resort-hualalai.mp4",
+      "biz": "four-seasons-resort-hualalai",
+      "when": "delivery"
+    }
+  ]
 }

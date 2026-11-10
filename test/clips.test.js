@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { normalizeClips, pickClip, shouldPlayClip } from '../src/clips.js';
 import { createCutsceneClock, cutsceneBeats, CLIP_COIN_START, CLIP_DURATION } from '../src/cutscene.js';
 import { createCdPlayer } from '../src/cd-player.js';
 
-test('shipped clip manifest is valid and empty', () => {
+test('shipped clips: every business has its own delivery clip and every file exists', () => {
   const data = JSON.parse(readFileSync(new URL('../public/clips/clips.json', import.meta.url)));
-  assert.deepEqual(normalizeClips(data), []);
+  const clips = normalizeClips(data);
+  assert.equal(clips.length, data.clips.length);
+  const dest = JSON.parse(readFileSync(new URL('../public/destinations/destinations.json', import.meta.url))).destinations;
+  const ids = new Set(dest.map((d) => d.id));
+  for (const c of clips) {
+    assert.ok(ids.has(c.biz), `${c.id}: unknown business ${c.biz}`);
+    assert.ok(existsSync(new URL(`../public${c.src}`, import.meta.url)), c.src);
+  }
+  for (const d of dest) assert.ok(clips.some((c) => c.biz === d.id), `${d.id} has no clip`);
 });
 
 test('manifest accepts an object or a bare array and builds /clips paths', () => {

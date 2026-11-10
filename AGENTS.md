@@ -38,6 +38,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `test/*.test.js` | Unit tests for the pure modules (`node --test`) |
 | `test/fixtures/clips/` | Test-only placeholder clips. Never ship them |
 | `scripts/*.py` | Headless screenshot checks (Python Playwright + Chrome): `alien-shots.py`, `cutscene-shots.py`, `clip-shots.py`, `destination-shots.py`, `rings-jobs-shots.py` |
+| `scripts/clip-cards/` | Makes the 4 second thank-you clip for each business (see its README) |
 | `scripts/add-destination.mjs` | Geocodes a business with OpenStreetMap and appends it to the destinations list |
 | `scripts/bake-*.mjs` | One-off data baking for terrain and water. Rarely needed |
 | `public/` | Static files served as is: terrain, photos, pilots, music, clips, destinations |
