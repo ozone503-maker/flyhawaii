@@ -35,6 +35,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/landmarks.js` | Town areas, observatory and crater coordinates, waterfall heights, building placement. Pure |
 | `src/aircraft3d.js` | Airliners flying circuits at Hilo and Kona, tour helicopters, near-miss warning |
 | `src/air-traffic.js` | Runway ends (FAA), circuit and helicopter tour paths, timed path sampling. Pure |
+| `src/boats3d.js` | Cruise ships, sport fishing boats and a snorkel catamaran with foamy wakes |
+| `src/sea-traffic.js` | Cruise route Hilo pier to the Kona anchorage around Upolu Point, boat routes from Honokōhau, Kawaihae and Hilo. Pure, and a test checks every leg stays at sea |
 | `src/tree-field.js` | Forest, coconut palms and kiawe around the saucer (instanced, refilled as you fly) |
 | `src/trees.js` | Which tree grows where from the imagery, deterministic trees per cell. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |
