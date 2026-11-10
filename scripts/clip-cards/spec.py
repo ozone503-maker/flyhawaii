@@ -30,7 +30,22 @@ D['snorkel-cat']={'name':'Snorkel catamaran','local':{'name':'Kanoe','portrait':
 C['cruise-ship']=("Ho, you caught us under way! Kudokens for you, sailor!",'hilo',0.5,-1,125)
 C['fishing-boat']=("Eh, right on the bite! Kudokens, fresh off the boat!",'kona',0.6,1,115)
 C['snorkel-cat']=("Aloha from the deck! Mahalo, here's Kudokens!",'puuhonua',0.4,1,260)
+# pickup clips: the local hands over the package and it beams up (5 seconds, no Kudokens)
+P={'flashtown-hq':"Fresh from the farm! Handle with aloha!",'kona-farmers-market':"Fresh off the farm! No drop um!",
+ 'kona-commons':"Rush order, the crowd stay waiting!",'keauhou-shopping-center':"Careful, no spill the syrup!",
+ 'volcano-farmers-market':"Honey's packed tight. Fly easy, dear.",'kilauea-lodge':"Still hot! Fly fast, brah!",
+ 'hilo-farmers-market':"Fresh papaya, picked this morning!",'volcano-house':"Glass inside! Fly gentle over the caldera!",
+ 'makuu-farmers-market':"Taro going to good hands. Go, go!",'uncle-roberts-awa-club':"Uncle says no stop for nobody!",
+ 'suisan-fish-market':"Keep um cold, brah! Fly safe!",'kens-house-of-pancakes':"Hot off the griddle! Hele on!",
+ 'hana-hou-restaurant':"Southernmost grinds, special delivery!",'bamboo-restaurant':"All the way from Hāwī. Take care!",
+ 'royal-kona-resort':"Guest order, make it quick!",'king-kamehamehas-kona-beach-hotel':"For the lūʻau, no be late!",
+ 'hilton-waikoloa-village':"Boats leave soon, hurry!",'mauna-lani':"Orchids inside. Fly smooth, darling.",
+ 'mauna-kea-beach-hotel':"Cargo's loaded, captain. Off you go!",'four-seasons-resort-hualalai':"Easy over the honu! Go!"}
 out=[]
+for k,cap in P.items():
+    _,bg,px,pd,pitch=C[k]; d=D[k]; l=d['local']
+    assert '—' not in cap
+    out.append(dict(id='pickup-'+k,mode='pickup',dur=5,name=l['name'],biz=d['name'],town=d.get('town',''),portrait=l['portrait'].replace('.webp',''),cap=cap,bg=bg,px=1-px,pd=-pd,pitch=pitch))
 for k,(cap,bg,px,pd,pitch) in C.items():
     d=D[k]; l=d['local']
     assert '—' not in cap

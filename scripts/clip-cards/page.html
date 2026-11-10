@@ -23,10 +23,17 @@ html,body{width:720px;height:1280px;overflow:hidden;background:#06121f;font-fami
 #tag i{display:block;font-style:normal;font-weight:650;font-size:26px;color:#9fe6ff;margin-top:4px}
 #tagline{position:absolute;left:50%;bottom:118px;height:4px;transform:translateX(-50%);background:#1ec8ff;box-shadow:0 0 14px #1ec8ff}
 .coin{position:absolute;width:84px;height:84px;left:-42px;top:-42px;color:#1ec8ff;filter:drop-shadow(0 0 8px #1ec8ff) drop-shadow(0 0 20px rgba(30,200,255,.85))}
+#beam{position:absolute;left:50%;top:-40px;width:300px;height:980px;transform:translateX(-50%);opacity:0;
+ background:linear-gradient(90deg,rgba(30,200,255,0),rgba(140,230,255,.55) 30%,rgba(220,250,255,.75) 50%,rgba(140,230,255,.55) 70%,rgba(30,200,255,0));
+ clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);filter:blur(1px)}
+#pkg{position:absolute;left:0;top:0;width:150px;height:118px;opacity:0;transform-origin:50% 50%}
+#pkg .f{position:absolute;inset:0;background:linear-gradient(160deg,#d9a866,#b98445);border-radius:6px;box-shadow:0 10px 18px rgba(0,0,0,.4),inset 0 0 0 3px rgba(120,80,30,.35)}
+#pkg .t{position:absolute;left:0;right:0;top:44%;height:16%;background:linear-gradient(#e8dcc0,#cbbb98)}
+#pkg .g{position:absolute;inset:-14px;border-radius:14px;box-shadow:0 0 30px 8px rgba(30,200,255,.0)}
 #flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 62%,rgba(30,200,255,.55),rgba(30,200,255,0) 60%);opacity:0}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute"><symbol id="g-kdu" viewBox="0 0 24 24"><path d="M12 1.5 21.5 7v10L12 22.5 2.5 17V7Z" fill="currentColor" opacity=".9"/><path d="M12 6v12M12 12 7.5 8.5M12 12l4.5-3.5M8 15.5h8" fill="none" stroke="#03243f" stroke-width="1.9"/></symbol></svg>
-<div id="st"><img id="bg"><div id="tint"></div><div id="flash"></div><div id="who"><img id="pic"></div><div id="cap"></div><div id="coins"></div><div id="tagline"></div><div id="tag"><b id="nm"></b><i id="bz"></i></div><div id="scan"></div></div>
+<div id="st"><img id="bg"><div id="tint"></div><div id="flash"></div><div id="beam"></div><div id="who"><img id="pic"></div><div id="cap"></div><div id="coins"></div><div id="pkg"><div class="g"></div><div class="f"></div><div class="t"></div></div><div id="tagline"></div><div id="tag"><b id="nm"></b><i id="bz"></i></div><div id="scan"></div></div>
 <script>
 const $=id=>document.getElementById(id);
 let S=null,W=[],coins=[];
@@ -49,8 +56,9 @@ window.setup=async(spec,timing)=>{
 window.render=t=>{
   const T=S.t;
   // background pan
-  const bg=$('bg');const bw=bg.naturalWidth*1280/bg.naturalHeight, z=1.06+0.04*(t/6);
-  const room=bw*z-720;const p=clamp(S.px+S.pd*0.12*(t/6));bg.style.transform=`translateX(${-room*p}px) scale(${z})`;bg.style.width=bw+'px';
+  const D=S.dur||6, pick=S.mode==='pickup';
+  const bg=$('bg');const bw=bg.naturalWidth*1280/bg.naturalHeight, z=1.06+0.04*(t/D);
+  const room=bw*z-720;const p=clamp(S.px+S.pd*0.12*(t/D));bg.style.transform=`translateX(${-room*p}px) scale(${z})`;bg.style.width=bw+'px';
   // character entrance and talk bob
   const e=spring((t-0.05)/0.55);let talk=0;
   T.words.forEach(([a,b])=>{if(t>=a&&t<b){talk=Math.sin(Math.PI*(t-a)/(b-a))}});
@@ -66,7 +74,14 @@ window.render=t=>{
   $('tagline').style.width=(g*520)+'px';
   // coins
   const tb=T.burst,ox=360,oy=1280-250-320;
-  coins.forEach(c=>{const u=t-tb-c.d;if(u<0){c.e.style.opacity=0;return}
+  if(pick){ // the package pops into the local's hands, then the tractor beam lifts it away
+    const ap=spring((t-0.35)/0.5), lift=ease((t-tb-0.25)/1.5), bm=clamp((t-tb)/0.35)*(1-clamp((t-tb-2.1)/0.5));
+    const pk=$('pkg');pk.style.opacity=t<0.35?0:(1-clamp((lift-0.85)/0.15));
+    pk.style.transform=`translate(${360-75}px,${880-lift*800}px) scale(${(0.3+0.7*ap)*(1-0.55*lift)}) rotate(${Math.sin(t*5)*4*lift}deg)`;
+    pk.querySelector('.g').style.boxShadow=`0 0 30px 10px rgba(30,200,255,${0.8*bm})`;
+    $('beam').style.opacity=bm; coins.forEach(c=>c.e.style.opacity=0);
+  } else { $('beam').style.opacity=0; $('pkg').style.opacity=0; }
+  if(!pick) coins.forEach(c=>{const u=t-tb-c.d;if(u<0){c.e.style.opacity=0;return}
     const k=u/1.5;const x=ox+Math.cos(c.a)*c.sp*ease(k*1.4),y=oy+Math.sin(c.a)*c.sp*0.85*ease(k*1.4)+ (k>0.6? -Math.pow(k-0.6,2)*900:0);
     const tx=660,ty=60,m=clamp((k-0.75)/0.6);const X=x+(tx-x)*ease(m),Y=y+(ty-y)*ease(m);
     c.e.style.opacity=(1-clamp((k-1.15)/0.25));

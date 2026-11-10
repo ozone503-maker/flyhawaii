@@ -1,5 +1,5 @@
 import json,re,sys,numpy as np,wave
-spec=json.load(open('spec.json')); SR=48000; DUR=6.0
+spec=json.load(open('spec.json')); SR=48000
 def syl(w): return max(1,len(re.findall(r'[aeiouy]+',w.lower())))
 def env(n,a,r):
     e=np.ones(n);ai=int(a*SR);ri=int(r*SR)
@@ -7,11 +7,12 @@ def env(n,a,r):
 out={}
 for s in spec:
     words=s['cap'].split(); sy=[syl(w)+ (0.6 if re.search(r'[,.!?]$',w) else 0) for w in words]
-    a0,a1=0.55,3.9; tot=sum(sy); t=a0; W=[]
+    DUR=s.get('dur',6.0); pick=s.get('mode')=='pickup'
+    a0,a1=(0.5,2.6) if pick else (0.55,3.9); tot=sum(sy); t=a0; W=[]
     for w,k in zip(words,sy):
         d=(a1-a0)*k/tot; W.append((round(t,3),round(t+d*0.86,3))); t+=d
-    ki=[i for i,w in enumerate(words) if re.search('kudoken',w,re.I)][0]
-    burst=round(W[ki][0]+0.12,3)
+    ki=[i for i,w in enumerate(words) if re.search('kudoken',w,re.I)]
+    burst=round(W[-1][1]+0.25,3) if pick or not ki else round(W[ki[0]][0]+0.12,3)
     out[s['id']]={'words':W,'burst':burst}
     # audio
     rng=np.random.default_rng(len(s['id'])*31)
@@ -28,13 +29,21 @@ for s in spec:
             x=np.sign(np.sin(2*np.pi*f0*tt))*0.5+np.sin(2*np.pi*f0*2*tt)*0.3+np.sin(2*np.pi*f0*3.01*tt)*0.15
             x=np.convolve(x,np.ones(6)/6,'same')*env(n,0.008,0.04)
             add(x,a+j*step,0.22)
-    notes=[1318.5,1568,1975.5,2637,3136]
-    for i,fq in enumerate(notes):
-        n=int(0.35*SR); tt=np.arange(n)/SR; x=(np.sin(2*np.pi*fq*tt)+0.4*np.sin(2*np.pi*fq*2*tt))*np.exp(-tt*9)
-        add(x,burst+i*0.07,0.22)
-    for i in range(14):
-        fq=rng.uniform(2200,4200); n=int(0.12*SR); tt=np.arange(n)/SR
-        add(np.sin(2*np.pi*fq*tt)*np.exp(-tt*35),burst+0.75+i*0.055+rng.uniform(0,0.02),0.12)
+    if pick: # tractor beam: a rising hum and shimmer as the package lifts away
+        n=int(1.6*SR); tt=np.arange(n)/SR; f=220+560*(tt/1.6)**1.5
+        x=np.sin(np.cumsum(2*np.pi*f/SR))*0.6+np.sin(np.cumsum(2*np.pi*f*1.5/SR))*0.25
+        add(x*env(n,0.15,0.5),burst,0.3)
+        for i in range(10):
+            fq=rng.uniform(1800,3600); n=int(0.1*SR); tt=np.arange(n)/SR
+            add(np.sin(2*np.pi*fq*tt)*np.exp(-tt*30),burst+0.3+i*0.12,0.08)
+    else:
+        notes=[1318.5,1568,1975.5,2637,3136]
+        for i,fq in enumerate(notes):
+            n=int(0.35*SR); tt=np.arange(n)/SR; x=(np.sin(2*np.pi*fq*tt)+0.4*np.sin(2*np.pi*fq*2*tt))*np.exp(-tt*9)
+            add(x,burst+i*0.07,0.22)
+        for i in range(14):
+            fq=rng.uniform(2200,4200); n=int(0.12*SR); tt=np.arange(n)/SR
+            add(np.sin(2*np.pi*fq*tt)*np.exp(-tt*35),burst+0.75+i*0.055+rng.uniform(0,0.02),0.12)
     L=L/max(1e-6,np.abs(L).max())*0.8
     st=np.stack([L,L],1); st[:,1]=np.roll(L,int(0.004*SR))
     with wave.open(f"vo/{s['id']}.wav",'wb') as w: w.setnchannels(2);w.setsampwidth(2);w.setframerate(SR);w.writeframes((st*32767).astype('<i2').tobytes())

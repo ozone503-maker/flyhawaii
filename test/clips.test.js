@@ -16,7 +16,10 @@ test('shipped clips: every business has its own delivery clip and every file exi
     assert.ok(ids.has(c.biz), `${c.id}: unknown business ${c.biz}`);
     assert.ok(existsSync(new URL(`../public${c.src}`, import.meta.url)), c.src);
   }
-  for (const d of dest) assert.ok(clips.some((c) => c.biz === d.id), `${d.id} has no clip`);
+  for (const d of dest) {
+    assert.ok(clips.some((c) => c.biz === d.id && c.when !== 'pickup'), `${d.id} has no thank-you clip`);
+    assert.ok(clips.some((c) => c.biz === d.id && c.when === 'pickup'), `${d.id} has no pickup clip`);
+  }
 });
 
 test('manifest accepts an object or a bare array and builds /clips paths', () => {
