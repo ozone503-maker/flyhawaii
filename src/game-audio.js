@@ -50,9 +50,31 @@ function makeNoiseBuffer(context) {
 export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT_VOLUME } = {}) {
   let context, master, duck, engineGain, windGain, filter, windFilter;
   let oscA, oscB, noise, started = false, muted = false, lastBoost = 0, lastTick = 0;
+  let amb = null; // place sounds: surf, high wind, rumble, rain (built on first use)
 
   function alive() {
     return enabled && !muted && context?.state === 'running' && master;
+  }
+
+
+  function noiseLayer(type, freq, q = 0.7) {
+    const src = context.createBufferSource(); src.buffer = makeNoiseBuffer(context); src.loop = true;
+    const f = context.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = context.createGain(); g.gain.value = 0.0001;
+    src.connect(f); f.connect(g); g.connect(duck); src.start(Math.random());
+    return g;
+  }
+  function ensureAmbient() {
+    if (amb || !context) return;
+    amb = { surf: noiseLayer('lowpass', 650), wind: noiseLayer('bandpass', 1600, 0.5), rumble: noiseLayer('lowpass', 110), rain: noiseLayer('highpass', 2600, 0.3) };
+    const o = context.createOscillator(); o.frequency.value = 38; o.connect(amb.rumble); o.start();
+  }
+  function chirp(f0, f1, at, dur, peak) {
+    const o = context.createOscillator(), g = context.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f0, at); o.frequency.exponentialRampToValueAtTime(f1, at + dur);
+    g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(peak, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); g.connect(duck); o.start(at); o.stop(at + dur + 0.02);
+    o.onended = () => { try { o.disconnect(); g.disconnect(); } catch { /* ignore */ } };
   }
 
   function applyMaster() {
@@ -170,6 +192,28 @@ export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT
         if (boostMix > 0.55 && lastBoost <= 0.55) this.boost();
         lastBoost = boostMix;
       } catch { /* Continuous layers must never break flight. */ }
+    },
+    /** Place sounds from ambienceLevels() (ambience.js). Call a few times a second. */
+    ambient(lv = {}) {
+      if (!started || !context) return;
+      if (!alive()) { if (amb) { const now = context.currentTime; for (const g of Object.values(amb)) g.gain.setTargetAtTime(0.0001, now, 0.1); } return; }
+      try {
+        ensureAmbient();
+        const now = context.currentTime, swell = 0.55 + 0.45 * Math.sin(now * 0.9) * Math.sin(now * 0.37 + 1);
+        amb.surf.gain.setTargetAtTime(Math.max(0.0001, (lv.surf || 0) * 0.16 * swell), now, 0.4);
+        amb.wind.gain.setTargetAtTime(Math.max(0.0001, (lv.wind || 0) * 0.07), now, 0.5);
+        amb.rumble.gain.setTargetAtTime(Math.max(0.0001, (lv.rumble || 0) * 0.22), now, 0.5);
+        amb.rain.gain.setTargetAtTime(Math.max(0.0001, (lv.rain || 0) * 0.06), now, 0.6);
+        if (Math.random() < (lv.birds || 0) * 0.22) { // a short phrase of birdsong
+          const base = 2300 + Math.random() * 1600, n = 1 + Math.floor(Math.random() * 4);
+          for (let k = 0; k < n; k++) chirp(base * (0.9 + Math.random() * 0.25), base * (1.1 + Math.random() * 0.3), now + k * 0.11, 0.07, 0.035 * lv.birds);
+        }
+        if (Math.random() < (lv.coqui || 0) * 0.35) { // ko-KEE
+          const p = 0.9 + Math.random() * 0.2, at = now + Math.random() * 0.15;
+          chirp(1150 * p, 1050 * p, at, 0.09, 0.045 * lv.coqui);
+          chirp(1900 * p, 2350 * p, at + 0.13, 0.13, 0.05 * lv.coqui);
+        }
+      } catch { /* place sounds are optional */ }
     },
     boost() {
       if (!alive()) return;

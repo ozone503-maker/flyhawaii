@@ -20,6 +20,9 @@ import { createSeaTraffic } from './boats3d.js';
 import { createDaylight } from './daylight3d.js';
 import { makeMovingOffer, MOVING_CHANCE } from './moving-jobs.js';
 import { createSeaLife } from './sea-life.js';
+import { ambienceLevels } from './ambience.js';
+import { treeAt } from './trees.js';
+import { HALEMAUMAU } from './landmarks.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
 import { makeOffers, decorateOffer, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { loadRegulars, saveRegulars, recordJob, getCount, tierFor, tipBonus, pickGreeting, mergeGreeterLines, REGULARS_KEY } from './regulars.js';
@@ -97,7 +100,7 @@ scene.add(hemi);
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -1288,6 +1291,22 @@ function updateCamera(dt) {
   if (window.__sky) window.__sky.position.copy(camera.position);
 }
 
+
+// place sounds: surf on the coast, wind up high, birds or coquí in the forest, the crater's roar
+function updateAmbience() {
+  if (!rgbAtFn || !state.running) return;
+  const x = state.pos.x, z = state.pos.z, ground = elevM(x, z);
+  let sea = 0, land = 0;
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; if (elevM(x + Math.cos(a) * 3, z + Math.sin(a) * 3) <= 0) sea++; else land++; }
+  const coast = sea && land ? Math.min(1, Math.min(sea, land) / 3) : (sea ? 0.2 : 0);
+  const [r, g, b] = rgbAtFn(x, z), ll = fromWorld(x, z);
+  const tr = treeAt({ r, g, b, groundM: ground, lon: ll.lon });
+  const forest = tr.kind === 1 || tr.kind === 2 ? tr.density : 0;
+  const lv = ambienceLevels({ agl: (state.pos.y - groundY(x, z)) * UNIT_M / VEXAG, coast, forest,
+    craterKm: haversineKm(ll, HALEMAUMAU), night: daylight?.look?.stars ?? 0, windward: ll.lon > -155.5, wet: ambWet });
+  gameAudio.ambient(lv);
+}
+
 let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
@@ -1302,6 +1321,7 @@ function frame() {
   }
   if (state.running) drawWave(t);
   ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t); sea?.update(t); seaLife?.update(t); daylight?.update(t);
+  if (t - lastAmb > 0.25) { lastAmb = t; updateAmbience(); }
   if (air) { const near = air.update(t, state.running ? state.pos : null); if (state.running && !state.paused && !state.cut && near < 1.4 && t - lastTraffic > 30) { lastTraffic = t; toast('Traffic! Close call'); } }
   if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
   renderer.render(scene, camera);
@@ -1336,6 +1356,7 @@ async function boot() {
     sample: (x, z) => ({ ...fromWorld(x, z), groundM: elevM(x, z) }), unitM: UNIT_M / VEXAG, isTouch });
   const img = colorCanvas.getContext('2d').getImageData(0, 0, colorCanvas.width, colorCanvas.height).data, cw = colorCanvas.width;
   const rgbAt = (x, z) => { const i = Math.max(0, Math.min(cw - 1, Math.floor((x / SIZE + 0.5) * cw))), j = Math.max(0, Math.min(cw - 1, Math.floor((z / SIZE + 0.5) * cw))), k = (j * cw + i) * 4; return [img[k], img[k + 1], img[k + 2]]; };
+  rgbAtFn = rgbAt;
   landmarks3d = createLandmarks({ scene, toWorld, groundY, elevM, unitM: UNIT_M, vex: VEXAG, isTouch, rgbAt, size: SIZE,
     falls: water?.falls || [], sunDir: sun.position });
   trees = createTreeField({ scene, groundY, rgbAt, elevM, lonAt: (x) => fromWorld(x, 0).lon, unitM: UNIT_M, isTouch });
