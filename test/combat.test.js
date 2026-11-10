@@ -72,7 +72,8 @@ test('target lock builds while the runner is in your sights and drains when it s
   let p = 0;
   for (let i = 0; i < 60 * LOCK.time + 2; i++) p = lockStep(p, 1 / 60, from, aim, { x: 2, y: 6, z: -30 });
   assert.equal(p, 1, 'locks after LOCK.time seconds dead ahead');
-  assert.ok(lockStep(1, 0.1, from, aim, { x: 30, y: 5, z: -5 }) < 1, 'off to the side drains it');
+  assert.ok(lockStep(0.6, 0.1, from, aim, { x: 30, y: 5, z: -5 }) < 0.6, 'off to the side drains it');
+  assert.equal(lockStep(1, 0.1, from, aim, { x: 30, y: 5, z: -5 }), 1, 'a full lock holds');
   assert.equal(lockStep(0.5, 0.1, from, aim, { x: 0, y: 5, z: -(LOCK.range + 5) }) < 0.5, true, 'too far does not count');
   assert.equal(lockStep(0, 0.5, from, aim, { x: 0, y: 5, z: 30 }), 0, 'behind you does not count');
 });

@@ -1168,7 +1168,7 @@ function step(dt, t) {
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
-  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? (combat.state.runner && !combat.state.runner.dead ? 'Boost after the gold marker. Hold it in your sights to lock the missile' : 'X or click to fire. Shots lock on to craft ahead') : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? (combat.state.runner && !combat.state.runner.dead ? 'Boost after the gold marker. Keep it in your sights and the missile locks and fires' : 'X or click to fire. Shots lock on to craft ahead') : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   finishHud();
 }
 function finishHud() {
@@ -1380,7 +1380,7 @@ function defendStep(dt, t) {
     else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
     else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
-    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nKeep it in your sights to lock the missile'); }
+    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nKeep it in your sights to lock on'); }
     else if (e.type === 'missile') { gameAudio.zap(); gameAudio.zap(); toast('Missile away!'); }
     else if (e.type === 'caught') { addTokens(e.bonus); toast(`${e.missile ? 'Missile hit! ' : ''}Caught in ${e.secs.toFixed(1)} s!\n+${e.bonus} KDU${e.streak > 1 ? `  streak x${e.streak}` : ''}`); }
     else if (e.type === 'escaped') toast('It got away this time');
