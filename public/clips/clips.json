@@ -137,6 +137,126 @@
       "file": "snorkel-cat.mp4",
       "biz": "snorkel-cat",
       "when": "delivery"
+    },
+    {
+      "id": "pickup-flashtown-hq",
+      "file": "pickup-flashtown-hq.mp4",
+      "biz": "flashtown-hq",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-kona-farmers-market",
+      "file": "pickup-kona-farmers-market.mp4",
+      "biz": "kona-farmers-market",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-kona-commons",
+      "file": "pickup-kona-commons.mp4",
+      "biz": "kona-commons",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-keauhou-shopping-center",
+      "file": "pickup-keauhou-shopping-center.mp4",
+      "biz": "keauhou-shopping-center",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-volcano-farmers-market",
+      "file": "pickup-volcano-farmers-market.mp4",
+      "biz": "volcano-farmers-market",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-kilauea-lodge",
+      "file": "pickup-kilauea-lodge.mp4",
+      "biz": "kilauea-lodge",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-hilo-farmers-market",
+      "file": "pickup-hilo-farmers-market.mp4",
+      "biz": "hilo-farmers-market",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-volcano-house",
+      "file": "pickup-volcano-house.mp4",
+      "biz": "volcano-house",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-makuu-farmers-market",
+      "file": "pickup-makuu-farmers-market.mp4",
+      "biz": "makuu-farmers-market",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-uncle-roberts-awa-club",
+      "file": "pickup-uncle-roberts-awa-club.mp4",
+      "biz": "uncle-roberts-awa-club",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-suisan-fish-market",
+      "file": "pickup-suisan-fish-market.mp4",
+      "biz": "suisan-fish-market",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-kens-house-of-pancakes",
+      "file": "pickup-kens-house-of-pancakes.mp4",
+      "biz": "kens-house-of-pancakes",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-hana-hou-restaurant",
+      "file": "pickup-hana-hou-restaurant.mp4",
+      "biz": "hana-hou-restaurant",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-bamboo-restaurant",
+      "file": "pickup-bamboo-restaurant.mp4",
+      "biz": "bamboo-restaurant",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-royal-kona-resort",
+      "file": "pickup-royal-kona-resort.mp4",
+      "biz": "royal-kona-resort",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-king-kamehamehas-kona-beach-hotel",
+      "file": "pickup-king-kamehamehas-kona-beach-hotel.mp4",
+      "biz": "king-kamehamehas-kona-beach-hotel",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-hilton-waikoloa-village",
+      "file": "pickup-hilton-waikoloa-village.mp4",
+      "biz": "hilton-waikoloa-village",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-mauna-lani",
+      "file": "pickup-mauna-lani.mp4",
+      "biz": "mauna-lani",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-mauna-kea-beach-hotel",
+      "file": "pickup-mauna-kea-beach-hotel.mp4",
+      "biz": "mauna-kea-beach-hotel",
+      "when": "pickup"
+    },
+    {
+      "id": "pickup-four-seasons-resort-hualalai",
+      "file": "pickup-four-seasons-resort-hualalai.mp4",
+      "biz": "four-seasons-resort-hualalai",
+      "when": "pickup"
     }
   ]
 }
