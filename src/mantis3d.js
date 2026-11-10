@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, runnerEscapes } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, runnerEscapes, RUNNER_LOCK } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -69,6 +69,7 @@ function loadBest() { try { return Number(localStorage.getItem(BEST_KEY)) || 0; 
 /** ctx: { scene, toWorld(lat, lon) -> Vector2, fromWorld(x, z), groundY(x, z), isTouch } */
 export function createCombat(ctx) {
   const { scene, toWorld, fromWorld, groundY, isTouch } = ctx;
+  const elevU = ctx.elevU || ((x, z) => groundY(x, z) || -1);
   const bounds = ctx.bounds || 800;
   const group = new THREE.Group(); group.visible = false; scene.add(group);
   const bodyGeo = mantisBodyGeo(), wGeo = wingGeo();
@@ -96,10 +97,10 @@ export function createCombat(ctx) {
   const pBoltMat = new THREE.MeshBasicMaterial({ color: 0x7fe6ff, fog: false });
   const mBoltMat = new THREE.MeshBasicMaterial({ color: 0x5dff9a, fog: false });
   const bolts = [];
-  function bolt(from, dir, speed, life, mine, home = -1) {
+  function bolt(from, dir, speed, life, mine, home = -1, far = false) {
     let b = bolts.find((q) => !q.live && q.mine === mine);
     if (!b) { b = { m: new THREE.Mesh(boltGeo, mine ? pBoltMat : mBoltMat), mine }; b.m.scale.setScalar(mine ? 1 : 1.4); group.add(b.m); bolts.push(b); }
-    Object.assign(b, { live: true, x: from.x, y: from.y, z: from.z, vx: dir.x * speed, vy: dir.y * speed, vz: dir.z * speed, life, home, speed });
+    Object.assign(b, { live: true, x: from.x, y: from.y, z: from.z, vx: dir.x * speed, vy: dir.y * speed, vz: dir.z * speed, life, home, speed, far, seen: false });
     b.m.visible = true;
   }
   // explosions
@@ -148,15 +149,24 @@ export function createCombat(ctx) {
       if (firing && S.fireCool <= 0 && !S.over) {
         S.fireCool = 1 / PLAYER.fireRate;
         const from = { x: pos.x + aim.x * 1.4, y: pos.y + aim.y * 1.4 - 0.1, z: pos.z + aim.z * 1.4 };
-        const list = alive(), home = assistTarget(from, aim, list);
-        bolt(from, aim, PLAYER.boltSpeed, PLAYER.boltLife, true, home >= 0 ? pool.indexOf(list[home]) : -1);
+        const list = alive(), chasing = S.runner && !S.runner.dead;
+        const home = chasing ? assistTarget(from, aim, list, RUNNER_LOCK) : assistTarget(from, aim, list);
+        const far = chasing && Math.hypot(S.runner.x - pos.x, S.runner.y - pos.y, S.runner.z - pos.z) > RUNNER_LOCK.range;
+        bolt(from, aim, PLAYER.boltSpeed, PLAYER.boltLife, true, home >= 0 ? pool.indexOf(list[home]) : -1, far);
         events.push({ type: 'shot' });
       }
       // the last craft of a wave makes a run for it
       const living = alive();
       if (!S.runner && living.length === 1 && !S.over) {
         S.runner = living[0]; S.runner.runner = true; S.escT = 0; S.runner.mark.material = runMat; S.runner.mark.scale.set(0.05, 0.05, 1);
-        S.runner.hp += 2; S.breakT = 0.7; for (const b of bolts) b.home = -1; // a dramatic breakaway: shots in flight lose it
+        S.runner.hp += 2; S.breakT = 0.7; for (const b of bolts) { b.home = -1; b.far = true; }
+        { // it blinks out of the fight to a head start over the island, so every chase starts as a chase
+          const r = S.runner, g = escapeGoal(r, pos, tt, escapeSpec(S.wave), elevU), dx = g.x - r.x, dz = g.z - r.z, L = Math.hypot(dx, dz) || 1;
+          boom(r.x, r.y, r.z, 0.8);
+          const hop = [60, 50, 40, 30, 20].find((h) => elevU(r.x + dx / L * h, r.z + dz / L * h) > 0.05) || 30;
+          r.x += dx / L * hop; r.z += dz / L * hop; r.y = Math.max(0, elevU(r.x, r.z)) + 2.5; r.v = { x: dx / L * 60, y: 0, z: dz / L * 60 };
+          boom(r.x, r.y, r.z, 0.8);
+        }
         events.push({ type: 'runner', wave: S.wave });
       }
       const esc = escapeSpec(S.wave);
@@ -167,16 +177,17 @@ export function createCombat(ctx) {
         let mode;
         if (m.runner) {
           mode = 'run'; S.escT += dt;
-          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, bounds), S.breakT > 0 ? Math.max(30, playerSpeed) * 1.1 : runnerSpeed(esc, dPlayer, playerSpeed), esc.turn, dt);
+          m.v = steer(m.v, m, escapeGoal(m, pos, tt, esc, elevU), S.breakT > 0 ? Math.max(30, playerSpeed) * 1.1 : runnerSpeed(esc, dPlayer, playerSpeed), esc.turn, dt);
           S.breakT = Math.max(0, (S.breakT || 0) - dt);
           // sidestep a shot that is about to land
           m.dodgeCool = Math.max(0, (m.dodgeCool || 0) - dt);
-          if (m.dodgeCool <= 0) for (const b of bolts) {
+          for (const b of bolts) {
             if (!b.live || !b.mine) continue;
             const dx = m.x - b.x, dy = m.y - b.y, dz = m.z - b.z, d = Math.hypot(dx, dy, dz);
-            if (d < 9 && (dx * b.vx + dy * b.vy + dz * b.vz) > 0) {
+            if (d < 9 && (dx * b.vx + dy * b.vy + dz * b.vz) > 0 && (b.far || m.dodgeCool <= 0) && !b.seen) {
+              b.seen = true;
               m.dodgeCool = 0.5;
-              if (Math.random() < esc.dodge) { const sx = -b.vz, sz = b.vx, sl = Math.hypot(sx, sz) || 1, side = Math.random() < 0.5 ? -1 : 1;
+              if (b.far || Math.random() < esc.dodge) { const sx = -b.vz, sz = b.vx, sl = Math.hypot(sx, sz) || 1, side = Math.random() < 0.5 ? -1 : 1;
                 m.x += sx / sl * side * 2.2; m.z += sz / sl * side * 2.2; m.y += (Math.random() - 0.5) * 1.5; b.home = -1; }
               break;
             }
@@ -215,7 +226,7 @@ export function createCombat(ctx) {
         if (!b.live) continue;
         if (b.home >= 0 && !pool[b.home]?.dead) { // gentle homing toward the assist target
           const m = pool[b.home], dx = m.x - b.x, dy = m.y - b.y, dz = m.z - b.z, d = Math.hypot(dx, dy, dz) || 1;
-          const k = Math.min(1, (m.runner ? 16 : 6) * dt); // the runner is the payoff: shots at it track hard
+          const k = Math.min(1, (m.runner ? 10 : 6) * dt);
           b.vx += (dx / d * b.speed - b.vx) * k; b.vy += (dy / d * b.speed - b.vy) * k; b.vz += (dz / d * b.speed - b.vz) * k;
         }
         const a = { x: b.x, y: b.y, z: b.z };
@@ -223,7 +234,7 @@ export function createCombat(ctx) {
         b.m.position.set(b.x, b.y, b.z); b.m.lookAt(b.x + b.vx, b.y + b.vy, b.z + b.vz);
         if (b.mine) {
           for (const m of pool) {
-            if (m.dead || segPointDist(a, b, m) > MANTIS.radius * (m.runner ? 1.7 : 1)) continue;
+            if (m.dead || (m.runner && b.far) || segPointDist(a, b, m) > MANTIS.radius * (m.runner ? 1.3 : 1)) continue; // long shots never touch the runner
             b.life = 0;
             m.hp -= 1;
             if (m.hp <= 0) {
