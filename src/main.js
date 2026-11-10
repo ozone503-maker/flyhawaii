@@ -22,6 +22,8 @@ import { makeMovingOffer, MOVING_CHANCE } from './moving-jobs.js';
 import { createSeaLife } from './sea-life.js';
 import { ambienceLevels } from './ambience.js';
 import { createRain } from './rain3d.js';
+import { createTimeTrial } from './time-trial3d.js';
+import { formatLap } from './time-trial.js';
 import { treeAt } from './trees.js';
 import { HALEMAUMAU } from './landmarks.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
@@ -101,7 +103,9 @@ scene.add(hemi);
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0, rain = null, rainVeil = null;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0, rain = null, rainVeil = null, tt = null;
+// game mode: 'deliver' (jobs) or 'tt' (time trial lap); chosen on the start screen, ?mode=tt for testing
+let gameMode = ['deliver', 'tt'].includes(params.get('mode')) ? params.get('mode') : (localStorage.getItem('fh_mode') || 'deliver');
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -296,7 +300,7 @@ function clearJob() {
   updateMissionText();
 }
 function openJobBoard({ reroll = false } = {}) {
-  if (!state.running) return;
+  if (!state.running || gameMode !== 'deliver') return;
   const here = fromWorld(state.pos.x, state.pos.z);
   board.offers = makeOffers(destLib.list, here, Math.random, { avoid: reroll ? board.lastKeys : new Set(), regulars });
   // sometimes one job delivers to something moving: a cruise ship, a fishing boat, the snorkel cat
@@ -423,7 +427,10 @@ function placeBeacon(b, label, t, text, color) {
   label.scale.set(label.userData.aspect * 2.2, 2.2, 1);
   seat(label, t.w.x, t.w.y, 9);
 }
-function target() { return state.job ? (state.phase === 'pickup' ? state.job.from : state.job.to) : null; }
+function target() {
+  if (gameMode === 'tt') return tt?.target() || null;
+  return state.job ? (state.phase === 'pickup' ? state.job.from : state.job.to) : null;
+}
 const $ = (id) => document.getElementById(id);
 const gameAudio = createGameAudio({
   AudioContext: window.AudioContext || window.webkitAudioContext,
@@ -611,6 +618,7 @@ function deliveryReward(amount, bonus, tip = 0) {
   gameAudio.complete();
 }
 function updateMissionText() {
+  if (gameMode === 'tt' && tt) { ttHud(clock.elapsedTime); return; }
   const j = state.job, m = $('mission');
   if (j?.home) {
     m.className = 'home';
@@ -985,7 +993,7 @@ function togglePause(force) {
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('camBtn')?.addEventListener('click', () => toggleCamera());
 $('resumeBtn').addEventListener('click', () => togglePause(false));
-$('newJobBtn').addEventListener('click', () => { if (state.cut) endCutscene(); if (ui.greeter) { ui.greeter = null; $('greeter').classList.add('hidden'); document.body.classList.remove('greeter'); } if (ui.summary) { $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary'); ui.summary = false; } clearJob(); togglePause(false); openJobBoard(); });
+$('newJobBtn').addEventListener('click', () => { if (gameMode === 'tt') { startTimeTrial(); togglePause(false); return; } if (state.cut) endCutscene(); if (ui.greeter) { ui.greeter = null; $('greeter').classList.add('hidden'); document.body.classList.remove('greeter'); } if (ui.summary) { $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary'); ui.summary = false; } clearJob(); togglePause(false); openJobBoard(); });
 $('jbHome')?.addEventListener('click', () => { if (!state.paused) { unlockAudio(); startHomeLeg(); } });
 $('ssNew')?.addEventListener('click', () => { if (!state.paused) closeShiftSummary(); });
 $('jbReroll').addEventListener('click', () => rerollJobs());
@@ -1080,7 +1088,7 @@ function step(dt, t) {
     beaconDrop.position.set(to.w.x, deck, to.w.y); labelDrop.position.set(to.w.x, deck + 9, to.w.y);
   }
   // mission
-  let tg = target();
+  let tg = gameMode === 'deliver' ? target() : null;
   let dx = tg ? tg.w.x - state.pos.x : 1e9, dz = tg ? tg.w.y - state.pos.z : 1e9;
   const horiz = Math.hypot(dx, dz);
   const agl = tg ? state.pos.y - groundY(tg.w.x, tg.w.y) - (tg.deckU || 0) : 1e9;
@@ -1140,6 +1148,7 @@ function step(dt, t) {
     b.userData.ring.scale.setScalar(1 + 0.08 * Math.sin(t * 4)); b.userData.box.rotation.y += dt;
     b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
   }
+  if (gameMode === 'tt' && tt) ttStep(dt, t);
   // HUD
   tg = target();
   if (!tg) { $('arrow').style.transform = ''; finishHud(); return; }
@@ -1148,7 +1157,7 @@ function step(dt, t) {
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
-  $('missionHint').textContent = approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   finishHud();
 }
 function finishHud() {
@@ -1308,6 +1317,33 @@ function updateAmbience() {
   gameAudio.ambient(lv);
 }
 
+
+// ---------- time trial ----------
+function startTimeTrial() {
+  if (!tt) return;
+  const sp = tt.spawn();
+  state.pos.set(sp.x, sp.y, sp.z); state.yaw = sp.yaw; state.speed = 0; state.vy = 0; state.vel.set(0, 0, 0);
+  tt.start(); ttHud(clock.elapsedTime);
+  $('newJobBtn').textContent = 'Restart lap';
+  toast(tt.best ? `Time trial\nBest lap ${formatLap(tt.best.time)}` : 'Time trial\nFly through the gold gate');
+}
+function ttHud(t) {
+  const h = tt.hud(t);
+  $('mission').className = 'tt';
+  $('missionStep').textContent = h.step; $('missionTarget').textContent = h.target; $('cargo').textContent = h.cargo;
+}
+function ttStep(dt, t) {
+  const ev = tt.update(dt, t, prevPos, state.pos);
+  if (ev?.type === 'start') { gameAudio.pickup(); toast('Go!'); }
+  else if (ev?.type === 'gate') gameAudio.ring(0, 1 + (ev.index % 6));
+  else if (ev?.type === 'lap') {
+    gameAudio.complete();
+    const reward = ev.newBest ? 100 : 40; addTokens(reward);
+    toast(`${ev.newBest ? 'New best lap' : 'Lap'} ${formatLap(ev.time)}\n+${reward} KDU`);
+  }
+  ttHud(t);
+}
+
 let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
@@ -1365,6 +1401,7 @@ async function boot() {
   air = createAirTraffic({ scene, toWorld, groundY, isTouch });
   sea = createSeaTraffic({ scene, toWorld, isTouch });
   rain = createRain({ scene, toWorld, isTouch });
+  tt = createTimeTrial({ scene, elevM, toWorld, fromWorld });
   rainVeil = document.createElement('div'); rainVeil.className = 'rain-veil'; canvas.after(rainVeil);
   seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });
@@ -1398,7 +1435,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, get tt() { return tt; }, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
@@ -1478,10 +1515,17 @@ function startGame() {
   spawnAtStart(); resetShift(); clearJob(); closeJobBoard();
   state.running = true; clock.getDelta();
   applyCamHud();
-  openJobBoard();
+  document.body.dataset.mode = gameMode;
+  if (gameMode === 'tt') startTimeTrial(); else { tt?.stop(); openJobBoard(); }
   try { drawMinimap(); } catch { /* terrain may still be wiring */ }
 }
 $('startBtn').addEventListener('click', () => openSelect(false));
+function setGameMode(m) {
+  gameMode = m; try { localStorage.setItem('fh_mode', m); } catch { /* private mode */ }
+  document.querySelectorAll('.mode-btn').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+}
+document.querySelectorAll('.mode-btn').forEach((b) => b.addEventListener('click', () => setGameMode(b.dataset.mode)));
+setGameMode(gameMode);
 setPilot(pilot.id);
 boot().catch((e) => { console.error(e); $('loading').textContent = 'Could not load terrain, please reload'; });
 frame();
