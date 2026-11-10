@@ -15,6 +15,7 @@ import { PILOTS, pilotById, buildShip, disposeShip } from './ships.js';
 import { createSky, createOcean, createClouds } from './sky-ocean.js';
 import { createLandmarks, addSnow, SNOW_LINE_M } from './landmarks3d.js';
 import { createTreeField } from './tree-field.js';
+import { createAirTraffic } from './aircraft3d.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
 import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { loadRegulars, saveRegulars, recordJob, getCount, tierFor, tipBonus, pickGreeting, mergeGreeterLines, REGULARS_KEY } from './regulars.js';
@@ -91,7 +92,7 @@ scene.add(new THREE.HemisphereLight(0xdcefff, 0x4a5a40, 1.5));
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, lastTraffic = -99;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -1270,6 +1271,7 @@ function frame() {
   }
   if (state.running) drawWave(t);
   ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t);
+  if (air) { const near = air.update(t, state.running ? state.pos : null); if (state.running && !state.paused && !state.cut && near < 1.4 && t - lastTraffic > 30) { lastTraffic = t; toast('Traffic! Close call'); } }
   if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
   renderer.render(scene, camera);
 }
@@ -1306,6 +1308,7 @@ async function boot() {
   landmarks3d = createLandmarks({ scene, toWorld, groundY, elevM, unitM: UNIT_M, vex: VEXAG, isTouch, rgbAt, size: SIZE,
     falls: water?.falls || [], sunDir: sun.position });
   trees = createTreeField({ scene, groundY, rgbAt, elevM, lonAt: (x) => fromWorld(x, 0).lon, unitM: UNIT_M, isTouch });
+  air = createAirTraffic({ scene, toWorld, groundY, isTouch });
   cloudVeil = document.createElement('div'); cloudVeil.className = 'cloud-veil'; canvas.after(cloudVeil);
   mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = 160; mmBase.getContext('2d').drawImage(colorCanvas, 0, 0, 160, 160);
   try { drawMinimap(); } catch { /* HUD may not be mounted yet */ }
@@ -1335,7 +1338,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {

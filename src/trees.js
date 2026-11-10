@@ -8,9 +8,9 @@ export function treeAt({ r, g, b, groundM, lon }) {
   if (groundM <= 1 || groundM > 2900) return { kind: TREE_NONE, density: 0 };
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0, light = mx / 255;
   const green = g > r * 1.04 && g >= b;
-  if (groundM < 45 && (green || lon < -155.75)) return { kind: TREE_PALM, density: green ? 0.55 : 0.25 };
   if (light < 0.2 && sat < 0.25) return { kind: TREE_NONE, density: 0 }; // fresh black lava
-  if (light > 0.62 && sat < 0.18) return { kind: TREE_NONE, density: 0 }; // towns, roads, bare rock
+  if (light > 0.62 && sat < 0.18) return { kind: TREE_NONE, density: 0 }; // towns, roads, runways, bare rock
+  if (groundM < 45 && green) return { kind: TREE_PALM, density: lon < -155.75 ? 0.4 : 0.55 }; // coconut palms where the coast is green (resorts, Kona town, Hilo)
   if (green) {
     const lush = Math.min(1, Math.max(0, (g - r) / 40 + 0.3)) * (light < 0.5 ? 1 : 0.6);
     return { kind: TREE_FOREST, density: Math.min(1, lush) * (groundM > 2300 ? 0.3 : 1) };
