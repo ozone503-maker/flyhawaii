@@ -19,6 +19,7 @@ import { createAirTraffic } from './aircraft3d.js';
 import { createSeaTraffic } from './boats3d.js';
 import { createDaylight } from './daylight3d.js';
 import { makeMovingOffer, MOVING_CHANCE } from './moving-jobs.js';
+import { createSeaLife } from './sea-life.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
 import { makeOffers, decorateOffer, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { loadRegulars, saveRegulars, recordJob, getCount, tierFor, tipBonus, pickGreeting, mergeGreeterLines, REGULARS_KEY } from './regulars.js';
@@ -96,7 +97,7 @@ scene.add(hemi);
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -1029,7 +1030,6 @@ const GAME_MPH = 15;
 // All disc skins share flight stats
 let shipEnv = null;
 let pilot = pilotById(params.get('pilot') || localStorage.getItem('fh_pilot'));
-applyCamHud(); // after pilot exists (calling it earlier hits the let before it is set in dev builds)
 function step(dt, t) {
   readInput();
   prevPos.copy(state.pos);
@@ -1166,6 +1166,7 @@ function finishHud() {
 let camYaw = 0, camH = 0;
 const _cinePos = new THREE.Vector3(), _cineLook = new THREE.Vector3();
 let camBlend = state.camMode === CAM_COCKPIT ? 1 : 0;
+applyCamHud(); // after pilot and camBlend exist (earlier calls hit their let before it is set in dev builds)
 const chasePos = new THREE.Vector3(), cockpitPos = new THREE.Vector3();
 const chaseLook = new THREE.Vector3(), cockpitLook = new THREE.Vector3();
 const _eyeLocal = new THREE.Vector3(), _lookLocal = new THREE.Vector3();
@@ -1300,7 +1301,7 @@ function frame() {
     const a = t * 0.06; camera.position.set(Math.cos(a) * 650, 160, Math.sin(a) * 650); camera.lookAt(0, 10, 0); window.__sky.position.copy(camera.position);
   }
   if (state.running) drawWave(t);
-  ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t); sea?.update(t); daylight?.update(t);
+  ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t); sea?.update(t); seaLife?.update(t); daylight?.update(t);
   if (air) { const near = air.update(t, state.running ? state.pos : null); if (state.running && !state.paused && !state.cut && near < 1.4 && t - lastTraffic > 30) { lastTraffic = t; toast('Traffic! Close call'); } }
   if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
   renderer.render(scene, camera);
@@ -1340,6 +1341,7 @@ async function boot() {
   trees = createTreeField({ scene, groundY, rgbAt, elevM, lonAt: (x) => fromWorld(x, 0).lon, unitM: UNIT_M, isTouch });
   air = createAirTraffic({ scene, toWorld, groundY, isTouch });
   sea = createSeaTraffic({ scene, toWorld, isTouch });
+  seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });
   { const tp = params.get('time'); if (tp && !isNaN(Number(tp))) daylight.setHour(Number(tp)); else setTimeMode(tp || localStorage.getItem('fh_time') || 'live', false); }
   cloudVeil = document.createElement('div'); cloudVeil.className = 'cloud-veil'; canvas.after(cloudVeil);
@@ -1371,7 +1373,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
