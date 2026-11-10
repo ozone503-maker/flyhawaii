@@ -89,12 +89,13 @@ export function createSeaTraffic({ scene, toWorld, isTouch }) {
   const wakeMat = wakeMaterial();
   const vessels = [];
   const add = (geo, path, offset, size, wakeLen, kind) => {
+    const key = `${kind}-${vessels.filter((v) => v.kind === kind).length}`;
     const g = new THREE.Group(); g.rotation.order = 'YXZ';
     const m = new THREE.Mesh(geo, mat); m.scale.setScalar(size); g.add(m);
     // wake: a long triangle behind the stern (plane uv.y runs from stern 0 to tail 1)
     const wake = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.9, wakeLen).rotateX(-Math.PI / 2).translate(0, 0.03, -size * 0.45 - wakeLen / 2), wakeMat);
     g.add(wake); scene.add(g);
-    vessels.push({ g, path, offset, wake, kind, size });
+    vessels.push({ g, path, offset, wake, kind, size, key });
   };
   // two cruise ships, one starting docked in Hilo, one at anchor off Kona
   const cruise = cruiseGeo();
@@ -117,6 +118,7 @@ export function createSeaTraffic({ scene, toWorld, isTouch }) {
 
   return {
     vessels,
+    byKey(k) { return vessels.find((v) => v.key === k) || null; },
     update(t) {
       const tt = reduceMotion ? 0 : t;
       wakeMat.uniforms.uTime.value = tt;

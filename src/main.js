@@ -18,8 +18,9 @@ import { createTreeField } from './tree-field.js';
 import { createAirTraffic } from './aircraft3d.js';
 import { createSeaTraffic } from './boats3d.js';
 import { createDaylight } from './daylight3d.js';
+import { makeMovingOffer, MOVING_CHANCE } from './moving-jobs.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
-import { makeOffers, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
+import { makeOffers, decorateOffer, formatEta, formatKm, REROLL_COOLDOWN, TAGS } from './job-offers.js';
 import { loadRegulars, saveRegulars, recordJob, getCount, tierFor, tipBonus, pickGreeting, mergeGreeterLines, REGULARS_KEY } from './regulars.js';
 import { homecomingBonus, isNearHq, emptyShift } from './shift.js';
 import { createRingField } from './ring-field.js';
@@ -293,6 +294,12 @@ function openJobBoard({ reroll = false } = {}) {
   if (!state.running) return;
   const here = fromWorld(state.pos.x, state.pos.z);
   board.offers = makeOffers(destLib.list, here, Math.random, { avoid: reroll ? board.lastKeys : new Set(), regulars });
+  // sometimes one job delivers to something moving: a cruise ship, a fishing boat, the snorkel cat
+  if (sea && board.offers.length && (params.get('moving') === '1' || Math.random() < MOVING_CHANCE)) {
+    const vessels = sea.vessels.map((v) => ({ key: v.key, kind: v.kind, ...fromWorld(v.g.position.x, v.g.position.z) }));
+    const mo = makeMovingOffer({ list: destLib.list, vessels, player: here });
+    if (mo) { const i = board.offers.length - 1; mo.slot = board.offers[i].slot; board.offers[i] = decorateOffer(mo, regulars); }
+  }
   board.lastKeys = new Set(board.offers.map((o) => o.key));
   board.open = true; resetHeldControls();
   renderJobBoard();
@@ -1060,11 +1067,19 @@ function step(dt, t) {
   const hq = hqDestination(destLib.list);
   if (hq && !shift.leftHome && !isNearHq(fromWorld(state.pos.x, state.pos.z), hq, 0.8)) shift.leftHome = true;
 
+  // a drop-off riding on a boat: the beacon follows it
+  const mv = state.job?.to?.vesselKey && sea?.byKey(state.job.to.vesselKey);
+  if (mv) {
+    const to = state.job.to, deck = to.deckU || 0;
+    to.w.set(mv.g.position.x, mv.g.position.z);
+    beaconDrop.userData.ground = null; labelDrop.userData.ground = null; grounded.delete(beaconDrop); grounded.delete(labelDrop);
+    beaconDrop.position.set(to.w.x, deck, to.w.y); labelDrop.position.set(to.w.x, deck + 9, to.w.y);
+  }
   // mission
   let tg = target();
   let dx = tg ? tg.w.x - state.pos.x : 1e9, dz = tg ? tg.w.y - state.pos.z : 1e9;
   const horiz = Math.hypot(dx, dz);
-  const agl = tg ? state.pos.y - groundY(tg.w.x, tg.w.y) : 1e9;
+  const agl = tg ? state.pos.y - groundY(tg.w.x, tg.w.y) - (tg.deckU || 0) : 1e9;
   const inZone = !!tg && horiz < 3.2 && agl < 8;
   const beamOn = inZone && state.vel.length() < 9 && !state.cut;
   if (beamOn) state.hover += dt; else state.hover = Math.max(0, state.hover - dt * 2);

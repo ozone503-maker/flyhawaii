@@ -119,6 +119,24 @@
       "file": "four-seasons-resort-hualalai.mp4",
       "biz": "four-seasons-resort-hualalai",
       "when": "delivery"
+    },
+    {
+      "id": "thanks-cruise-ship",
+      "file": "cruise-ship.mp4",
+      "biz": "cruise-ship",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-fishing-boat",
+      "file": "fishing-boat.mp4",
+      "biz": "fishing-boat",
+      "when": "delivery"
+    },
+    {
+      "id": "thanks-snorkel-cat",
+      "file": "snorkel-cat.mp4",
+      "biz": "snorkel-cat",
+      "when": "delivery"
     }
   ]
 }
