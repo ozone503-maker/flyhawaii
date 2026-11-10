@@ -24,6 +24,7 @@ import { ambienceLevels } from './ambience.js';
 import { createRain } from './rain3d.js';
 import { createTimeTrial } from './time-trial3d.js';
 import { formatLap } from './time-trial.js';
+import { createCombat } from './mantis3d.js';
 import { treeAt } from './trees.js';
 import { HALEMAUMAU } from './landmarks.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
@@ -105,7 +106,9 @@ scene.add(hemi);
 window.__sky = createSky(scene, sun.position);
 let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0, rain = null, rainVeil = null, tt = null;
 // game mode: 'deliver' (jobs) or 'tt' (time trial lap); chosen on the start screen, ?mode=tt for testing
-let gameMode = ['deliver', 'tt'].includes(params.get('mode')) ? params.get('mode') : (localStorage.getItem('fh_mode') || 'deliver');
+const MODES = ['deliver', 'tt', 'defend'];
+let gameMode = MODES.includes(params.get('mode')) ? params.get('mode') : (MODES.includes(localStorage.getItem('fh_mode')) ? localStorage.getItem('fh_mode') : 'deliver');
+let combat = null, firing = false;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -429,6 +432,7 @@ function placeBeacon(b, label, t, text, color) {
 }
 function target() {
   if (gameMode === 'tt') return tt?.target() || null;
+  if (gameMode === 'defend') return combat?.target(state.pos) || null;
   return state.job ? (state.phase === 'pickup' ? state.job.from : state.job.to) : null;
 }
 const $ = (id) => document.getElementById(id);
@@ -619,6 +623,7 @@ function deliveryReward(amount, bonus, tip = 0) {
 }
 function updateMissionText() {
   if (gameMode === 'tt' && tt) { ttHud(clock.elapsedTime); return; }
+  if (gameMode === 'defend' && combat) { defendHud(); return; }
   const j = state.job, m = $('mission');
   if (j?.home) {
     m.className = 'home';
@@ -958,14 +963,18 @@ function shapeStick(x, y) {
   const k = Math.min(1, (m - DEAD) / (1 - DEAD)) / m;
   return [expo(x * k), expo(y * k)];
 }
-const held = { up: false, down: false, boost: false };
-for (const [id, k] of [['btnUp', 'up'], ['btnDown', 'down'], ['btnBoost', 'boost']]) {
-  const el = $(id);
+const held = { up: false, down: false, boost: false, fire: false };
+for (const [id, k] of [['btnUp', 'up'], ['btnDown', 'down'], ['btnBoost', 'boost'], ['btnFire', 'fire']]) {
+  const el = $(id); if (!el) continue;
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); held[k] = true; el.classList.add('active'); el.setPointerCapture(e.pointerId); });
   const up = () => { held[k] = false; el.classList.remove('active'); };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
 }
 document.addEventListener('contextmenu', (e) => e.preventDefault());
+// mouse fire for the combat mode (touch uses the fire glyph so the flight stick stays free)
+let mouseFire = false;
+canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && gameMode === 'defend' && e.button === 0) mouseFire = true; });
+addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') mouseFire = false; });
 
 function readInput() {
   const k = (c) => keys.has(c);
@@ -976,6 +985,7 @@ function readInput() {
   up += (held.up ? 1 : 0) - (held.down ? 1 : 0);
   input.fwd = Math.max(-1, Math.min(1, fwd)); input.turn = Math.max(-1, Math.min(1, turn)); input.up = Math.max(-1, Math.min(1, up));
   input.boost = k('ShiftLeft') || k('ShiftRight') || held.boost;
+  firing = gameMode === 'defend' && (k('KeyX') || k('KeyJ') || held.fire || mouseFire);
 }
 
 function togglePause(force) {
@@ -993,7 +1003,7 @@ function togglePause(force) {
 $('pauseBtn').addEventListener('click', () => togglePause(true));
 $('camBtn')?.addEventListener('click', () => toggleCamera());
 $('resumeBtn').addEventListener('click', () => togglePause(false));
-$('newJobBtn').addEventListener('click', () => { if (gameMode === 'tt') { startTimeTrial(); togglePause(false); return; } if (state.cut) endCutscene(); if (ui.greeter) { ui.greeter = null; $('greeter').classList.add('hidden'); document.body.classList.remove('greeter'); } if (ui.summary) { $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary'); ui.summary = false; } clearJob(); togglePause(false); openJobBoard(); });
+$('newJobBtn').addEventListener('click', () => { if (gameMode === 'tt') { startTimeTrial(); togglePause(false); return; } if (gameMode === 'defend') { startDefend(); togglePause(false); return; } if (state.cut) endCutscene(); if (ui.greeter) { ui.greeter = null; $('greeter').classList.add('hidden'); document.body.classList.remove('greeter'); } if (ui.summary) { $('shiftSummary').classList.add('hidden'); document.body.classList.remove('shift-summary'); ui.summary = false; } clearJob(); togglePause(false); openJobBoard(); });
 $('jbHome')?.addEventListener('click', () => { if (!state.paused) { unlockAudio(); startHomeLeg(); } });
 $('ssNew')?.addEventListener('click', () => { if (!state.paused) closeShiftSummary(); });
 $('jbReroll').addEventListener('click', () => rerollJobs());
@@ -1149,6 +1159,7 @@ function step(dt, t) {
     b.userData.box.visible = (b === beaconPick && state.phase === 'pickup') || (b === beaconDrop && false);
   }
   if (gameMode === 'tt' && tt) ttStep(dt, t);
+  if (gameMode === 'defend' && combat) defendStep(dt, t);
   // HUD
   tg = target();
   if (!tg) { $('arrow').style.transform = ''; finishHud(); return; }
@@ -1157,7 +1168,7 @@ function step(dt, t) {
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
-  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? `X or click to fire. Stop them before they reach ${combat.state.town?.name || 'town'}` : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   finishHud();
 }
 function finishHud() {
@@ -1344,6 +1355,37 @@ function ttStep(dt, t) {
   ttHud(t);
 }
 
+// ---------- defend the island ----------
+function startDefend() {
+  if (!combat) return;
+  const w = toWorld(19.75, -155.05); // over Hilo Bay
+  state.pos.set(w.x, groundY(w.x, w.y) + 6, w.y); state.yaw = Math.PI / 2; state.speed = 0; state.vy = 0; state.vel.set(0, 0, 0);
+  combat.start(); defendHud();
+  $('newJobBtn').textContent = 'Restart from wave 1';
+}
+function defendHud() {
+  const S = combat.state, left = combat.mantises.length;
+  $('mission').className = 'defend';
+  $('missionStep').textContent = `Wave ${S.wave}`;
+  $('missionTarget').textContent = S.between ? `Wave ${S.wave} cleared` : `Defend ${S.town?.name || ''}  ${left} left`;
+  $('cargo').textContent = `Town ${Math.round(S.townHP)}%  Shield ${Math.round(S.shield)}%`;
+}
+const _aim = new THREE.Vector3();
+function defendStep(dt, t) {
+  _aim.set(-Math.sin(state.yaw), Math.max(-0.35, Math.min(0.35, state.vy / 40)), -Math.cos(state.yaw)).normalize();
+  for (const e of combat.update(dt, t, state.pos, _aim, firing && !state.cut)) {
+    if (e.type === 'shot') gameAudio.zap();
+    else if (e.type === 'hit') gameAudio.boom(false);
+    else if (e.type === 'kill') { gameAudio.boom(true); addTokens(e.bounty); }
+    else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
+    else if (e.type === 'down') toast('Shields down!\nBack in the fight');
+    else if (e.type === 'wave') toast(`Wave ${e.wave}\n${e.count} mantis craft heading for ${e.town}`);
+    else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); toast(`Wave ${e.wave} cleared\n+${e.bonus} KDU`); }
+    else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
+  }
+  defendHud();
+}
+
 let lastStream = 0;
 function frame() {
   requestAnimationFrame(frame);
@@ -1402,6 +1444,7 @@ async function boot() {
   sea = createSeaTraffic({ scene, toWorld, isTouch });
   rain = createRain({ scene, toWorld, isTouch });
   tt = createTimeTrial({ scene, elevM, toWorld, fromWorld });
+  combat = createCombat({ scene, toWorld, fromWorld, groundY, isTouch });
   rainVeil = document.createElement('div'); rainVeil.className = 'rain-veil'; canvas.after(rainVeil);
   seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });
@@ -1435,7 +1478,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, get tt() { return tt; }, makeOffers, renderJobBoard, updateHomeButton };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, get tt() { return tt; }, get combat() { return combat; }, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
@@ -1516,7 +1559,9 @@ function startGame() {
   state.running = true; clock.getDelta();
   applyCamHud();
   document.body.dataset.mode = gameMode;
-  if (gameMode === 'tt') startTimeTrial(); else { tt?.stop(); openJobBoard(); }
+  if (gameMode !== 'tt') tt?.stop();
+  if (gameMode !== 'defend') combat?.stop();
+  if (gameMode === 'tt') startTimeTrial(); else if (gameMode === 'defend') startDefend(); else openJobBoard();
   try { drawMinimap(); } catch { /* terrain may still be wiring */ }
 }
 $('startBtn').addEventListener('click', () => openSelect(false));
