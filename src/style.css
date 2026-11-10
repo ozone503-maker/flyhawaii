@@ -999,3 +999,10 @@ body.greeter #touch, body.shift-summary #touch, body.greeter #beam, body.shift-s
   background:linear-gradient(180deg,#5c6670,#3a424b);clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);opacity:.75}
 .mode-btn.on{opacity:1;color:#fff;background:linear-gradient(180deg,#c98a4b,#8a5426);box-shadow:inset 0 0 0 2px rgba(30,200,255,.6)}
 .mode-btn:focus-visible{outline:2px solid #1ec8ff;outline-offset:2px}
+
+/* Defend the island: the fire glyph only shows in that mode, and a brief shield shimmer on a hit */
+.tbtn.tfire{display:none}
+body[data-mode="defend"] .tbtn.tfire{display:grid}
+body.hit #game{animation:shieldhit .35s ease-out}
+@keyframes shieldhit{0%{filter:brightness(1.6) saturate(1.4) hue-rotate(-20deg)}100%{filter:none}}
+@media (prefers-reduced-motion: reduce){body.hit #game{animation:none}}

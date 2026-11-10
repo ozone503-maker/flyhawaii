@@ -215,6 +215,32 @@ export function createGameAudio({ AudioContext, enabled = true, volume = DEFAULT
         }
       } catch { /* place sounds are optional */ }
     },
+    /** player plasma shot */
+    zap() {
+      if (!alive()) return;
+      const now = context.currentTime; if (now - (this._lz || 0) < 0.05) return; this._lz = now;
+      try {
+        const o = context.createOscillator(), g = context.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(1500, now); o.frequency.exponentialRampToValueAtTime(320, now + 0.12);
+        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.09, now + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+        o.connect(g); g.connect(duck); o.start(now); o.stop(now + 0.15);
+        o.onended = () => { try { o.disconnect(); g.disconnect(); } catch { /* ignore */ } };
+      } catch { /* ignore */ }
+    },
+    /** a mantis craft goes down (big) or takes a hit (small) */
+    boom(big = true) {
+      if (!alive()) return;
+      try {
+        const start = context.currentTime, dur = big ? 0.9 : 0.25;
+        const src = context.createBufferSource(); src.buffer = makeNoiseBuffer(context);
+        const lp = context.createBiquadFilter(); lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(big ? 1800 : 2600, start); lp.frequency.exponentialRampToValueAtTime(90, start + dur);
+        const g = context.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.linearRampToValueAtTime(big ? 0.35 : 0.12, start + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        src.connect(lp); lp.connect(g); g.connect(duck);
+        src.onended = () => { try { src.disconnect(); lp.disconnect(); g.disconnect(); } catch { /* ignore */ } };
+        src.start(start); src.stop(start + dur + 0.02);
+      } catch { /* ignore */ }
+    },
     boost() {
       if (!alive()) return;
       try {

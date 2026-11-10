@@ -47,6 +47,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/trees.js` | Which tree grows where from the imagery, deterministic trees per cell. Pure |
 | `src/time-trial3d.js` | Time trial: hex gates around the coast, lap timer, best lap (`fh_tt_best_v1`) and the ghost saucer |
 | `src/time-trial.js` | Traces the coastal course from the elevation grid, gates, lap format, ghost track. Pure |
+| `src/mantis3d.js` | Defend the island: the mantis alien craft (our own design), plasma bolts, explosions, waves, best wave (`fh_defend_best_v1`) |
+| `src/combat.js` | Raid towns, wave sizes, lock-on assist, hits, mantis steering, shields. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |
 | `src/cd-player.js` | Music player logic (tracks, auto advance, ducking under clips) |
 | `src/game-audio.js` | Synthesized WebAudio engine hum, chimes and coin blips, plus place sounds (surf, high wind, crater rumble, rain, birdsong, coquí). No sample files |
@@ -148,6 +150,7 @@ An entry looks like this (only `name`, `kind`, `lat` and `lon` are required):
   - No round buttons. Use shards, hexagons, chevrons and clipped-corner panels with scanlines and a glow in the pilot's color
   - Numbers on readouts are fine
 - Two modes on the start screen (saved in `fh_mode`, `?mode=tt` for testing): Deliveries, and Time trial: one lap of the island through 73 hex gates about 1.4 km offshore, starting and finishing at the gold gate off Hilo Bay. Gates must be touched in order (touching the ring counts, no need to thread the middle). A lap pays 40 KDU, a new best 100 KDU, and the best lap's ghost races you
+- Defend the island (third mode): mantis alien craft raid a town each wave (Hilo, Kona, Waimea, Volcano, FlashTown). Fire with `X`, `J`, a left mouse click, or the fire glyph on touch (only shown in this mode). Shots lock on to craft in a cone ahead. 15 KDU per craft, 50 x wave for clearing a wave. Lose the town and it restarts from wave 1. Shields regenerate after 3 s without a hit
 - Time of day follows the real clock in Hawaiʻi by default. `T` or the sun glyph in the pause menu cycles Live, Day, Sunset and Night (saved in `fh_time`); `?time=21` forces an hour for testing
 - Every keyboard shortcut must keep working; touch must keep working on phones
 
