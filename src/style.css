@@ -1003,6 +1003,23 @@ body.greeter #touch, body.shift-summary #touch, body.greeter #beam, body.shift-s
 /* Defend the island: the fire glyph only shows in that mode, and a brief shield shimmer on a hit */
 .tbtn.tfire{display:none}
 body[data-mode="defend"] .tbtn.tfire{display:grid}
+.tbtn.tfire .armed-glyph{display:none}
+.tbtn.tfire.armed{border-color:#ffc94d;color:#ffc94d;box-shadow:0 0 18px #ffc94daa,inset 0 0 12px #ffc94d55}
+.tbtn.tfire.armed .glyph{display:none}.tbtn.tfire.armed .armed-glyph{display:block}
+/* target lock: a hex reticle that rides on the runner, brackets close in as the lock builds */
+#lockRet{position:fixed;left:0;top:0;width:96px;height:96px;margin:-48px 0 0 -48px;pointer-events:none;z-index:6;display:none;--p:0;color:#7fe6ff}
+#lockRet.on{display:block}
+#lockRet svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 6px currentColor)}
+#lockRet .lr-hex{fill:none;stroke:currentColor;stroke-width:2;opacity:.45}
+#lockRet .lr-fill{fill:none;stroke:currentColor;stroke-width:5;stroke-dasharray:calc(var(--p) * 100) 100}
+#lockRet .lr-br path{fill:none;stroke:currentColor;stroke-width:3}
+#lockRet .lr-br{transform:scale(calc(1.5 - var(--p) * 0.5));transition:transform .08s linear}
+#lockRet .lr-msl{color:currentColor;fill:currentColor;opacity:0}
+#lockRet.locked{color:#ffc94d}
+#lockRet.locked .lr-msl{opacity:1}
+#lockRet.locked svg{animation:lockpulse .5s ease-in-out infinite alternate}
+@keyframes lockpulse{from{transform:scale(1)}to{transform:scale(1.12)}}
+@media (prefers-reduced-motion: reduce){#lockRet.locked svg{animation:none}#lockRet .lr-br{transition:none}}
 body.hit #game{animation:shieldhit .35s ease-out}
 @keyframes shieldhit{0%{filter:brightness(1.6) saturate(1.4) hue-rotate(-20deg)}100%{filter:none}}
 @media (prefers-reduced-motion: reduce){body.hit #game{animation:none}}

@@ -2,7 +2,7 @@
 // glowing teal eyes, antennae, scythe forelegs and swept wings), plasma bolts, explosions.
 // Rules and steering live in combat.js.
 import * as THREE from 'three';
-import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, runnerEscapes, RUNNER_LOCK } from './combat.js';
+import { RAID_TOWNS, MANTIS, PLAYER, TOWN_HP, waveSpec, waveBonus, spawnRing, assistTarget, segPointDist, mantisGoal, steer, shieldStep, swarmSpeed, escapeSpec, escapeGoal, caughtBonus, runnerSpeed, QUICK_CATCH_S, runnerEscapes, RUNNER_LOCK, LOCK, MISSILE, lockStep } from './combat.js';
 
 const BEST_KEY = 'fh_defend_best_v1';
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -103,6 +103,12 @@ export function createCombat(ctx) {
     Object.assign(b, { live: true, x: from.x, y: from.y, z: from.z, vx: dir.x * speed, vy: dir.y * speed, vz: dir.z * speed, life, home, speed, far, seen: false });
     b.m.visible = true;
   }
+  // the one lock-on missile per chase: a gold dart with a glowing tail
+  const missile = new THREE.Group(); missile.visible = false; group.add(missile);
+  missile.add(new THREE.Mesh(new THREE.ConeGeometry(0.22, 1.6, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc94d, fog: false })));
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 2.6, 6, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -1.9), new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  missile.add(tail);
+  const M = { live: false, x: 0, y: 0, z: 0, v: { x: 0, y: 0, z: 0 }, life: 0 };
   // explosions
   const flashTex = flashTexture('#8fffe0'), booms = [];
   function boom(x, y, z, big = 1) {
@@ -116,7 +122,7 @@ export function createCombat(ctx) {
   const events = [];
 
   function startWave(n) {
-    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0; S.escaped = false;
+    S.wave = n; S.town = towns[(n - 1) % towns.length]; S.townHP = TOWN_HP; S.between = 0; S.runner = null; S.escT = 0; S.escaped = false; S.lock = 0; S.missiles = 0; M.live = false; missile.visible = false;
     const spec = waveSpec(n), spots = spawnRing(S.town, spec.count);
     spots.forEach((p, i) => {
       const m = pool[i] || (pool[i] = makeMantis());
@@ -135,6 +141,7 @@ export function createCombat(ctx) {
 
   return {
     get state() { return S; },
+    get missileLive() { return M.live; },
     get mantises() { return alive(); },
     start() { group.visible = true; S.on = true; S.kills = 0; S.score = 0; S.streak = 0; S.shield = PLAYER.shield; S.over = 0; startWave(1); },
     stop() { group.visible = false; S.on = false; },
@@ -146,6 +153,29 @@ export function createCombat(ctx) {
       S.sinceHit += dt; S.invuln = Math.max(0, S.invuln - dt); S.shield = shieldStep(S.shield, dt, S.sinceHit);
       // player fire
       S.fireCool -= dt;
+      const runnerUp = S.runner && !S.runner.dead;
+      if (runnerUp && S.missiles > 0 && !M.live) S.lock = lockStep(S.lock, dt, pos, aim, S.runner); else if (!M.live) S.lock = 0;
+      if (firing && S.lock >= 1 && S.missiles > 0 && !M.live && runnerUp) { // locked: fire the missile
+        S.missiles--; S.fireCool = 0.4; S.lock = 0;
+        Object.assign(M, { live: true, x: pos.x + aim.x * 1.5, y: pos.y - 0.3, z: pos.z + aim.z * 1.5, v: { x: aim.x * MISSILE.speed * 0.6, y: aim.y * MISSILE.speed * 0.6, z: aim.z * MISSILE.speed * 0.6 }, life: MISSILE.life });
+        missile.visible = true; events.push({ type: 'missile' });
+      }
+      if (M.live) { // pure pursuit, faster and tighter-turning than the runner: it always gets there
+        const r = S.runner;
+        if (!r || r.dead || (M.life -= dt) <= 0) { M.live = false; missile.visible = false; }
+        else {
+          M.v = steer(M.v, M, r, MISSILE.speed, MISSILE.turn, dt);
+          M.x += M.v.x * dt; M.y += M.v.y * dt; M.z += M.v.z * dt;
+          missile.position.set(M.x, M.y, M.z); missile.lookAt(M.x + M.v.x, M.y + M.v.y, M.z + M.v.z);
+          tail.scale.set(1, 1, 0.8 + Math.random() * 0.5);
+          if (Math.hypot(r.x - M.x, r.y - M.y, r.z - M.z) < MISSILE.hitR + MANTIS.radius) {
+            M.live = false; missile.visible = false; r.dead = true; r.g.visible = false; r.mark.visible = false; S.kills++; S.score += MANTIS.bounty; boom(r.x, r.y, r.z, 3);
+            events.push({ type: 'kill', bounty: MANTIS.bounty });
+            const secs = S.escT, quick = secs < QUICK_CATCH_S, bonus = caughtBonus(S.wave, secs, S.streak); S.streak = quick ? S.streak + 1 : 0; S.score += bonus;
+            events.push({ type: 'caught', wave: S.wave, bonus, secs, quick, streak: S.streak, missile: true });
+          }
+        }
+      }
       if (firing && S.fireCool <= 0 && !S.over) {
         S.fireCool = 1 / PLAYER.fireRate;
         const from = { x: pos.x + aim.x * 1.4, y: pos.y + aim.y * 1.4 - 0.1, z: pos.z + aim.z * 1.4 };
@@ -159,7 +189,7 @@ export function createCombat(ctx) {
       const living = alive();
       if (!S.runner && living.length === 1 && !S.over) {
         S.runner = living[0]; S.runner.runner = true; S.escT = 0; S.runner.mark.material = runMat; S.runner.mark.scale.set(0.05, 0.05, 1);
-        S.runner.hp += 2; S.breakT = 0.7; for (const b of bolts) { b.home = -1; b.far = true; }
+        S.runner.hp += 2; S.missiles = 1; S.lock = 0; S.breakT = 0.7; for (const b of bolts) { b.home = -1; b.far = true; }
         { // it blinks out of the fight to a head start over the island, so every chase starts as a chase
           const r = S.runner, g = escapeGoal(r, pos, tt, escapeSpec(S.wave), elevU), dx = g.x - r.x, dz = g.z - r.z, L = Math.hypot(dx, dz) || 1;
           boom(r.x, r.y, r.z, 0.8);
@@ -192,7 +222,7 @@ export function createCombat(ctx) {
               break;
             }
           }
-          if (runnerEscapes(S.escT, dPlayer)) {
+          if (!M.live && runnerEscapes(S.escT, dPlayer)) {
             m.dead = true; m.g.visible = false; m.mark.visible = false; S.escaped = true; S.streak = 0;
             events.push({ type: 'escaped', wave: S.wave }); continue;
           }

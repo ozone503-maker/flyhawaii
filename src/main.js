@@ -1168,7 +1168,7 @@ function step(dt, t) {
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
-  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? (combat.state.runner && !combat.state.runner.dead ? 'Boost after the gold marker and keep firing' : 'X or click to fire. Shots lock on to craft ahead') : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? (combat.state.runner && !combat.state.runner.dead ? 'Boost after the gold marker. Hold it in your sights to lock the missile' : 'X or click to fire. Shots lock on to craft ahead') : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   finishHud();
 }
 function finishHud() {
@@ -1380,13 +1380,32 @@ function defendStep(dt, t) {
     else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
     else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
-    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nChase it down'); }
-    else if (e.type === 'caught') { addTokens(e.bonus); toast(`Caught in ${e.secs.toFixed(1)} s!\n+${e.bonus} KDU${e.streak > 1 ? `  streak x${e.streak}` : ''}`); }
+    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nKeep it in your sights to lock the missile'); }
+    else if (e.type === 'missile') { gameAudio.zap(); gameAudio.zap(); toast('Missile away!'); }
+    else if (e.type === 'caught') { addTokens(e.bonus); toast(`${e.missile ? 'Missile hit! ' : ''}Caught in ${e.secs.toFixed(1)} s!\n+${e.bonus} KDU${e.streak > 1 ? `  streak x${e.streak}` : ''}`); }
     else if (e.type === 'escaped') toast('It got away this time');
     else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); setTimeout(() => toast(`Wave ${e.wave} ${e.escaped ? 'over' : 'cleared'}\n+${e.bonus} KDU`), 1900); }
     else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
   }
   defendHud();
+  lockHud();
+}
+const _rp = new THREE.Vector3();
+let lockWas = false;
+function lockHud() {
+  const S = combat.state, r = S.runner, el = $('lockRet'), btn = $('btnFire');
+  const show = r && !r.dead && S.missiles > 0 && !combat.missileLive;
+  let on = false;
+  if (show) {
+    _rp.set(r.x, r.y, r.z).project(camera);
+    on = _rp.z < 1 && Math.abs(_rp.x) < 1.1 && Math.abs(_rp.y) < 1.1;
+    if (on) { el.style.transform = `translate(${(_rp.x + 1) / 2 * innerWidth}px, ${(1 - _rp.y) / 2 * innerHeight}px)`; el.style.setProperty('--p', S.lock.toFixed(3)); }
+  }
+  const locked = !!show && S.lock >= 1;
+  el.classList.toggle('on', on); el.classList.toggle('locked', locked); btn.classList.toggle('armed', locked);
+  btn.setAttribute('aria-label', locked ? 'Fire missile' : 'Fire');
+  if (locked && !lockWas) { gameAudio.pickup(); }
+  lockWas = locked;
 }
 
 let lastStream = 0;
