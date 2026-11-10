@@ -10,11 +10,19 @@ export function hawaiiHour(d = new Date()) {
   return ((d.getUTCHours() - 10 + 24) % 24) + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
 }
 
+/** Day of the year (1..366) in Hawaiʻi. */
+export function hawaiiDay(d = new Date()) {
+  const h = new Date(d.getTime() - 10 * 3600 * 1000);
+  return Math.floor((h - Date.UTC(h.getUTCFullYear(), 0, 1)) / 86400000) + 1;
+}
+
 /** Sunrise and sunset hours for a day of the year (rough fit for Hilo and Kona). */
 export function sunTimes(dayOfYear = 314) {
   const a = (dayOfYear - 172) / 365 * Math.PI * 2; // 0 at the June solstice
-  const half = 6.3 + 0.62 * Math.cos(a); // half the day length: about 13.2 h in June, 11 h in December
-  const noon = 12.45 + 0.25 * Math.sin((dayOfYear - 80) / 365 * Math.PI * 4); // equation of time, roughly
+  const half = 6.07 + 0.63 * Math.cos(a); // half the day length: about 13.4 h in June, 10.9 h in December
+  const B = 2 * Math.PI * (dayOfYear - 81) / 364;
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // minutes the sun runs fast
+  const noon = 12 + 20.4 / 60 - eot / 60; // the island sits about 5 degrees west of the UTC-10 meridian
   return { rise: noon - half, set: noon + half, noon };
 }
 
