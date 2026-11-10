@@ -167,3 +167,16 @@ export function escapeGoal(m, player, t, spec, elevU) {
 
 /** Lock-on to the runner only when you are on its tail: close and lined up. */
 export const RUNNER_LOCK = { range: 28, deg: 12 };
+
+/**
+ * Target lock for the one missile you get per chase: keep the runner within LOCK.deg of your
+ * nose (left and right) and LOCK.range for LOCK.time seconds. Slipping out of the cone drains it
+ * twice as fast. Returns the new progress 0..1.
+ */
+export const LOCK = { range: 60, deg: 20, time: 1.5 };
+export const MISSILE = { speed: 115, turn: 7, life: 8, hitR: 1.6 };
+export function lockStep(progress, dt, from, aim, target, lock = LOCK) {
+  const dx = target.x - from.x, dz = target.z - from.z, d = Math.hypot(dx, dz), al = Math.hypot(aim.x, aim.z) || 1;
+  const inCone = d <= lock.range && d > 0.5 && (dx * aim.x + dz * aim.z) / (d * al) >= Math.cos(lock.deg * Math.PI / 180);
+  return Math.max(0, Math.min(1, progress + (inCone ? dt / lock.time : -2 * dt / lock.time)));
+}

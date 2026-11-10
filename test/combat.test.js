@@ -65,3 +65,14 @@ test('the swarm keeps up with you and the runner gets harder each wave', async (
   assert.ok(caughtBonus(1, 3) > caughtBonus(1, 25), 'quick catches pay more');
   assert.ok(caughtBonus(1, 22, 3) > caughtBonus(1, 22, 0) && streakMult(99) === 2);
 });
+
+test('target lock builds while the runner is in your sights and drains when it slips out', async () => {
+  const { lockStep, LOCK } = await import('../src/combat.js');
+  const from = { x: 0, y: 5, z: 0 }, aim = { x: 0, y: 0, z: -1 };
+  let p = 0;
+  for (let i = 0; i < 60 * LOCK.time + 2; i++) p = lockStep(p, 1 / 60, from, aim, { x: 2, y: 6, z: -30 });
+  assert.equal(p, 1, 'locks after LOCK.time seconds dead ahead');
+  assert.ok(lockStep(1, 0.1, from, aim, { x: 30, y: 5, z: -5 }) < 1, 'off to the side drains it');
+  assert.equal(lockStep(0.5, 0.1, from, aim, { x: 0, y: 5, z: -(LOCK.range + 5) }) < 0.5, true, 'too far does not count');
+  assert.equal(lockStep(0, 0.5, from, aim, { x: 0, y: 5, z: 30 }), 0, 'behind you does not count');
+});
