@@ -41,6 +41,8 @@ Node.js 24 is the target (see `engines` in package.json).
 | `src/boats3d.js` | Cruise ships, sport fishing boats and a snorkel catamaran with foamy wakes |
 | `src/sea-traffic.js` | Cruise route Hilo pier to the Kona anchorage around Upolu Point, boat routes from Honokōhau, Kawaihae and Hilo. Pure, and a test checks every leg stays at sea |
 | `src/sea-life.js` | Humpback whales in season (Nov to Apr) off Kohala and Kona with blows, dives and breaches, spinner dolphin pods, honu at Punaluʻu |
+| `src/rain3d.js` | Shower cells (dark cloud and rain curtain), rain on the glass, rainbows opposite a low sun |
+| `src/rain.js` | Windward shower cells drifting on the trade wind, wetness, when a rainbow shows. Pure |
 | `src/tree-field.js` | Forest, coconut palms and kiawe around the saucer (instanced, refilled as you fly) |
 | `src/trees.js` | Which tree grows where from the imagery, deterministic trees per cell. Pure |
 | `src/clips.js` | Cutaway clip list parsing and picking |

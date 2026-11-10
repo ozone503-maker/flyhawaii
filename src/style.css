@@ -984,3 +984,11 @@ body.greeter #touch, body.shift-summary #touch, body.greeter #beam, body.shift-s
   #grTier { justify-content: center; }
   .ss-panel { padding: 20px 16px 16px; }
 }
+
+/* Rain on the glass while flying through a shower (opacity set from main.js) */
+.rain-veil{position:fixed;inset:0;pointer-events:none;opacity:0;
+  background:repeating-linear-gradient(103deg,rgba(210,225,240,0) 0 9px,rgba(210,225,240,.28) 9px 10px,rgba(210,225,240,0) 10px 23px),
+    linear-gradient(rgba(120,135,155,.28),rgba(120,135,155,.28));
+  background-size:140px 220px,100% 100%;animation:rainfall .35s linear infinite}
+@keyframes rainfall{to{background-position:-40px 220px,0 0}}
+@media (prefers-reduced-motion: reduce){.rain-veil{animation:none}}

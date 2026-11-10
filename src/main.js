@@ -21,6 +21,7 @@ import { createDaylight } from './daylight3d.js';
 import { makeMovingOffer, MOVING_CHANCE } from './moving-jobs.js';
 import { createSeaLife } from './sea-life.js';
 import { ambienceLevels } from './ambience.js';
+import { createRain } from './rain3d.js';
 import { treeAt } from './trees.js';
 import { HALEMAUMAU } from './landmarks.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
@@ -100,7 +101,7 @@ scene.add(hemi);
 
 // sky dome: hazy horizon, deep zenith, sun glow (src/sky-ocean.js)
 window.__sky = createSky(scene, sun.position);
-let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0;
+let ocean = null, clouds = null, cloudVeil = null, landmarks3d = null, trees = null, air = null, sea = null, lastTraffic = -99, daylight = null, seaLife = null, rgbAtFn = null, lastAmb = 0, ambWet = 0, rain = null, rainVeil = null;
 
 // ---------- terrain ----------
 let H, meta, SIZE, N;
@@ -1321,6 +1322,7 @@ function frame() {
   }
   if (state.running) drawWave(t);
   ocean?.update(t); landmarks3d?.update(t); trees?.update(camera.position, t); sea?.update(t); seaLife?.update(t); daylight?.update(t);
+  if (rain) { ambWet = state.running ? rain.update(t, camera, state.pos, sun.position, !daylight?.look?.night) : 0; rainVeil.style.opacity = (ambWet * 0.85).toFixed(3); }
   if (t - lastAmb > 0.25) { lastAmb = t; updateAmbience(); }
   if (air) { const near = air.update(t, state.running ? state.pos : null); if (state.running && !state.paused && !state.cut && near < 1.4 && t - lastTraffic > 30) { lastTraffic = t; toast('Traffic! Close call'); } }
   if (clouds) { const d = clouds.update(dt, camera.position); cloudVeil.style.opacity = (Math.min(1, d * 1.4) * 0.85).toFixed(3); }
@@ -1362,6 +1364,8 @@ async function boot() {
   trees = createTreeField({ scene, groundY, rgbAt, elevM, lonAt: (x) => fromWorld(x, 0).lon, unitM: UNIT_M, isTouch });
   air = createAirTraffic({ scene, toWorld, groundY, isTouch });
   sea = createSeaTraffic({ scene, toWorld, isTouch });
+  rain = createRain({ scene, toWorld, isTouch });
+  rainVeil = document.createElement('div'); rainVeil.className = 'rain-veil'; canvas.after(rainVeil);
   seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });
   { const tp = params.get('time'); if (tp && !isNaN(Number(tp))) daylight.setHour(Number(tp)); else setTimeMode(tp || localStorage.getItem('fh_time') || 'live', false); }
@@ -1394,7 +1398,7 @@ async function boot() {
   $('tokenCount').textContent = state.tokens.toLocaleString();
   updateMissionText();
   startBtn.disabled = false; $('loading').textContent = '';
-  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
+  if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
 function setPilot(id) {
