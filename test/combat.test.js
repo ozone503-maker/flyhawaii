@@ -44,13 +44,20 @@ test('the swarm keeps up with you and the runner gets harder each wave', async (
   const a = escapeSpec(1), b = escapeSpec(6);
   assert.ok(b.jink > a.jink && b.dodge > a.dodge);
   assert.ok(escapeSpec(99).dodge <= 0.3, 'dodges are flair, not a wall');
-  for (const w of [1, 5, 20]) for (const sp of [25, 80]) {
-    assert.ok(runnerSpeed(escapeSpec(w), 50, sp) < sp, 'you always close in from far away');
-    assert.ok(runnerSpeed(escapeSpec(w), 20, sp) < sp, 'and from mid range');
+  for (const w of [1, 5, 20]) {
+    const e = escapeSpec(w);
+    assert.ok(runnerSpeed(e, 50, 80) < 80, 'boost closes the gap');
+    assert.ok(runnerSpeed(e, 50, 25) > 25, 'cruising does not');
+    for (const sp of [25, 80]) assert.ok(runnerSpeed(e, 150, sp) < sp, 'fall far behind and it waits for you');
   }
   assert.ok(runnerSpeed(a, 5, 80) > runnerSpeed(a, 20, 80), 'kicks when you are right on it');
-  const g = escapeGoal({ x: 10, y: 5, z: 0, seed: 0.2 }, { x: 0, y: 5, z: 0 }, 0, a, 800);
+  const island = (x, z) => (Math.hypot(x, z) < 100 ? 3 + Math.sin(x * 0.3) * 2 : -5); // round island, rugged
+  const g = escapeGoal({ x: 10, y: 5, z: 0, seed: 0.2 }, { x: 0, y: 5, z: 0 }, 0, a, island);
   assert.ok(g.x > 10, 'runs away from you');
+  // near the coast with you behind it, it turns along the island instead of out to sea
+  const c = { x: 85, y: 5, z: 0, seed: 0.2, v: { x: 30, y: 0, z: 0 } };
+  for (let k = 0; k < 5; k++) { const q = escapeGoal(c, { x: c.x - 20, y: 5, z: c.z }, k, a, island); assert.ok(Math.hypot(q.x, q.z) < 100, 'stays over land'); c.v = { x: q.x - c.x, y: 0, z: q.z - c.z }; c.x += c.v.x * 0.5; c.z += c.v.z * 0.5; }
+  assert.ok(g.y > island(g.x, g.z), 'skims above the ground');
   assert.ok(caughtBonus(3) > caughtBonus(1));
   const { CHASE_MIN_S, runnerEscapes } = await import('../src/combat.js');
   for (const sec of [0, 3, 10, 19.9]) assert.equal(runnerEscapes(sec, 9999), false, 'never gets away before 20 s');

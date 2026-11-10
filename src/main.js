@@ -1447,7 +1447,7 @@ async function boot() {
   sea = createSeaTraffic({ scene, toWorld, isTouch });
   rain = createRain({ scene, toWorld, isTouch });
   tt = createTimeTrial({ scene, elevM, toWorld, fromWorld });
-  combat = createCombat({ scene, toWorld, fromWorld, groundY, isTouch, bounds: SIZE / 2 });
+  combat = createCombat({ scene, toWorld, fromWorld, groundY, elevU: (x, z) => elevBest(x, z) / UNIT_M * VEXAG, isTouch, bounds: SIZE / 2 });
   rainVeil = document.createElement('div'); rainVeil.className = 'rain-veil'; canvas.after(rainVeil);
   seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });

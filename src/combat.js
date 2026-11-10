@@ -100,6 +100,7 @@ export function swarmSpeed(base, playerSpeed, dist) {
  */
 export function escapeSpec(wave) {
   return {
+    speed: Math.min(74, 65 + wave),         // you need boost (80) to close on it
     jink: Math.min(12, 2 + wave * 1.2),     // sideways weave amplitude, units: showier each wave
     jinkHz: Math.min(1.2, 0.35 + wave * 0.08),
     dodge: Math.min(0.3, 0.08 + wave * 0.03), // a few flashy sidesteps, never a wall
@@ -109,15 +110,14 @@ export function escapeSpec(wave) {
 }
 
 /**
- * Runner speed: rubber-banded to the saucer so the chase always feels close and always ends
- * well. Far away it eases off and lets you close; right behind it, it kicks to stay just ahead
- * for a moment. Never stops: there is always a floor so it keeps moving.
+ * Runner speed: just under full boost, so cruising never closes the gap and boosting closes it
+ * slowly. Right on its tail it kicks to almost your boost speed for a moment. If you fall far
+ * behind it eases off so you can always get back into it.
  */
 export function runnerSpeed(spec, dist, playerSpeed) {
-  const p = Math.max(25, playerSpeed);
-  if (dist > 30) return p * 0.5;
-  if (dist < 8) return p * 0.95 * spec.burst;
-  return p * (0.5 + (30 - dist) / 22 * 0.4);
+  if (dist > 100) return Math.min(spec.speed, Math.max(25, playerSpeed) * 0.6);
+  if (dist < 12) return Math.min(78, spec.speed * 1.1);
+  return spec.speed;
 }
 
 /** The runner can never get away before this many seconds, so every chase gets a real run. */
@@ -137,14 +137,33 @@ export const runnerEscapes = (secs, dist) => secs >= CHASE_MIN_S && (dist > ESCA
 export const streakMult = (streak) => 1 + Math.min(4, Math.max(0, streak)) * 0.25;
 
 /**
- * Where the runner heads: away from the saucer, weaving, kept inside the map. bounds: half
- * size of the play area in units.
+ * Where the runner heads: away from you, but over the island, never out to sea. It weighs 16
+ * headings by how much they get away from you, how close they are to where it is already going,
+ * whether there is land under them, and how rugged that land is (valleys and ridges beat flat
+ * pasture), then skims low over the ground along the winner so you have to chase it through the
+ * terrain. elevU(x, z): ground height in world units, negative at sea.
  */
-export function escapeGoal(m, player, t, spec, bounds) {
+export function escapeGoal(m, player, t, spec, elevU) {
   let ax = m.x - player.x, az = m.z - player.z; const L = Math.hypot(ax, az) || 1; ax /= L; az /= L;
-  // steer back toward the middle near the edges
-  const ex = Math.abs(m.x) > bounds * 0.8 ? -Math.sign(m.x) : 0, ez = Math.abs(m.z) > bounds * 0.8 ? -Math.sign(m.z) : 0;
-  ax += ex * 1.5; az += ez * 1.5; const L2 = Math.hypot(ax, az) || 1; ax /= L2; az /= L2;
-  const sx = -az, sz = ax, w = Math.sin(t * spec.jinkHz * 6.28 + m.seed * 9) * spec.jink;
-  return { x: m.x + ax * 40 + sx * w, y: player.y + 3 + Math.sin(t * spec.jinkHz * 4.1 + m.seed) * Math.min(6, spec.jink * 0.5), z: m.z + az * 40 + sz * w };
+  const vl = Math.hypot(m.v?.x || 0, m.v?.z || 0), hx = vl > 1 ? m.v.x / vl : ax, hz = vl > 1 ? m.v.z / vl : az;
+  let best = null, bs = -Infinity;
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+    const overSea = elevU(m.x, m.z) <= 0.05; // out over the water: get back to the island first
+    let sc = (L < 40 ? 2.5 : 1.0) * (dx * ax + dz * az) + (overSea ? 0.3 : 1.2) * (dx * hx + dz * hz), prev = null, rough = 0;
+    for (const r of [10, 22, 36, 52]) {
+      const e = elevU(m.x + dx * r, m.z + dz * r);
+      sc += e > 0.05 ? (overSea ? 1.2 : 0.5) : -2.5; // land good, ocean bad
+      if (prev !== null) rough += Math.abs(e - prev); prev = e;
+    }
+    sc += Math.min(1.2, rough * 0.25);
+    if (sc > bs) { bs = sc; best = { dx, dz }; }
+  }
+  const sx = -best.dz, sz = best.dx, w = Math.sin(t * spec.jinkHz * 6.28 + m.seed * 9) * spec.jink;
+  const gx = m.x + best.dx * 30 + sx * w, gz = m.z + best.dz * 30 + sz * w;
+  const floor = Math.max(0, elevU(m.x + best.dx * 8, m.z + best.dz * 8), elevU(m.x + best.dx * 18, m.z + best.dz * 18), elevU(gx, gz));
+  return { x: gx, y: floor + 2.2 + Math.sin(t * spec.jinkHz * 4.1 + m.seed) * 0.8, z: gz };
 }
+
+/** Lock-on to the runner only when you are on its tail: close and lined up. */
+export const RUNNER_LOCK = { range: 28, deg: 12 };
