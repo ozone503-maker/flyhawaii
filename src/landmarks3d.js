@@ -2,6 +2,7 @@
 // plume, snow and observatories on Mauna Kea, waterfalls down the Hāmākua cliffs, and little
 // buildings in every town. Everything here is a few instanced draws so phones keep up.
 import * as THREE from 'three';
+import { WORLD_TINT } from './world-light.js';
 import { TOWN_AREAS, OBSERVATORIES, HALEMAUMAU, SNOW_LINE_M, placeBuildings, fallDrop, fallHeightM } from './landmarks.js';
 
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -97,6 +98,7 @@ export function createLandmarks(ctx) {
   const V = (m) => m / unitM * vex; // meters -> world units (vertical)
   const group = new THREE.Group(); group.name = 'landmarks'; scene.add(group);
   const ticks = [];
+  let nightK = 0; const mists = []; let plumeRef = null, lightsMat = null;
 
   // ---- Kīlauea: glowing lava lake and the vog plume drifting southwest on the trade wind ----
   {
@@ -121,7 +123,8 @@ export function createLandmarks(ctx) {
     const plume = puffColumn(isTouch ? 34 : 56, { heightU: V(HALEMAUMAU.plumeM), driftX: -U(2600), driftZ: U(1400), sizeU: U(700),
       bottom: 0xd9b49a, top: 0xc9ccd2, opacity: 0.55, speed: 0.012 });
     plume.mesh.position.set(w.x, y + 0.1, w.y); group.add(plume.mesh);
-    ticks.push((t) => { lavaU.uTime.value = t; plume.uniforms.uTime.value = t; glow.material.opacity = 0.18 + 0.06 * Math.sin(t * 1.7); });
+    ticks.push((t) => { lavaU.uTime.value = t; plume.uniforms.uTime.value = t; glow.material.opacity = (0.18 + 0.06 * Math.sin(t * 1.7)) * (1 + 2.5 * nightK); });
+    plumeRef = plume;
   }
 
   // ---- Mauna Kea observatories ----
@@ -142,15 +145,15 @@ export function createLandmarks(ctx) {
 
   // ---- waterfalls: a white ribbon down the cliff with mist at the bottom ----
   {
-    const fallU = { uTime: { value: 0 } };
+    const fallU = { uTime: { value: 0 }, uTint: WORLD_TINT };
     const fallMat = new THREE.ShaderMaterial({
       uniforms: fallU, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: `uniform float uTime; varying vec2 vUv;
+      fragmentShader: `uniform float uTime; uniform vec3 uTint; varying vec2 vUv;
         void main(){ float edge = smoothstep(0.0, 0.25, vUv.x) * smoothstep(1.0, 0.75, vUv.x);
           float streak = 0.6 + 0.4 * sin(vUv.x * 40.0 + sin(vUv.y * 9.0)) * sin((vUv.y + uTime * 0.9) * 22.0 + vUv.x * 7.0);
           float a = edge * (0.55 + 0.45 * streak) * (0.75 + 0.25 * smoothstep(0.0, 0.2, vUv.y));
-          gl_FragColor = vec4(vec3(0.94, 0.97, 1.0), a); }`,
+          gl_FragColor = vec4(vec3(0.94, 0.97, 1.0) * uTint, a); }`,
     });
     const mistTex = softPuffTexture();
     for (const f of (ctx.falls || [])) {
@@ -164,7 +167,7 @@ export function createLandmarks(ctx) {
       rib.rotation.y = Math.atan2(d.dirX, d.dirZ);
       group.add(rib);
       const mist = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistTex, color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }));
-      mist.scale.set(wid * 3.2, wid * 2, 1); mist.position.set(bx + d.dirX * 0.1, groundY(bx, bz) + wid * 0.6, bz + d.dirZ * 0.1); group.add(mist);
+      mists.push(mist); mist.scale.set(wid * 3.2, wid * 2, 1); mist.position.set(bx + d.dirX * 0.1, groundY(bx, bz) + wid * 0.6, bz + d.dirZ * 0.1); group.add(mist);
     }
     ticks.push((t) => { fallU.uTime.value = t; });
   }
@@ -199,13 +202,28 @@ export function createLandmarks(ctx) {
       walls.computeBoundingSphere(); roofs.computeBoundingSphere();
     };
     b.forEach((o, i) => { walls.setColorAt(i, wallCols[i % wallCols.length]); roofs.setColorAt(i, roofCols[o.roof]); });
-    place(); group.add(walls, roofs);
-    townMeshes = { place, count: b.length };
+    // warm window lights for the night, one per building
+    const lp = new Float32Array(b.length * 3);
+    const lightsGeo = new THREE.BufferGeometry(); lightsGeo.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+    lightsMat = new THREE.PointsMaterial({ color: 0xffc77a, size: isTouch ? 1.0 : 0.85, sizeAttenuation: true, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending });
+    const lights = new THREE.Points(lightsGeo, lightsMat); lights.frustumCulled = false; lights.visible = false;
+    const placeAll = () => { place(); b.forEach((o, i) => { lp[i * 3] = o.x; lp[i * 3 + 1] = groundY(o.x, o.z) + V(o.h) * EX * 1.2; lp[i * 3 + 2] = o.z; }); lightsGeo.attributes.position.needsUpdate = true; };
+    placeAll(); group.add(walls, roofs, lights);
+    townMeshes = { place: placeAll, count: b.length, lights };
   }
 
   return {
     group,
     update(t) { if (!reduceMotion) for (const f of ticks) f(t); },
+    /** k: 0 day .. 1 night. Lights come on, the lava glows harder and lights the plume from below */
+    setNight(k, tint) {
+      nightK = k;
+      if (lightsMat) { lightsMat.opacity = k; townMeshes.lights.visible = k > 0.01; }
+      if (plumeRef) { plumeRef.uniforms.uBottom.value.setRGB(0.85 + 0.15 * k, 0.7 - 0.25 * k, 0.6 - 0.45 * k).multiply(tint).lerp(new THREE.Color(1, 0.42, 0.12), k * 0.8);
+        plumeRef.uniforms.uTop.value.setRGB(0.79, 0.8, 0.82).multiply(tint); }
+      for (const m of mists) m.material.color.copy(tint);
+    },
     /** call when sharper terrain heights arrive so props sit on the ground */
     reseat() {
       townMeshes?.place();

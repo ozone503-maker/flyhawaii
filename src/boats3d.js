@@ -2,6 +2,7 @@
 // (no real cruise line or charter brand). Larger than life like the other props.
 import * as THREE from 'three';
 import { timedPath } from './air-traffic.js';
+import { WORLD_TINT } from './world-light.js';
 import { CRUISE_ROUTE, BOAT_ROUTES, outAndBack, seaPoints } from './sea-traffic.js';
 
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -69,16 +70,16 @@ function catamaranGeo() {
 
 function wakeMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 } }, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+    uniforms: { uTime: { value: 0 }, uTint: WORLD_TINT }, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: `uniform float uTime; varying vec2 vUv;
+    fragmentShader: `uniform float uTime; uniform vec3 uTint; varying vec2 vUv;
       void main(){ float along = vUv.y; float across = abs(vUv.x - 0.5) * 2.0;
         float width = mix(0.05, 1.0, along);
         float edge = smoothstep(width, width * 0.6, across) * smoothstep(width * 0.15, width * 0.45, across);
         float center = smoothstep(width * 0.25, 0.0, across) * 0.6;
         float ripple = 0.6 + 0.4 * sin(along * 40.0 - uTime * 5.0 + across * 6.0);
         float a = (edge + center) * ripple * (1.0 - along) * 0.85;
-        gl_FragColor = vec4(vec3(0.95, 0.98, 1.0), a); }`,
+        gl_FragColor = vec4(vec3(0.95, 0.98, 1.0) * uTint, a); }`,
   });
 }
 
