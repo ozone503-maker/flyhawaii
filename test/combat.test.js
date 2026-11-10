@@ -35,3 +35,15 @@ test('hits, goals and steering', () => {
   assert.ok(shieldStep(50, 1, 5) > 50 && shieldStep(99, 1, 5) === PLAYER.shield);
   assert.ok(RAID_TOWNS.some((t) => t.id === 'flashtown'));
 });
+
+test('the swarm keeps up with you and the runner gets harder each wave', async () => {
+  const { swarmSpeed, escapeSpec, escapeGoal, caughtBonus } = await import('../src/combat.js');
+  assert.ok(swarmSpeed(14, 80, 10) > 80); // never slower than the saucer
+  assert.ok(swarmSpeed(14, 0, 120) > swarmSpeed(14, 0, 10)); // catches up when left behind
+  const a = escapeSpec(1), b = escapeSpec(6);
+  assert.ok(b.speed > a.speed && b.jink > a.jink && b.dodge > a.dodge);
+  assert.ok(escapeSpec(99).speed < 80, 'still catchable at full boost');
+  const g = escapeGoal({ x: 10, y: 5, z: 0, seed: 0.2 }, { x: 0, y: 5, z: 0 }, 0, a, 800);
+  assert.ok(g.x > 10, 'runs away from you');
+  assert.ok(caughtBonus(3) > caughtBonus(1));
+});

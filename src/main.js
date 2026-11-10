@@ -1168,7 +1168,7 @@ function step(dt, t) {
   const rel = bearing - Math.atan2(-Math.sin(state.yaw), -Math.cos(state.yaw));
   $('arrow').style.transform = `rotate(${-rel}rad)`;
   $('dist').textContent = formatDistance(haversineKm(fromWorld(state.pos.x, state.pos.z), tg));
-  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? `X or click to fire. Stop them before they reach ${combat.state.town?.name || 'town'}` : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
+  $('missionHint').textContent = gameMode === 'tt' ? tt.hud(clock.elapsedTime).hint : gameMode === 'defend' ? (combat.state.runner && !combat.state.runner.dead ? 'Boost after the gold marker and keep firing' : 'X or click to fire. Shots lock on to craft ahead') : approachHint(Math.hypot(dx, dz), state.pos.y - groundY(tg.w.x, tg.w.y), state.vel.length(), state.phase);
   finishHud();
 }
 function finishHud() {
@@ -1367,20 +1367,23 @@ function defendHud() {
   const S = combat.state, left = combat.mantises.length;
   $('mission').className = 'defend';
   $('missionStep').textContent = `Wave ${S.wave}`;
-  $('missionTarget').textContent = S.between ? `Wave ${S.wave} cleared` : `Defend ${S.town?.name || ''}  ${left} left`;
+  $('missionTarget').textContent = S.between ? `Wave ${S.wave} done` : S.runner && !S.runner.dead ? 'Catch the runner!' : `Defend ${S.town?.name || ''}  ${left} left`;
   $('cargo').textContent = `Town ${Math.round(S.townHP)}%  Shield ${Math.round(S.shield)}%`;
 }
 const _aim = new THREE.Vector3();
 function defendStep(dt, t) {
   _aim.set(-Math.sin(state.yaw), Math.max(-0.35, Math.min(0.35, state.vy / 40)), -Math.cos(state.yaw)).normalize();
-  for (const e of combat.update(dt, t, state.pos, _aim, firing && !state.cut)) {
+  for (const e of combat.update(dt, t, state.pos, _aim, firing && !state.cut, state.vel.length())) {
     if (e.type === 'shot') gameAudio.zap();
     else if (e.type === 'hit') gameAudio.boom(false);
     else if (e.type === 'kill') { gameAudio.boom(true); addTokens(e.bounty); }
     else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
     else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
-    else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); toast(`Wave ${e.wave} cleared\n+${e.bonus} KDU`); }
+    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nChase it down'); }
+    else if (e.type === 'caught') { addTokens(e.bonus); toast(`Caught the runner!\n+${e.bonus} KDU`); }
+    else if (e.type === 'escaped') toast('The runner got away');
+    else if (e.type === 'cleared') { if (!e.escaped) gameAudio.complete(); addTokens(e.bonus); setTimeout(() => toast(`Wave ${e.wave} ${e.escaped ? 'over' : 'cleared'}\n+${e.bonus} KDU`), 1900); }
     else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
   }
   defendHud();
@@ -1444,7 +1447,7 @@ async function boot() {
   sea = createSeaTraffic({ scene, toWorld, isTouch });
   rain = createRain({ scene, toWorld, isTouch });
   tt = createTimeTrial({ scene, elevM, toWorld, fromWorld });
-  combat = createCombat({ scene, toWorld, fromWorld, groundY, isTouch });
+  combat = createCombat({ scene, toWorld, fromWorld, groundY, isTouch, bounds: SIZE / 2 });
   rainVeil = document.createElement('div'); rainVeil.className = 'rain-veil'; canvas.after(rainVeil);
   seaLife = createSeaLife({ scene, toWorld, groundY, isTouch, month: Number(params.get('month')) || (new Date(Date.now() - 36e6).getUTCMonth() + 1) });
   daylight = createDaylight({ scene, renderer, sun, hemi, sky: window.__sky, ocean, landmarks: landmarks3d, isTouch });

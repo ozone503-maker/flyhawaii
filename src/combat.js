@@ -59,11 +59,11 @@ export function segPointDist(a, b, p) {
  * Where a mantis wants to go this moment. Raiding: the town. Near the player: circle at a
  * distance and keep shooting. Returns { goal, mode }.
  */
-export function mantisGoal(m, town, player, t, fwd = null) {
+export function mantisGoal(m, town, player, t, fwd = null, playerSpeed = 0) {
   const dp = Math.hypot(player.x - m.x, player.y - m.y, player.z - m.z);
-  if (dp < MANTIS.engageRange) {
+  if (dp < MANTIS.engageRange || fwd) {
     // dogfight out in front of the saucer, weaving across its nose, so you can see them
-    const fx = fwd ? fwd.x : 0, fz = fwd ? fwd.z : 0, ahead = MANTIS.keepAway + (m.seed * 8) % 8;
+    const fx = fwd ? fwd.x : 0, fz = fwd ? fwd.z : 0, ahead = MANTIS.keepAway + (m.seed * 8) % 8 + playerSpeed * 0.35;
     const sx = -fz, sz = fx, weave = Math.sin(t * 0.8 + m.seed * 6.28) * (4 + m.seed * 5);
     const cx = player.x + fx * ahead + sx * weave, cz = player.z + fz * ahead + sz * weave;
     if (!fwd) { const a = t * 0.7 + m.seed * 6.28; return { mode: 'fight', goal: { x: player.x + Math.cos(a) * ahead, y: player.y + 2, z: player.z + Math.sin(a) * ahead } }; }
@@ -86,4 +86,39 @@ export function steer(vel, pos, goal, speed, turn, dt) {
 /** Shield after taking hits and regenerating. */
 export function shieldStep(shield, dt, sinceHit) {
   return sinceHit > PLAYER.regenDelay ? Math.min(PLAYER.shield, shield + PLAYER.regen * dt) : shield;
+}
+
+/** Swarm speed this frame: never slower than the saucer, so they stay in front of you. */
+export function swarmSpeed(base, playerSpeed, dist) {
+  const catchUp = dist > 40 ? 1 + Math.min(2, (dist - 40) / 40) : 1;
+  return Math.max(base, playerSpeed * 1.15 + 6) * catchUp;
+}
+
+/**
+ * The last craft of a wave runs. Each wave it is faster (still catchable at full boost), jinks
+ * harder and dodges more of your shots. Speeds are world units per second (boost is 80).
+ */
+export function escapeSpec(wave) {
+  return {
+    speed: Math.min(74, 42 + wave * 4),
+    jink: Math.min(14, 2 + wave * 1.5),     // sideways weave amplitude, units
+    jinkHz: Math.min(1.4, 0.35 + wave * 0.1),
+    dodge: Math.min(0.75, 0.1 + wave * 0.08), // chance to sidestep a shot that is about to hit
+    turn: Math.min(4, 1.8 + wave * 0.2),
+    escapeDist: 280, escapeTime: 55,
+  };
+}
+export const caughtBonus = (wave) => 40 + 20 * wave;
+
+/**
+ * Where the runner heads: away from the saucer, weaving, kept inside the map. bounds: half
+ * size of the play area in units.
+ */
+export function escapeGoal(m, player, t, spec, bounds) {
+  let ax = m.x - player.x, az = m.z - player.z; const L = Math.hypot(ax, az) || 1; ax /= L; az /= L;
+  // steer back toward the middle near the edges
+  const ex = Math.abs(m.x) > bounds * 0.8 ? -Math.sign(m.x) : 0, ez = Math.abs(m.z) > bounds * 0.8 ? -Math.sign(m.z) : 0;
+  ax += ex * 1.5; az += ez * 1.5; const L2 = Math.hypot(ax, az) || 1; ax /= L2; az /= L2;
+  const sx = -az, sz = ax, w = Math.sin(t * spec.jinkHz * 6.28 + m.seed * 9) * spec.jink;
+  return { x: m.x + ax * 40 + sx * w, y: player.y + 3 + Math.sin(t * spec.jinkHz * 4.1 + m.seed) * Math.min(6, spec.jink * 0.5), z: m.z + az * 40 + sz * w };
 }
