@@ -7,7 +7,7 @@ import { TOWN_AREAS, OBSERVATORIES, HALEMAUMAU, SNOW_LINE_M, placeBuildings, fal
 const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const EX = 2.2; // props are drawn a bit larger than life so they read from a saucer's height
 
-/** Adds snow above the snow line to a terrain material (chains any existing onBeforeCompile). */
+/** Adds snow above the snow line and close-up ground detail to a terrain material (chains any existing onBeforeCompile). */
 export function addSnow(mat, snowY) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
@@ -15,7 +15,15 @@ export function addSnow(mat, snowY) {
     sh.uniforms.uSnowY = { value: snowY };
     sh.vertexShader = 'varying vec3 vSnowW; varying float vSnowN;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       vSnowW = (modelMatrix * vec4(transformed, 1.0)).xyz; vSnowN = normalize(mat3(modelMatrix) * objectNormal).y;`);
-    sh.fragmentShader = 'uniform float uSnowY; varying vec3 vSnowW; varying float vSnowN;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    sh.fragmentShader = `uniform float uSnowY; varying vec3 vSnowW; varying float vSnowN;
+      float gdH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float gdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+        return mix(mix(gdH(i), gdH(i+vec2(1,0)), f.x), mix(gdH(i+vec2(0,1)), gdH(i+vec2(1,1)), f.x), f.y); }
+` + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      { // close-up ground detail so low flying is not a smear
+        float near = 1.0 - smoothstep(15.0, 70.0, distance(cameraPosition, vSnowW));
+        float d = gdN(vSnowW.xz * 7.0) * 0.6 + gdN(vSnowW.xz * 23.0) * 0.4;
+        diffuseColor.rgb *= mix(1.0, 0.82 + d * 0.36, near); }
       { float wob = sin(vSnowW.x * 1.7) * sin(vSnowW.z * 1.3) * 0.25 + sin(vSnowW.x * 5.1 + vSnowW.z * 4.3) * 0.12;
         float sn = smoothstep(uSnowY, uSnowY + 0.45, vSnowW.y + wob) * smoothstep(0.6, 0.9, vSnowN);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.95, 0.99), sn * 0.92); }`);
@@ -164,11 +172,8 @@ export function createLandmarks(ctx) {
   // ---- towns: walls and tin roofs, two instanced draws ----
   let townMeshes = null;
   {
-    const cv = ctx.colorCanvas, cw = cv.width, img = cv.getContext('2d').getImageData(0, 0, cw, cw).data;
-    const SIZE = ctx.size;
     const urbanAt = (x, z) => {
-      const i = Math.max(0, Math.min(cw - 1, Math.floor((x / SIZE + 0.5) * cw))), j = Math.max(0, Math.min(cw - 1, Math.floor((z / SIZE + 0.5) * cw)));
-      const k = (j * cw + i) * 4, r = img[k], g = img[k + 1], b = img[k + 2];
+      const [r, g, b] = ctx.rgbAt(x, z);
       const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
       return Math.max(0, Math.min(1, (mx / 255 - 0.25) * 1.6 * (1 - sat * 1.4)));
     };
