@@ -9,7 +9,7 @@ export const RAID_TOWNS = [
   { id: 'flashtown', name: 'FlashTown', lat: 19.48148, lon: -155.098468 },
 ];
 
-export const MANTIS = { hp: 3, speed: 14, turn: 1.6, radius: 1.3, fireEvery: 2.2, fireRange: 34, engageRange: 45, keepAway: 12, townDps: 1.6, bounty: 15 };
+export const MANTIS = { hp: 3, speed: 14, turn: 1.6, radius: 1.3, fireEvery: 2.2, fireRange: 34, engageRange: 80, keepAway: 10, townDps: 1.6, bounty: 15 };
 export const PLAYER = { shield: 100, regen: 9, regenDelay: 3, boltSpeed: 150, boltLife: 1.1, fireRate: 7, hitDamage: 9, assistDeg: 22, assistRange: 140 };
 export const TOWN_HP = 100;
 
@@ -22,11 +22,11 @@ export function waveSpec(n) {
 export const waveBonus = (n) => 50 * n;
 
 /** Spawn points out at sea on the far side from the town, spread in a fan. */
-export function spawnRing(town, count, rand = Math.random, distU = 220) {
+export function spawnRing(town, count, rand = Math.random, distU = 70) {
   const base = rand() * Math.PI * 2, out = [];
   for (let i = 0; i < count; i++) {
-    const a = base + (i - (count - 1) / 2) * 0.09;
-    out.push({ x: town.x + Math.cos(a) * (distU + rand() * 30), z: town.z + Math.sin(a) * (distU + rand() * 30) });
+    const a = base + (i - (count - 1) / 2) * 0.12;
+    out.push({ x: town.x + Math.cos(a) * (distU + rand() * 15), z: town.z + Math.sin(a) * (distU + rand() * 15) });
   }
   return out;
 }
@@ -59,11 +59,15 @@ export function segPointDist(a, b, p) {
  * Where a mantis wants to go this moment. Raiding: the town. Near the player: circle at a
  * distance and keep shooting. Returns { goal, mode }.
  */
-export function mantisGoal(m, town, player, t) {
+export function mantisGoal(m, town, player, t, fwd = null) {
   const dp = Math.hypot(player.x - m.x, player.y - m.y, player.z - m.z);
   if (dp < MANTIS.engageRange) {
-    const a = t * 0.7 + m.seed * 6.28, r = MANTIS.keepAway + (m.seed * 6) % 6;
-    return { mode: 'fight', goal: { x: player.x + Math.cos(a) * r, y: player.y + 2 + Math.sin(t + m.seed) * 2, z: player.z + Math.sin(a) * r } };
+    // dogfight out in front of the saucer, weaving across its nose, so you can see them
+    const fx = fwd ? fwd.x : 0, fz = fwd ? fwd.z : 0, ahead = MANTIS.keepAway + (m.seed * 8) % 8;
+    const sx = -fz, sz = fx, weave = Math.sin(t * 0.8 + m.seed * 6.28) * (4 + m.seed * 5);
+    const cx = player.x + fx * ahead + sx * weave, cz = player.z + fz * ahead + sz * weave;
+    if (!fwd) { const a = t * 0.7 + m.seed * 6.28; return { mode: 'fight', goal: { x: player.x + Math.cos(a) * ahead, y: player.y + 2, z: player.z + Math.sin(a) * ahead } }; }
+    return { mode: 'fight', goal: { x: cx, y: player.y + 1.5 + Math.sin(t * 1.3 + m.seed * 9) * 2.5, z: cz } };
   }
   const a = m.seed * 6.28;
   return { mode: 'raid', goal: { x: town.x + Math.cos(a) * 3.5, y: town.y + 4 + (m.seed * 3) % 3, z: town.z + Math.sin(a) * 3.5 } };

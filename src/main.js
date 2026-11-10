@@ -1379,7 +1379,7 @@ function defendStep(dt, t) {
     else if (e.type === 'kill') { gameAudio.boom(true); addTokens(e.bounty); }
     else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
-    else if (e.type === 'wave') toast(`Wave ${e.wave}\n${e.count} mantis craft heading for ${e.town}`);
+    else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
     else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); toast(`Wave ${e.wave} cleared\n+${e.bonus} KDU`); }
     else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
   }
