@@ -52,6 +52,9 @@ test('the swarm keeps up with you and the runner gets harder each wave', async (
   const g = escapeGoal({ x: 10, y: 5, z: 0, seed: 0.2 }, { x: 0, y: 5, z: 0 }, 0, a, 800);
   assert.ok(g.x > 10, 'runs away from you');
   assert.ok(caughtBonus(3) > caughtBonus(1));
-  assert.ok(caughtBonus(1, 5) > caughtBonus(1, 25), 'quick catches pay more');
-  assert.ok(caughtBonus(1, 5, 3) > caughtBonus(1, 5, 0) && streakMult(99) === 2);
+  const { CHASE_MIN_S } = await import('../src/combat.js');
+  assert.ok(CHASE_MIN_S >= 20, 'every chase lasts at least 20 s');
+  assert.ok(caughtBonus(1, CHASE_MIN_S + 1) > caughtBonus(1, CHASE_MIN_S + 25), 'finishing it fast once the shield drops pays more');
+  assert.equal(caughtBonus(1, CHASE_MIN_S), 120);
+  assert.ok(caughtBonus(1, 22, 3) > caughtBonus(1, 22, 0) && streakMult(99) === 2);
 });

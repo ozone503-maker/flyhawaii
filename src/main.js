@@ -25,6 +25,7 @@ import { createRain } from './rain3d.js';
 import { createTimeTrial } from './time-trial3d.js';
 import { formatLap } from './time-trial.js';
 import { createCombat } from './mantis3d.js';
+import { CHASE_MIN_S } from './combat.js';
 import { treeAt } from './trees.js';
 import { HALEMAUMAU } from './landmarks.js';
 import { normalizeDestinations, hqDestination, startCoords } from './destinations.js';
@@ -1367,7 +1368,7 @@ function defendHud() {
   const S = combat.state, left = combat.mantises.length;
   $('mission').className = 'defend';
   $('missionStep').textContent = `Wave ${S.wave}`;
-  $('missionTarget').textContent = S.between ? `Wave ${S.wave} done` : S.runner && !S.runner.dead ? `Catch the runner!  ${S.escT.toFixed(1)} s` : `Defend ${S.town?.name || ''}  ${left} left`;
+  $('missionTarget').textContent = S.between ? `Wave ${S.wave} done` : S.runner && !S.runner.dead ? (S.escT < CHASE_MIN_S ? `Chase it! Shield ${Math.ceil(CHASE_MIN_S - S.escT)} s` : `Shield down! Catch it  ${S.escT.toFixed(1)} s`) : `Defend ${S.town?.name || ''}  ${left} left`;
   $('cargo').textContent = `Town ${Math.round(S.townHP)}%  Shield ${Math.round(S.shield)}%`;
 }
 const _aim = new THREE.Vector3();
@@ -1375,12 +1376,12 @@ function defendStep(dt, t) {
   _aim.set(-Math.sin(state.yaw), Math.max(-0.35, Math.min(0.35, state.vy / 40)), -Math.cos(state.yaw)).normalize();
   for (const e of combat.update(dt, t, state.pos, _aim, firing && !state.cut, state.vel.length())) {
     if (e.type === 'shot') gameAudio.zap();
-    else if (e.type === 'hit') gameAudio.boom(false);
+    else if (e.type === 'hit' || e.type === 'shielded') gameAudio.boom(false);
     else if (e.type === 'kill') { gameAudio.boom(true); addTokens(e.bounty); }
     else if (e.type === 'hurt') { document.body.classList.remove('hit'); void document.body.offsetWidth; document.body.classList.add('hit'); }
     else if (e.type === 'down') toast('Shields down!\nBack in the fight');
     else if (e.type === 'wave') toast(`Wave ${e.wave}: ${e.count} mantis craft\ncoming at ${e.town} from the ${e.from}`);
-    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nChase it down'); }
+    else if (e.type === 'runner') { gameAudio.pickup(); toast('One left and it is running!\nStay on it until its shield drops'); }
     else if (e.type === 'caught') { addTokens(e.bonus); toast(`Caught in ${e.secs.toFixed(1)} s!\n+${e.bonus} KDU${e.streak > 1 ? `  streak x${e.streak}` : ''}`); }
     else if (e.type === 'cleared') { gameAudio.complete(); addTokens(e.bonus); setTimeout(() => toast(`Wave ${e.wave} cleared\n+${e.bonus} KDU`), 1900); }
     else if (e.type === 'lost') toast(`${e.town} was overrun\nYou reached wave ${e.wave}. Best wave ${e.best}`);
