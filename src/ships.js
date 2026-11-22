@@ -5,13 +5,13 @@ import { buildPilotHead } from './pilot-head.js';
 
 export const PILOTS = [
   { id: 'drone', name: 'Mystery Drone', ship: 'Silver and Blue Disc', blurb: 'Classic silver disc with blue trim',
-    badge: '/pilots/drone-badge.webp', portrait: '/pilots/drone.jpg', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
+    badge: '/pilots/drone-badge.webp', portrait: '/pilots/drone-saucer.webp', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
     feel: ['Shared flight handling', 'Color skin only'] },
   { id: 'ipo', name: 'Ipo', ship: 'Pink Disc', blurb: 'The same classic disc in Fruity Puppy pink',
-    badge: '/pilots/ipo-badge.webp', portrait: '/pilots/ipo.jpg', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
+    badge: '/pilots/ipo-badge.webp', portrait: '/pilots/ipo-saucer.webp', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
     feel: ['Shared flight handling', 'Color skin only'] },
   { id: 'mj', name: 'Monkey Jockey', ship: 'Electric Blue Disc', blurb: 'The same classic disc in light electric blue',
-    badge: '/pilots/mj-badge.webp', portrait: '/pilots/mj.jpg', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
+    badge: '/pilots/mj-badge.webp', portrait: '/pilots/mj-saucer.webp', stats: { turn: 1.18, boost: 0.94, cruise: 1, climb: 1 },
     feel: ['Shared flight handling', 'Color skin only'] },
 ];
 export const pilotById = (id) => PILOTS.find((p) => p.id === id) || PILOTS[0];
