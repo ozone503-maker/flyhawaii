@@ -65,6 +65,7 @@ Node.js 24 is the target (see `engines` in package.json).
 | `scripts/add-destination.mjs` | Geocodes a business with OpenStreetMap and appends it to the destinations list |
 | `scripts/bake-*.mjs` | One-off data baking for terrain and water. Rarely needed |
 | `public/` | Static files served as is: terrain, photos, pilots, music, clips, destinations |
+| `public/art/` | Title art: `title-cover.webp` (splash on load, start screen backdrop, link preview), `title-logo.webp` (its title strip), `mode-*.webp` (mode cards, cropped from the full posters to drop their text), app icons. `public/manifest.webmanifest` makes it installable as a portrait phone app |
 | `docs/` | Extra docs, including `docs/clips.md` and `docs/destinations.md` |
 
 Keep logic that can be tested in small pure modules (like `cutscene.js`, `clips.js` or `destinations.js`) and add a test for it. `main.js` is big, so make focused edits there.

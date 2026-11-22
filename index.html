@@ -7,6 +7,17 @@
   <title>Fly Hawaii</title>
   <meta name="description" content="Fly a UFO around the Big Island of Hawaii, deliver packages for local businesses and earn Kudoken (KDU)" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/art/favicon-48.png" type="image/png" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Fly Hawaiʻi" />
+  <meta property="og:title" content="Fly Hawaiʻi" />
+  <meta property="og:description" content="Fly a saucer over the real Big Island, deliver for local businesses and earn Kudoken" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://flyhawaii.vercel.app/art/title-cover.webp" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preload" as="image" href="/art/title-cover.webp" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -114,14 +125,20 @@
     </div>
   </div>
 
+  <div id="splash" role="button" tabindex="0" aria-label="Fly Hawaiʻi, tap to continue">
+    <div class="splash-bg" aria-hidden="true"></div>
+    <img src="/art/title-cover.webp" alt="Fly Hawaiʻi starring Mystery Drone Pilot, guest starring Ipo and Monkey Jockey, a Kudoken game" />
+    <svg class="splash-go glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".6"/></svg>
+  </div>
+
   <div id="menu" class="overlay">
     <div class="panel">
-      <h1>Fly Hawaii</h1>
+      <h1 class="title-art"><img src="/art/title-logo.webp" alt="Fly Hawaiʻi" width="414" height="184" /></h1>
       <p class="lead">Pilot a delivery saucer over the real Big Island. Pick up packages from local shops, drop them across the island and stack up electric blue Kudoken</p>
       <div class="mode-row" role="group" aria-label="Game mode">
-        <button type="button" class="mode-btn" data-mode="deliver" aria-pressed="true">Deliveries</button>
-        <button type="button" class="mode-btn" data-mode="tt" aria-pressed="false">Time trial</button>
-        <button type="button" class="mode-btn" data-mode="defend" aria-pressed="false">Defend the island</button>
+        <button type="button" class="mode-btn" data-mode="deliver" aria-pressed="true"><img src="/art/mode-deliver.webp" alt="" width="360" height="360" loading="lazy" /><span>Deliveries</span></button>
+        <button type="button" class="mode-btn" data-mode="tt" aria-pressed="false"><img src="/art/mode-tt.webp" alt="" width="360" height="360" loading="lazy" /><span>Time trial</span></button>
+        <button type="button" class="mode-btn" data-mode="defend" aria-pressed="false"><img src="/art/mode-defend.webp" alt="" width="360" height="360" loading="lazy" /><span>Defend the island</span></button>
       </div>
       <button id="startBtn" class="metal-btn copper">Start flying</button>
       <div id="loading">Loading Big Island terrain</div>
