@@ -1503,6 +1503,13 @@ async function boot() {
   if (params.has('debug')) window.__fh = { get trees() { return trees; }, get air() { return air; }, get sea() { return sea; }, get seaLife() { return seaLife; }, get rain() { return rain; }, get daylight() { return daylight; }, state, target, TOWNS, destLib, board, openJobBoard, acceptOffer, clearJob, get ringField() { return ringField; }, updateMissionText, streamer, COVER, groundY, attractions, toWorld, get ufo() { return ufo; }, get pilot() { return pilot; }, startCutscene, skipCutscene, get arrivalFx() { return arrivalFx; }, camera, scene, get beacons() { return { beaconPick, beaconDrop }; }, clipLib, get clipPlaying() { return clipPlaying; }, cdPlayer, get regulars() { return regulars; }, setRegulars(raw) { regulars = loadRegulars(raw); persistRegulars(); return regulars; }, showGreeter, dismissGreeter, afterArrival, openShiftSummary, closeShiftSummary, startHomeLeg, spawnAtStart, shift, startCoords, hqDestination, get tt() { return tt; }, get combat() { return combat; }, makeOffers, renderJobBoard, updateHomeButton };
   if (params.has('autostart')) startGame();
 }
+// Title cover: shows on load until a tap, click or key. Skipped when a test autostarts.
+{
+  const sp = $('splash');
+  const go = () => { if (sp.classList.contains('out')) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 500); $('startBtn')?.focus?.(); };
+  if (params.has('autostart') || params.has('nosplash')) sp.remove();
+  else { sp.addEventListener('click', go); sp.addEventListener('keydown', (e) => { e.preventDefault(); go(); }); addEventListener('keydown', go, { once: true }); sp.focus(); }
+}
 function setPilot(id) {
   pilot = pilotById(id); localStorage.setItem('fh_pilot', pilot.id);
   if (ufo && ufo.pilot.id !== pilot.id) { const old = ufo; ufo = buildShip(pilot.id, UFO_SCALE, shipEnv); scene.add(ufo.group); ufo.group.position.copy(old.group.position); disposeShip(old); }

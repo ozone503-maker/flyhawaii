@@ -994,10 +994,13 @@ body.greeter #touch, body.shift-summary #touch, body.greeter #beam, body.shift-s
 @media (prefers-reduced-motion: reduce){.rain-veil{animation:none}}
 
 /* Start screen game mode picker */
-.mode-row{display:flex;gap:10px;justify-content:center;margin:6px 0 14px;flex-wrap:wrap}
-.mode-btn{font:inherit;font-weight:700;font-size:15px;color:#d9e3ea;padding:9px 18px;border:0;cursor:pointer;
-  background:linear-gradient(180deg,#5c6670,#3a424b);clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);opacity:.75}
-.mode-btn.on{opacity:1;color:#fff;background:linear-gradient(180deg,#c98a4b,#8a5426);box-shadow:inset 0 0 0 2px rgba(30,200,255,.6)}
+.mode-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 16px}
+.mode-btn{font:inherit;font-weight:700;font-size:14px;line-height:1.15;color:#d9e3ea;padding:0 0 8px;border:0;cursor:pointer;display:flex;flex-direction:column;gap:7px;align-items:stretch;
+  background:linear-gradient(180deg,#5c6670,#3a424b);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);opacity:.72;transition:opacity .15s,transform .15s}
+.mode-btn img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;filter:saturate(.75)}
+.mode-btn span{padding:0 4px}
+.mode-btn.on{opacity:1;color:#fff;background:linear-gradient(180deg,#c98a4b,#8a5426);box-shadow:inset 0 0 0 2px rgba(30,200,255,.7);transform:translateY(-2px)}
+.mode-btn.on img{filter:none}
 .mode-btn:focus-visible{outline:2px solid #1ec8ff;outline-offset:2px}
 
 /* Defend the island: the fire glyph only shows in that mode, and a brief shield shimmer on a hit */
@@ -1023,3 +1026,16 @@ body[data-mode="defend"] .tbtn.tfire{display:grid}
 body.hit #game{animation:shieldhit .35s ease-out}
 @keyframes shieldhit{0%{filter:brightness(1.6) saturate(1.4) hue-rotate(-20deg)}100%{filter:none}}
 @media (prefers-reduced-motion: reduce){body.hit #game{animation:none}}
+
+/* Title art: the cover splash on load, and its title strip on the start screen */
+.title-art{margin:0 auto 6px;line-height:0}
+.title-art img{width:min(100%,420px);height:auto;--fade:linear-gradient(180deg,transparent,#000 14%,#000 78%,transparent),linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);-webkit-mask-image:var(--fade);mask-image:var(--fade);-webkit-mask-composite:source-in;mask-composite:intersect}
+#menu{isolation:isolate}
+#menu::before{content:'';position:absolute;inset:-30px;z-index:-1;background:linear-gradient(180deg,rgba(3,10,20,.6),rgba(3,10,20,.92) 60%),url(/art/title-cover.webp) center 30%/cover;filter:blur(8px)}
+#splash{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#06121f;cursor:pointer;overflow:hidden;transition:opacity .45s ease}
+#splash .splash-bg{position:absolute;inset:-40px;background:url(/art/title-cover.webp) center/cover;filter:blur(28px) brightness(.6)}
+#splash img{position:relative;height:100%;width:100%;object-fit:contain}
+#splash .splash-go{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;width:44px;height:44px;margin-left:-22px;color:#1ec8ff;filter:drop-shadow(0 0 8px #1ec8ff);animation:splashgo 1.2s ease-in-out infinite}
+@keyframes splashgo{50%{transform:translateY(6px);opacity:.6}}
+#splash.out{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion: reduce){#splash .splash-go{animation:none}#splash{transition:none}}
