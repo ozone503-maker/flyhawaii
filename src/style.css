@@ -1039,3 +1039,7 @@ body.hit #game{animation:shieldhit .35s ease-out}
 @keyframes splashgo{50%{transform:translateY(6px);opacity:.6}}
 #splash.out{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion: reduce){#splash .splash-go{animation:none}#splash{transition:none}}
+
+/* Shift summary: home at the farm at sunset */
+.ss-art{display:block;width:calc(100% + 48px);margin:-24px -24px 14px;height:auto;aspect-ratio:1000/954;max-height:42vh;object-fit:cover;object-position:50% 60%;
+  -webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
