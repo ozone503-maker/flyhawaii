@@ -1507,6 +1507,9 @@ async function boot() {
 {
   const sp = $('splash');
   const go = () => { if (sp.classList.contains('out')) return; sp.classList.add('out'); setTimeout(() => sp.remove(), 500); $('startBtn')?.focus?.(); };
+  // evenings in Hawaiʻi (5 pm to 6 am) get the sunset farm cover, days get the beach cover
+  const hr = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Pacific/Honolulu', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
+  if (hr >= 17 || hr < 6) { sp.querySelector('img').src = '/art/title-cover-farm.webp'; sp.querySelector('.splash-bg').style.backgroundImage = 'url(/art/title-cover-farm.webp)'; }
   if (params.has('autostart') || params.has('nosplash')) sp.remove();
   else { sp.addEventListener('click', go); sp.addEventListener('keydown', (e) => { e.preventDefault(); go(); }); addEventListener('keydown', go, { once: true }); sp.focus(); }
 }
